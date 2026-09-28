@@ -30,6 +30,7 @@ import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Block, Figure, GhostRows } from "../components/Skeleton";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import InviteSupplier from "./RfqInvite";
@@ -294,7 +295,10 @@ export default function RfqDetail() {
           </Link>
         </>
       }
-      facts={row ? [
+      facts={[
+        /* Four labels that belong to every request for quotation raised, so a
+           buyer sees what is being counted before the counts land. Only the
+           figures and the wording read off them wait. */
         // READ OFF THE FACTS, NOT OFF THE STATUS.
         //
         // Twice now this line has said something untrue by reasoning from
@@ -308,101 +312,133 @@ export default function RfqDetail() {
         // So the order below is answered, then outstanding, then nobody
         // invited, then not sent — each one checked against the count it
         // actually describes.
-        { label: "Answered", value: `${row.answered} of ${row.asked}`,
-          hint: row.asked === 0 ? "nobody has been invited yet"
-            : row.waiting_on.length ? `waiting on ${row.waiting_on.join(", ")}`
-            : row.answered === row.asked ? "everybody has replied"
-            : row.answered ? `${row.asked - row.answered} still to reply`
-            : row.status === "draft" ? "nobody has been asked yet"
-            : "nobody has replied yet" },
+        { label: "Answered",
+          value: <Figure ready={!!row} w="8ch">{row && `${row.answered} of ${row.asked}`}</Figure>,
+          hint: <Figure ready={!!row} w="22ch">
+            {row && (row.asked === 0 ? "nobody has been invited yet"
+              : row.waiting_on.length ? `waiting on ${row.waiting_on.join(", ")}`
+              : row.answered === row.asked ? "everybody has replied"
+              : row.answered ? `${row.asked - row.answered} still to reply`
+              : row.status === "draft" ? "nobody has been asked yet"
+              : "nobody has replied yet")}
+          </Figure> },
         // In words, not in the database's spelling. "awaiting_approval" on
         // a screen is the software showing somebody its own internals.
-        { label: "Status", value: SAYS_STATUS[row.status] ?? sentence(row.status) },
-        { label: "Closes", value: row.closes_at ? fmtDate(row.closes_at) : "No date",
-          hint: row.closes_at ? "" : "a request with no closing date is never compared" },
+        { label: "Status",
+          value: <Figure ready={!!row} w="14ch">
+            {row && (SAYS_STATUS[row.status] ?? sentence(row.status))}
+          </Figure> },
+        { label: "Closes",
+          value: <Figure ready={!!row} w="11ch">
+            {row && (row.closes_at ? fmtDate(row.closes_at) : "No date")}
+          </Figure>,
+          hint: row && !row.closes_at
+            ? "a request with no closing date is never compared" : "" },
         // What asking around was actually worth, which is the case for doing it.
-        { label: "Spread", value: money(row.saving),
+        { label: "Spread",
+          value: <Figure ready={!!row} w="9ch">{row && money(row.saving)}</Figure>,
           hint: "between the dearest and cheapest quoted",
-          tone: row.saving > 0 ? "ok" : undefined },
-      ] : []}
+          tone: row && row.saving > 0 ? "ok" : undefined },
+      ]}
     >
-      {row && (
-        <>
-          {/* A draft that already carries an answer has plainly been asked
-              about, by telephone or by a link sent by hand, so it does not
-              get told that nothing has been asked. Same rule as the fact
-              above it: read the counts, not the status. */}
-          {row.status === "draft" && (
-            <div className="alert">
-              {row.answered
-                ? `Nothing has been emailed yet, though ${row.answered} of `
-                  + `${row.asked} have already answered. `
-                : "Nothing has been asked yet. "}
-              <button type="button" className="btn-link"
-                      onClick={() => setShowDoc(true)}>
-                See what will be sent
-              </button>
-            </div>
-          )}
+      {/* A draft that already carries an answer has plainly been asked
+          about, by telephone or by a link sent by hand, so it does not
+          get told that nothing has been asked. Same rule as the fact
+          above it: read the counts, not the status. Behind the fetch,
+          because every word of it is read off the counts. */}
+      {row && row.status === "draft" && (
+        <div className="alert">
+          {row.answered
+            ? `Nothing has been emailed yet, though ${row.answered} of `
+              + `${row.asked} have already answered. `
+            : "Nothing has been asked yet. "}
+          <button type="button" className="btn-link"
+                  onClick={() => setShowDoc(true)}>
+            See what will be sent
+          </button>
+        </div>
+      )}
 
-          {/* WHO HAS ANSWERED, AND HOW TO CHASE THEM.
-              Above the grid rather than in its column headings, because
-              chasing a wholesaler is a different job from comparing prices
-              and wants room for the two things it needs: their own link, and
-              somewhere to type what they said on the telephone. */}
-          <Panel title="Who was asked" count={row.suppliers.length}
-                 empty="Nobody has been invited to quote."
-                 aside={row.status !== "closed" && row.status !== "cancelled" ? (
-                   <button type="button" className="btn secondary small"
-                           onClick={() => setInviting(true)}>
-                     <Plus size={13} weight="bold" /> Ask another supplier
-                   </button>
-                 ) : undefined}>
-            <div className="rfq-who">
-              {row.suppliers.map((s) => (
+      {/* Both panel headings and the two fixed heads of the grid belong to
+          every request for quotation ever raised, and they used to be held
+          back with the quotes themselves, so a buyer opening a comparison
+          waited at a page that said nothing about what was being compared.
+
+          The supplier columns are the exception: how many there are, and
+          whose names go above them, is the answer rather than the frame, so
+          the grid widens when the quotes land. */}
+
+      {/* WHO HAS ANSWERED, AND HOW TO CHASE THEM.
+          Above the grid rather than in its column headings, because
+          chasing a wholesaler is a different job from comparing prices
+          and wants room for the two things it needs: their own link, and
+          somewhere to type what they said on the telephone. */}
+      <Panel title="Who was asked" count={row?.suppliers.length}
+             empty={row ? "Nobody has been invited to quote." : undefined}
+             aside={row && row.status !== "closed" && row.status !== "cancelled" ? (
+               <button type="button" className="btn secondary small"
+                       onClick={() => setInviting(true)}>
+                 <Plus size={13} weight="bold" /> Ask another supplier
+               </button>
+             ) : undefined}>
+        <div className="rfq-who">
+          {!row
+            ? [0, 1].map((i) => (
+                <div key={i} className="card sk-card">
+                  <Block w="16ch" h={14} />
+                  <Block w="100%" />
+                  <Block w="65%" />
+                </div>
+              ))
+            : row.suppliers.map((s) => (
                 <SupplierCard key={s.rfq_supplier_id} rfqId={id!} invited={s}
                               lines={row.lines} closed={row.status === "closed"}
                               onRecorded={load} />
               ))}
-            </div>
-          </Panel>
+        </div>
+      </Panel>
 
-          <Panel
-            title="What each wholesaler said"
-            count={row.lines.length}
-            empty="Nothing is on this request."
-            aside={
-              row.status === "draft"
-                ? <BusyButton className="btn small" onClick={send} busyLabel="Sending…">
-                    <PaperPlaneTilt size={14} /> Send the request
-                  </BusyButton>
-                : <button type="button" className="btn secondary small"
-                          onClick={takeCheapest}>
-                    Take the cheapest of each
-                  </button>
-            }
-          >
-            <div className="table-wrap">
-              <table className="dt rfq-grid">
-                <thead>
-                  <tr>
-                    <Th>Medicine</Th>
-                    <Th className="num">Wanted</Th>
-                    {row.suppliers.map((s) => (
-                      <th key={s.rfq_supplier_id} className="num">
-                        {s.supplier}
-                        <div className="muted small">
-                          {s.declined ? "Cannot supply"
-                            : s.responded_at ? `replied ${fmtDate(s.responded_at)}`
-                            : s.sent_at ? "asked, no reply yet"
-                            : "Not asked"}
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {row.lines.map((line) => (
+      <Panel
+        title="What each wholesaler said"
+        count={row?.lines.length}
+        /* Only once the lines have been read. Nothing is on this request is
+           a statement about the request, not about the wait. */
+        empty={row ? "Nothing is on this request." : undefined}
+        aside={!row ? undefined
+          : row.status === "draft"
+            ? <BusyButton className="btn small" onClick={send} busyLabel="Sending…">
+                <PaperPlaneTilt size={14} /> Send the request
+              </BusyButton>
+            : <button type="button" className="btn secondary small"
+                      onClick={takeCheapest}>
+                Take the cheapest of each
+              </button>
+        }
+      >
+        <div className="table-wrap">
+          <table className="dt rfq-grid">
+            <thead>
+              <tr>
+                <Th>Medicine</Th>
+                <Th className="num">Wanted</Th>
+                {row?.suppliers.map((s) => (
+                  <th key={s.rfq_supplier_id} className="num">
+                    {s.supplier}
+                    <div className="muted small">
+                      {s.declined ? "Cannot supply"
+                        : s.responded_at ? `replied ${fmtDate(s.responded_at)}`
+                        : s.sent_at ? "asked, no reply yet"
+                        : "Not asked"}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            {!row ? (
+              <GhostRows cols={2} rows={4} widths={["80%", "35%"]} />
+            ) : (
+              <tbody>
+                {row.lines.map((line) => (
                     <tr key={line.rfq_line_id}>
                       <td title={line.quoted_by > 1 && line.spread > 0
                         ? `${money(line.saving)} between the dearest and the cheapest`
@@ -449,106 +485,108 @@ export default function RfqDetail() {
                           </td>
                         );
                       })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
 
-          {/* WHY THE AWARD IS ITS OWN STEP.
-              Asking three wholesalers commits the pharmacy to nothing;
-              choosing which one wins commits it to the money. So that is the
-              act that carries a name and, over a value the pharmacy sets, a
-              second one. */}
-          {/* Shown when somebody has ANSWERED, not when the request has been
-              sent. A draft carries answers routinely: the nightly job raises
-              one, a wholesaler with a link fills it in, or staff write down a
-              telephone call. Keying this off the status hid the only button
-              that acts on those answers, so a request that had been priced
-              could not be awarded at all. Third time reasoning from the
-              status rather than the facts has broken this screen. */}
-          {row.status !== "closed" && row.status !== "cancelled"
-            && row.answered > 0 && (
-            <>
-              <WhyRefused award={row.award} />
+      {/* WHY THE AWARD IS ITS OWN STEP.
+          Asking three wholesalers commits the pharmacy to nothing;
+          choosing which one wins commits it to the money. So that is the
+          act that carries a name and, over a value the pharmacy sets, a
+          second one. */}
+      {/* Shown when somebody has ANSWERED, not when the request has been
+          sent. A draft carries answers routinely: the nightly job raises
+          one, a wholesaler with a link fills it in, or staff write down a
+          telephone call. Keying this off the status hid the only button
+          that acts on those answers, so a request that had been priced
+          could not be awarded at all. Third time reasoning from the
+          status rather than the facts has broken this screen.
 
-              {row.status === "awaiting_approval" ? (
-                <AwaitingApproval award={row.award} onApprove={approve}
-                                  onSendBack={sendBack} />
-              ) : (
-                <div className="card rfq-foot">
-                  <div>
-                    <b>{chosenCount} of {row.lines.length} line(s) chosen</b>
-                    {chosenCount > 0 && (
-                      <span className="muted"> · {money(chosenValue)}</span>
-                    )}
-                    <div className="muted small">
-                      {/* Said before the click, not after it. A person who
-                          discovers the approval step at the moment they try
-                          to raise the orders is the wrong person to discover
-                          it and it is the worst time. */}
-                      {row.award.approved
-                        ? "Approved. This raises draft orders, grouped by "
-                          + "supplier. Nothing is sent until you send it."
-                        : row.award.approval_used
-                          ? `Awards over ${money(row.award.threshold)} need a `
-                            + "second person to sign them off. Whoever chooses "
-                            + "cannot approve their own choice."
-                          : "This raises draft orders, grouped by supplier. "
-                            + "Nothing is sent until you send it."}
-                    </div>
-                  </div>
-                  {row.award.approved || !row.award.approval_used ? (
-                    <div className="rfq-foot-acts">
-                      {/* Re-awarding stays available so a choice can be
-                          changed before the orders are raised. */}
-                      <button type="button" className="btn secondary"
-                              onClick={proposeAward} disabled={chosenCount === 0}>
-                        Change the award
-                      </button>
-                      <BusyButton className="btn primary" onClick={convert}
-                                  disabled={chosenCount === 0} busyLabel="Raising…">
-                        Raise the orders
-                      </BusyButton>
-                    </div>
-                  ) : (
-                    <BusyButton className="btn primary" onClick={proposeAward}
-                                disabled={chosenCount === 0} busyLabel="Awarding…">
-                      Award these suppliers
-                    </BusyButton>
-                  )}
-                </div>
-              )}
-            </>
-          )}
+          The whole footer waits for the request: what can be done to an
+          award is decided by the award, and there is none until it lands. */}
+      {row && row.status !== "closed" && row.status !== "cancelled"
+        && row.answered > 0 && (
+        <>
+          <WhyRefused award={row.award} />
 
-          {asking && (
-            <WhyNotCheapest dearer={dearerLines()}
-                            onClose={() => setAsking(false)}
-                            onSaid={award} />
-          )}
-
-          {inviting && (
-            <InviteSupplier rfqId={id!} already={row.suppliers.map((s) => s.supplier_id)}
-                            onClose={() => setInviting(false)}
-                            onInvited={() => { setInviting(false); load(); }} />
-          )}
-
-          {showDoc && (
-            <div className="modal-backdrop" onClick={() => setShowDoc(false)}>
-              <div className="modal od-preview" onClick={(e) => e.stopPropagation()}>
-                <h2>What each wholesaler will get</h2>
-                <pre className="od-doc">{row.document}</pre>
-                <div className="modal-foot">
-                  <button className="btn secondary" onClick={() => setShowDoc(false)}>
-                    Close
-                  </button>
+          {row.status === "awaiting_approval" ? (
+            <AwaitingApproval award={row.award} onApprove={approve}
+                              onSendBack={sendBack} />
+          ) : (
+            <div className="card rfq-foot">
+              <div>
+                <b>{chosenCount} of {row.lines.length} line(s) chosen</b>
+                {chosenCount > 0 && (
+                  <span className="muted"> · {money(chosenValue)}</span>
+                )}
+                <div className="muted small">
+                  {/* Said before the click, not after it. A person who
+                      discovers the approval step at the moment they try
+                      to raise the orders is the wrong person to discover
+                      it and it is the worst time. */}
+                  {row.award.approved
+                    ? "Approved. This raises draft orders, grouped by "
+                      + "supplier. Nothing is sent until you send it."
+                    : row.award.approval_used
+                      ? `Awards over ${money(row.award.threshold)} need a `
+                        + "second person to sign them off. Whoever chooses "
+                        + "cannot approve their own choice."
+                      : "This raises draft orders, grouped by supplier. "
+                        + "Nothing is sent until you send it."}
                 </div>
               </div>
+              {row.award.approved || !row.award.approval_used ? (
+                <div className="rfq-foot-acts">
+                  {/* Re-awarding stays available so a choice can be
+                      changed before the orders are raised. */}
+                  <button type="button" className="btn secondary"
+                          onClick={proposeAward} disabled={chosenCount === 0}>
+                    Change the award
+                  </button>
+                  <BusyButton className="btn primary" onClick={convert}
+                              disabled={chosenCount === 0} busyLabel="Raising…">
+                    Raise the orders
+                  </BusyButton>
+                </div>
+              ) : (
+                <BusyButton className="btn primary" onClick={proposeAward}
+                            disabled={chosenCount === 0} busyLabel="Awarding…">
+                  Award these suppliers
+                </BusyButton>
+              )}
             </div>
           )}
         </>
+      )}
+
+      {asking && (
+        <WhyNotCheapest dearer={dearerLines()}
+                        onClose={() => setAsking(false)}
+                        onSaid={award} />
+      )}
+
+      {inviting && row && (
+        <InviteSupplier rfqId={id!} already={row.suppliers.map((s) => s.supplier_id)}
+                        onClose={() => setInviting(false)}
+                        onInvited={() => { setInviting(false); load(); }} />
+      )}
+
+      {showDoc && row && (
+        <div className="modal-backdrop" onClick={() => setShowDoc(false)}>
+          <div className="modal od-preview" onClick={(e) => e.stopPropagation()}>
+            <h2>What each wholesaler will get</h2>
+            <pre className="od-doc">{row.document}</pre>
+            <div className="modal-foot">
+              <button className="btn secondary" onClick={() => setShowDoc(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </RecordPage>
   );

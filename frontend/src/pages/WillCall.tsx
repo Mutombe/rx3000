@@ -24,7 +24,7 @@ import Pagination from "../components/Pagination";
 import { TableSearch, useSearch } from "../components/Filters";
 import { useClientPage } from "../hooks/useClientPage";
 import { useToast } from "../components/Toast";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
@@ -240,7 +240,7 @@ export default function WillCall() {
       <PageHead
         title="Will call"
         sub="Dispensed, bagged and not yet collected. Oldest first"
-        count={shelf ? `${shelf.total.toLocaleString()} on the shelf` : undefined}
+        count={<><Figure ready={!!shelf} w="6ch">{shelf && shelf.total.toLocaleString()}</Figure>{" "}on the shelf</>}
         // The shelf as the sheet a morning of telephone calls is worked from,
         // with the number, the days waiting and what the label says on it. A
         // pharmacy works this list away from the screen more often than on it.
@@ -273,7 +273,13 @@ export default function WillCall() {
       </div>
 
       <div className="card">
-        {!shelf && !failed && <TableSkeleton cols={6} rows={7} rowHeight={84} />}
+        {/* The shelf's columns are the same five every visit, so they are read
+            while the bags are still coming rather than after. */}
+        {!shelf && !failed && (
+          <TableSkeleton cols={6} rows={7} rowHeight={84}
+            headers={["Patient", "Medicine", "Qty", "Bagged", "Waiting", ""]}
+            widths={["18ch", "24ch", "4ch", "14ch", "12ch", "14ch"]} />
+        )}
         {/* Two different empties, said differently.
             A filtered view with nothing in it is a filter result and should offer
             the way back out. An empty shelf is an achievement and should read

@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import RowLink, { RowActions } from "../components/RowLink";
 import Person from "../components/Person";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import Pagination, { Paged } from "../components/Pagination";
 import { Link } from "react-router-dom";
 import { api, fmtDate, prefetchRoute, errorText  } from "../api";
@@ -128,7 +128,9 @@ export default function Patients() {
       <PageHead
         title="Patients"
         sub="Profiles, medical aid membership, allergies and loyalty"
-        count={meta ? `${meta.total.toLocaleString()} on file` : undefined}
+        // The chip is drawn from the first frame and only its number waits, so
+        // the title does not shuffle sideways when the total lands.
+        count={<><Figure ready={!!meta} w="6ch">{meta && meta.total.toLocaleString()}</Figure>{" "}on file</>}
         // The list leaves as a spreadsheet: a recall list, a mail merge for a
         // scheme's annual renewal, and the migration off this system if they
         // ever go. The last one is why it carries everything.

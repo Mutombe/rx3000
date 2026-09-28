@@ -56,14 +56,22 @@ export default function ShiftDetail() {
       </>}
       loading={!d && !error}
       error={error}
-      facts={d ? [
-        { label: "Sales", value: d.sale_count, hint: money(d.sales_value) },
-        { label: "Counted", value: money(d.counted_total) },
-        { label: "Expected", value: money(d.expected_total) },
+      facts={[
+        /* Every till session is counted the same four ways, so the four words
+           are here from the first frame and only the money waits. */
+        { label: "Sales",
+          value: <Figure ready={!!d} w="4ch">{d?.sale_count}</Figure>,
+          hint: <Figure ready={!!d} w="9ch">{d && money(d.sales_value)}</Figure> },
+        { label: "Counted",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.counted_total)}</Figure> },
+        { label: "Expected",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.expected_total)}</Figure> },
         { label: "Variance",
-          value: Math.abs(d.variance) < 0.005 ? "balanced" : money(d.variance),
-          hint: over ? "over" : short ? "short" : undefined },
-      ] : undefined}
+          value: <Figure ready={!!d} w="9ch">
+            {d && (Math.abs(d.variance) < 0.005 ? "balanced" : money(d.variance))}
+          </Figure>,
+          hint: d ? (over ? "over" : short ? "short" : undefined) : undefined },
+      ]}
     >
       {/* The two panel headings, the six field labels and the five column heads
           of the sales table are written here and read the same for every till

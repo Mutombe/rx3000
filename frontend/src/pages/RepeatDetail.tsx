@@ -23,6 +23,7 @@ import { CheckCircle, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -187,44 +188,74 @@ export default function RepeatDetail() {
           )}
         </div>
       )}
-      facts={r ? [
-        { label: "Repeats used", value: `${r.used} of ${r.allowed}`,
-          hint: r.exhausted ? "None left" : `${r.left} left`,
-          tone: r.exhausted ? "warn" : undefined },
-        { label: r.overdue_days ? "Overdue since" : "Next due",
-          value: r.next_due ? fmtDate(r.next_due) : "No date",
-          hint: r.overdue_days ? `${r.overdue_days} days`
-            : dueSoon ? "this week" : undefined,
-          tone: r.overdue_days ? "bad" : dueSoon ? "warn" : undefined },
-        { label: "Each fill is worth", value: money(r.value_per_fill),
-          hint: `${money(r.value_remaining)} still to come` },
-        { label: "In unexpired stock", value: r.on_hand,
+      facts={[
+        /* Four labels every repeat has, up before the repeat itself, with only
+           the counts and the dates waiting. Two things are deliberately not
+           frame: the second label reads Overdue since only once the page knows
+           it is late, and the collection rhythm is a fifth tile only for
+           repeats that have been collected more than once. */
+        { label: "Repeats used",
+          value: <Figure ready={!!r} w="8ch">{r && `${r.used} of ${r.allowed}`}</Figure>,
+          hint: <Figure ready={!!r} w="10ch">
+            {r && (r.exhausted ? "None left" : `${r.left} left`)}
+          </Figure>,
+          tone: r?.exhausted ? "warn" : undefined },
+        { label: r?.overdue_days ? "Overdue since" : "Next due",
+          value: <Figure ready={!!r} w="11ch">
+            {r && (r.next_due ? fmtDate(r.next_due) : "No date")}
+          </Figure>,
+          hint: <Figure ready={!!r} w="10ch">
+            {r && (r.overdue_days ? `${r.overdue_days} days`
+              : dueSoon ? "this week" : "not yet due")}
+          </Figure>,
+          tone: !r ? undefined : r.overdue_days ? "bad" : dueSoon ? "warn" : undefined },
+        { label: "Each fill is worth",
+          value: <Figure ready={!!r} w="9ch">{r && money(r.value_per_fill)}</Figure>,
+          hint: <><Figure ready={!!r} w="9ch">{r && money(r.value_remaining)}</Figure>
+            {" "}still to come</> },
+        { label: "In unexpired stock",
+          value: <Figure ready={!!r} w="5ch">{r?.on_hand}</Figure>,
           // Unexpired batches, which is what dispensing draws from. The
           // product's own count is what most screens show and the one
           // dispensing does not obey — reading that said "none on hand" for a
           // medicine with 267 usable units.
-          hint: r.can_supply ? "enough to fill it" : `${r.quantity} needed`,
-          tone: r.can_supply ? undefined : "bad" },
-        ...(r.average_gap_days !== null ? [{
+          hint: <Figure ready={!!r} w="16ch">
+            {r && (r.can_supply ? "enough to fill it" : `${r.quantity} needed`)}
+          </Figure>,
+          tone: r && !r.can_supply ? "bad" : undefined },
+        ...(r && r.average_gap_days !== null ? [{
           label: "Actually collected every",
           value: `${r.average_gap_days} days`,
           hint: r.interval_days ? `the script says ${r.interval_days}` : undefined,
           tone: r.keeping_up === false ? "bad" : undefined,
         }] : []),
-      ] : undefined}
+      ]}
     >
+      {/* The figure this page exists for, said once at the top and in the
+          same shape it appears in everywhere else. */}
+      <p>
+        <Figure ready={!!r} w="14ch">
+          {r && <RepeatValue size="hero" value={r.value_per_fill}
+                  remaining={r.value_remaining}
+                  used={r.used} allowed={r.allowed} />}
+        </Figure>
+        <span className="muted small">
+          {" "}each collection · <Figure ready={!!r} w="2ch">{r?.left}</Figure>
+          {" "}still to come
+        </span>
+      </p>
+
+      {/* The three panel headings, the eight field labels and the five column
+          heads of the fill history are the questions this page asks of any
+          repeat, so they are drawn before the answers come. Held back with
+          everything else, a dispenser working the book in value order saw a
+          blank page between one repeat and the next.
+
+          The alerts below are different and stay behind the fetch: overdue,
+          exhausted and out of stock are three accusations, and a page that has
+          not heard back may not make any of them. */}
       {r && (
         <>
-          {/* The figure this page exists for, said once at the top and in the
-              same shape it appears in everywhere else. */}
-          <p>
-            <RepeatValue size="hero" value={r.value_per_fill}
-              remaining={r.value_remaining}
-              used={r.used} allowed={r.allowed} />
-            <span className="muted small">
-              {" "}each collection · {r.left} still to come
-            </span>
-          </p>
           {/* Overdue, exhausted and out of stock are three different problems
               with three different answers. Putting them in one grey line is how
               none of them gets acted on. */}
@@ -256,153 +287,196 @@ export default function RepeatDetail() {
               rather than after.
             </div>
           )}
-
-          <div className="grid cols-2">
-            <Panel title="The line">
-              <dl className="kv">
-                <dt>Medicine</dt>
-                <dd>
-                  {r.product
-                    ? <EntityLink kind="product" id={r.product.id}>
-                        {r.product.name}
-                      </EntityLink>
-                    : "none"}
-                  {r.product?.form && (
-                    <span className="muted"> · {r.product.form}</span>
-                  )}
-                  {(r.product?.schedule ?? 0) > 0 && (
-                    <span className="badge warn"> S{r.product!.schedule}</span>
-                  )}
-                </dd>
-                <dt>Directions</dt>
-                <dd className="wrap">
-                  {r.directions || <span className="muted">None recorded</span>}
-                </dd>
-                <dt>Quantity each time</dt>
-                <dd>
-                  {r.quantity}
-                  {r.supply_days ? ` · ${r.supply_days} days of supply` : ""}
-                </dd>
-                <dt>Diagnosis</dt>
-                <dd className="mono">
-                  {r.icd10_code || <span className="muted">None</span>}
-                </dd>
-                <dt>Patient</dt>
-                <dd>
-                  {r.patient.id
-                    ? <EntityLink kind="patient" id={r.patient.id}><Person name={r.patient.name} /></EntityLink>
-                    : r.patient.name}
-                  {r.patient.phone && (
-                    <div className="muted small">
-                      <a href={`tel:${r.patient.phone}`}>{r.patient.phone}</a>
-                    </div>
-                  )}
-                </dd>
-                <dt>Script</dt>
-                <dd>
-                  {r.prescription ? (
-                    <>
-                      <EntityLink kind="prescription" id={r.prescription.id}>
-                        {r.prescription.number || `#${r.prescription.id}`}
-                      </EntityLink>
-                      {r.prescription.date && (
-                        <span className="muted"> · {fmtDate(r.prescription.date)}</span>
-                      )}
-                      {r.prescription.doctor && (
-                        <div className="muted small">
-                          {r.prescription.doctor_id
-                            ? <EntityLink kind="prescriber" id={r.prescription.doctor_id}><Person name={r.prescription.doctor} /></EntityLink>
-                            : r.prescription.doctor}
-                        </div>
-                      )}
-                    </>
-                  ) : <span className="muted">None</span>}
-                </dd>
-              </dl>
-            </Panel>
-
-            <Panel
-              title="Is the patient keeping up?"
-              aside={<span className="muted small">
-                What the script asks for, against what they do
-              </span>}
-            >
-              {r.average_gap_days === null ? (
-                <p className="muted">
-                  {/* Not "0% adherence". One fill is not a pattern, and a page
-                      that invents a judgement from a single data point teaches
-                      people to distrust the judgements that are real. */}
-                  Filled {r.used === 1 ? "once" : `${r.used} times`}, which is
-                  not enough to see a pattern. A gap needs two fills to
-                  measure.
-                </p>
-              ) : (
-                <p className={`st-note ${r.keeping_up ? "is-ok" : "is-bad"}`}>
-                  {r.keeping_up ? (
-                    <>
-                      <CheckCircle size={14} weight="fill" /> Collecting every{" "}
-                      {r.average_gap_days} days against a {r.interval_days}-day
-                      supply. Roughly on time. Nothing to chase.
-                    </>
-                  ) : (
-                    <>
-                      Running {r.average_gap_days - (r.interval_days || 0)} days
-                      late between fills. On a {r.interval_days}-day supply that
-                      is the same number of days every month with no medicine,
-                      which is a clinical problem before it is a commercial one.
-                    </>
-                  )}
-                </p>
-              )}
-              <dl className="kv">
-                <dt>Taken so far</dt>
-                <dd>{money(r.value_filled)} across {r.used} fill(s)</dd>
-                <dt>Still to come</dt>
-                <dd>{money(r.value_remaining)} over {r.left} fill(s)</dd>
-              </dl>
-            </Panel>
-          </div>
-
-          <Panel
-            title="Every fill"
-            count={r.fills.length}
-            empty="This line has never been dispensed. If the script is old, the patient took it somewhere else."
-          >
-            <div className="dt-scroll">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Dispensed</Th><Th className="num">Qty</Th>
-                    <Th>By</Th><Th>Collected</Th><th className="actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {r.fills.map((f) => (
-                    <tr key={f.id}>
-                      <td>
-                        {fmtDateTime(f.dispensed_at)}
-                        {f.is_repeat && <span className="badge"> Repeat</span>}
-                      </td>
-                      <td className="num">{f.quantity}</td>
-                      <td>{f.by || <span className="muted">None</span>}</td>
-                      <td>
-                        {f.collected_at
-                          ? fmtDate(f.collected_at)
-                          : <span className="badge warn">On the shelf</span>}
-                      </td>
-                      <td className="actions">
-                        <Link className="btn ghost sm" to={`/dispensings/${f.id}`}>
-                          Open
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
         </>
       )}
+
+      <div className="grid cols-2">
+        <Panel title="The line">
+          <dl className="kv">
+            <dt>Medicine</dt>
+            <dd>
+              <Figure ready={!!r} w="20ch">
+                {r && (
+                  <>
+                    {r.product
+                      ? <EntityLink kind="product" id={r.product.id}>
+                          {r.product.name}
+                        </EntityLink>
+                      : "none"}
+                    {r.product?.form && (
+                      <span className="muted"> · {r.product.form}</span>
+                    )}
+                    {(r.product?.schedule ?? 0) > 0 && (
+                      <span className="badge warn"> S{r.product!.schedule}</span>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Directions</dt>
+            <dd className="wrap">
+              <Figure ready={!!r} w="34ch">
+                {r && (r.directions || <span className="muted">None recorded</span>)}
+              </Figure>
+            </dd>
+            <dt>Quantity each time</dt>
+            <dd>
+              <Figure ready={!!r} w="18ch">
+                {r && (
+                  <>
+                    {r.quantity}
+                    {r.supply_days ? ` · ${r.supply_days} days of supply` : ""}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Diagnosis</dt>
+            <dd className="mono">
+              <Figure ready={!!r} w="8ch">
+                {r && (r.icd10_code || <span className="muted">None</span>)}
+              </Figure>
+            </dd>
+            <dt>Patient</dt>
+            <dd>
+              <Figure ready={!!r} w="18ch">
+                {r && (
+                  <>
+                    {r.patient.id
+                      ? <EntityLink kind="patient" id={r.patient.id}><Person name={r.patient.name} /></EntityLink>
+                      : r.patient.name}
+                    {r.patient.phone && (
+                      <div className="muted small">
+                        <a href={`tel:${r.patient.phone}`}>{r.patient.phone}</a>
+                      </div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Script</dt>
+            <dd>
+              <Figure ready={!!r} w="18ch">
+                {r && (r.prescription ? (
+                  <>
+                    <EntityLink kind="prescription" id={r.prescription.id}>
+                      {r.prescription.number || `#${r.prescription.id}`}
+                    </EntityLink>
+                    {r.prescription.date && (
+                      <span className="muted"> · {fmtDate(r.prescription.date)}</span>
+                    )}
+                    {r.prescription.doctor && (
+                      <div className="muted small">
+                        {r.prescription.doctor_id
+                          ? <EntityLink kind="prescriber" id={r.prescription.doctor_id}><Person name={r.prescription.doctor} /></EntityLink>
+                          : r.prescription.doctor}
+                      </div>
+                    )}
+                  </>
+                ) : <span className="muted">None</span>)}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+
+        <Panel
+          title="Is the patient keeping up?"
+          aside={<span className="muted small">
+            What the script asks for, against what they do
+          </span>}
+        >
+          {/* The judgement waits for the fills. Saying a pattern cannot be
+              seen yet is itself a finding, and it needs the history to make. */}
+          <Figure ready={!!r} w="38ch">
+            {r && (r.average_gap_days === null ? (
+              <p className="muted">
+                {/* Not "0% adherence". One fill is not a pattern, and a page
+                    that invents a judgement from a single data point teaches
+                    people to distrust the judgements that are real. */}
+                Filled {r.used === 1 ? "once" : `${r.used} times`}, which is
+                not enough to see a pattern. A gap needs two fills to
+                measure.
+              </p>
+            ) : (
+              <p className={`st-note ${r.keeping_up ? "is-ok" : "is-bad"}`}>
+                {r.keeping_up ? (
+                  <>
+                    <CheckCircle size={14} weight="fill" /> Collecting every{" "}
+                    {r.average_gap_days} days against a {r.interval_days}-day
+                    supply. Roughly on time. Nothing to chase.
+                  </>
+                ) : (
+                  <>
+                    Running {r.average_gap_days - (r.interval_days || 0)} days
+                    late between fills. On a {r.interval_days}-day supply that
+                    is the same number of days every month with no medicine,
+                    which is a clinical problem before it is a commercial one.
+                  </>
+                )}
+              </p>
+            ))}
+          </Figure>
+          <dl className="kv">
+            <dt>Taken so far</dt>
+            <dd>
+              <Figure ready={!!r} w="20ch">
+                {r && <>{money(r.value_filled)} across {r.used} fill(s)</>}
+              </Figure>
+            </dd>
+            <dt>Still to come</dt>
+            <dd>
+              <Figure ready={!!r} w="20ch">
+                {r && <>{money(r.value_remaining)} over {r.left} fill(s)</>}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+      </div>
+
+      <Panel
+        title="Every fill"
+        count={r?.fills.length}
+        /* Only once the fills are in hand. A page that has not been told
+           anything must not tell a dispenser the patient went elsewhere. */
+        empty={r ? "This line has never been dispensed. If the script is old, the patient took it somewhere else."
+                 : undefined}
+      >
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Dispensed</Th><Th className="num">Qty</Th>
+                <Th>By</Th><Th>Collected</Th><th className="actions" />
+              </tr>
+            </thead>
+            {!r ? (
+              <GhostRows cols={5} rows={3} widths={["70%", "30%", "50%", "55%", "40%"]} />
+            ) : (
+              <tbody>
+                {r.fills.map((f) => (
+                  <tr key={f.id}>
+                    <td>
+                      {fmtDateTime(f.dispensed_at)}
+                      {f.is_repeat && <span className="badge"> Repeat</span>}
+                    </td>
+                    <td className="num">{f.quantity}</td>
+                    <td>{f.by || <span className="muted">None</span>}</td>
+                    <td>
+                      {f.collected_at
+                        ? fmtDate(f.collected_at)
+                        : <span className="badge warn">On the shelf</span>}
+                    </td>
+                    <td className="actions">
+                      <Link className="btn ghost sm" to={`/dispensings/${f.id}`}>
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

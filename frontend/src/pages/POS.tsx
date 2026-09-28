@@ -1589,7 +1589,7 @@ export default function POS() {
                       <Select
                         value={card.scheme}
                         onChange={(v) => setCard({ ...card, scheme: v })}
-                        placeholder="—"
+                        placeholder="Not stated"
                         clearable
                         options={[
                           { value: "visa", label: "Visa" },

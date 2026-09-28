@@ -238,7 +238,14 @@ export default function HelpDesk() {
       <PageHead
         title="Cases"
         sub="Customer service tickets with SLA targets, threaded replies and CSAT"
-        count={stats ? `${stats.open} open` : undefined}
+        // Drawn from the first frame and only the number pulses. Dropped
+        // altogether when the read failed, on the same reasoning as the tiles
+        // below: a chip that pulses for ever is a screen asking for patience
+        // it has no use for.
+        count={statsUnknown ? undefined : (
+          // "open" is the same word whatever the count turns out to be.
+          <><Figure ready={!!stats} w="4ch">{stats && stats.open}</Figure>{" "}open</>
+        )}
         // Response times and satisfaction, which is what a monthly review is
         // argued from.
         take={<ExportButton dataset="tickets" />}

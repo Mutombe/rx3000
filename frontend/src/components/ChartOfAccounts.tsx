@@ -24,7 +24,7 @@ import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
 import { EntityLink , TableSearch, useSearch } from "./Filters";
 import Select from "./Select";
-import { Refreshable, TableSkeleton } from "./Skeleton";
+import { Block, Figure, GhostRows } from "./Skeleton";
 import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
@@ -176,30 +176,39 @@ export default function ChartOfAccounts() {
         </div>
       </div>
 
-      <Refreshable loading={spinning || !chart} hasData={!!chart}
-                   skeleton={<TableSkeleton rows={12} cols={4}
-                                            widths={["8rem", "auto", "12rem", "10rem"]} />}>
-        {chart && (
-          <>
+      {/* SCOPED LOADING.
+       *
+       * The chart used to be one skeleton table, so opening it showed twelve
+       * grey rows and withheld the four band labels, the search box and the five
+       * column heads, every one of which is written here and true before the
+       * request is sent. Now the frame is drawn at once and only the money and
+       * the rows pulse.
+       *
+       * The section headings are the one thing genuinely fetched: which sections
+       * this pharmacy's chart carries is the server's answer, not ours, so a
+       * single placeholder group is held open rather than names being invented
+       * for headings a reader would take as fact. */}
+      <div className={`refreshable${spinning || !chart ? " is-refreshing" : ""}`}>
+        <>
           <div className="wc-bands">
             <div className="wc-band">
               <span className="wc-band-label">Assets</span>
-              <b>{money(chart.totals.assets)}</b>
+              <b><Figure ready={!!chart} w="9ch">{chart && money(chart.totals.assets)}</Figure></b>
               <span className="muted small">
-                {money(chart.totals.current_assets)} current
+                <Figure ready={!!chart} w="8ch">{chart && money(chart.totals.current_assets)}</Figure> current
               </span>
             </div>
             <div className="wc-band">
               <span className="wc-band-label">Liabilities</span>
-              <b>{money(chart.totals.liabilities)}</b>
+              <b><Figure ready={!!chart} w="9ch">{chart && money(chart.totals.liabilities)}</Figure></b>
               <span className="muted small">
-                {money(chart.totals.current_liabilities)} due inside a year
+                <Figure ready={!!chart} w="8ch">{chart && money(chart.totals.current_liabilities)}</Figure> due inside a year
               </span>
             </div>
             <div className="wc-band">
               <span className="wc-band-label">Working capital</span>
-              <b className={chart.totals.working_capital < 0 ? "neg" : undefined}>
-                {money(chart.totals.working_capital)}
+              <b className={chart && chart.totals.working_capital < 0 ? "neg" : undefined}>
+                <Figure ready={!!chart} w="9ch">{chart && money(chart.totals.working_capital)}</Figure>
               </b>
               <span className="muted small">
                 current assets less current liabilities
@@ -207,16 +216,17 @@ export default function ChartOfAccounts() {
             </div>
             <div className="wc-band">
               <span className="wc-band-label">Profit to date</span>
-              <b className={chart.totals.profit < 0 ? "neg" : undefined}>
-                {money(chart.totals.profit)}
+              <b className={chart && chart.totals.profit < 0 ? "neg" : undefined}>
+                <Figure ready={!!chart} w="9ch">{chart && money(chart.totals.profit)}</Figure>
               </b>
               <span className="muted small">
-                {money(chart.totals.revenue)} earned, {money(chart.totals.expenses)} spent
+                <Figure ready={!!chart} w="8ch">{chart && money(chart.totals.revenue)}</Figure> earned,{" "}
+                <Figure ready={!!chart} w="8ch">{chart && money(chart.totals.expenses)}</Figure> spent
               </span>
             </div>
           </div>
 
-          {equationOff && (
+          {chart && equationOff && (
             <div className="alert warn">
               Assets are {money(Math.abs(chart.difference))}{" "}
               {chart.difference > 0 ? "more" : "less"} than liabilities, equity
@@ -228,12 +238,38 @@ export default function ChartOfAccounts() {
 
           <TableSearch value={q} onChange={setQ}
                        placeholder="Find an account by name, code or Pastel code…"
+                       ready={!!chart}
                        shown={shown.length} total={accounts.items.length} />
+
+          {!chart && (
+            <div className="coa-group">
+              <div className="coa-group-head">
+                <h4><Block w="16ch" h="1em" className="sk-val" /></h4>
+                <b><Block w="9ch" h="1em" className="sk-val" /></b>
+              </div>
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th style={{ width: "8rem" }}>Code</th>
+                    <Th>Account</Th>
+                    <th style={{ width: "12rem" }}>Notes</th>
+                    <th style={{ width: "8rem" }} title="The number this account carries in the pharmacy's own Pastel books">
+                      In Pastel
+                    </th>
+                    <th className="num" style={{ width: "10rem" }}>Balance</th>
+                    <th className="actions" />
+                  </tr>
+                </thead>
+                <GhostRows cols={6} rows={8}
+                           widths={["60%", "70%", "50%", "60%", "50%", "30%"]} />
+              </table>
+            </div>
+          )}
 
           {/* A section with nothing matching is noise. Hidden only while a
               search is running: an empty section with no search is a real
               fact about the books. */}
-          {chart.groups
+          {(chart?.groups ?? [])
             .filter((g) => !q || shown.some((a) => a.section === g.section))
             .map((g) => (
             <div key={g.section} className="coa-group">
@@ -329,9 +365,8 @@ export default function ChartOfAccounts() {
               </table>
             </div>
           ))}
-          </>
-        )}
-      </Refreshable>
+        </>
+      </div>
 
       {adding && chart && (
         <NewAccount sections={chart.sections}

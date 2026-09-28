@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { HardDrives, Warning } from "@phosphor-icons/react";
 import { api, apiBase, errorText, fmtDateTime, isDesktop } from "../api";
 import { useToast } from "../components/Toast";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAppUpdate } from "../hooks/useAppUpdate";
 import PrinterRoutes from "../components/PrinterRoutes";
 import Th from "../components/Th";
@@ -160,8 +160,11 @@ export default function System() {
       {/* Backups first: the only thing here that ends a business if neglected. */}
       <section className="card">
         <h3>Backups</h3>
-        <p className={backups?.status.protected ? "muted" : "alert error"}>
-          {backups?.status.message}
+        {/* An unread answer is not a bad one. This line took its tone from a
+            field that is undefined until the request lands, so every visit
+            opened on a red box announcing nothing. */}
+        <p className={!backups ? "muted" : backups.status.protected ? "muted" : "alert error"}>
+          <Figure ready={!!backups} w="42ch">{backups?.status.message}</Figure>
         </p>
         <div className="dt-filters">
           <label>
@@ -176,8 +179,9 @@ export default function System() {
         <p className="muted small">
           Every backup is opened, integrity-checked and its row counts compared
           against the live database before it is kept. One that fails is deleted
-          rather than left to be relied on. Holding {backups?.status.keep} in{" "}
-          {backups?.status.directory}.
+          rather than left to be relied on. Holding{" "}
+          <Figure ready={!!backups} w="2ch">{backups?.status.keep}</Figure> in{" "}
+          <Figure ready={!!backups} w="24ch">{backups?.status.directory}</Figure>.
         </p>
 
         {/* Said separately, because it is a separate promise. A shelf of
@@ -257,55 +261,63 @@ export default function System() {
           worked" is not evidence that anything was filed with a funder or a
           revenue authority, and this is the answer that decides whether a
           pharmacy can go live. It was published and unreadable. */}
-      {integrationsUnknown && (
-        <section className="card">
-          <div className="card-head">
-            <h3>What is connected</h3>
+      {/* One card, drawn from the first frame.
+          There were two of these, each behind its own answer, so the heading
+          that names the question, the verdict badge and the three column heads
+          were all withheld until the request came back and then arrived as
+          though they had been fetched. They had not: only the integrations and
+          the verdict are. The badge waits, because "ready to trade" is a claim
+          about an answer nobody has read yet. */}
+      <section className="card">
+        <div className="card-head">
+          <h3>What is connected</h3>
+          {integrationsUnknown ? (
             <span className="badge warn">Could not be read</span>
-          </div>
-          <p className="muted">
-            Whether this pharmacy is ready to trade could not be read, which is
-            not the same answer as no. Reload the page.
-          </p>
-        </section>
-      )}
-
-      {integrations && (
-        <section className="card">
-          <div className="card-head">
-            <h3>What is connected</h3>
+          ) : integrations ? (
             <span className={`badge ${integrations.production_ready ? "ok" : "warn"}`}>
               {integrations.production_ready
                 ? "ready to trade" : "Not ready to trade"}
             </span>
-          </div>
+          ) : null}
+        </div>
+        {integrationsUnknown ? (
+          <p className="muted">
+            Whether this pharmacy is ready to trade could not be read, which is
+            not the same answer as no. Reload the page.
+          </p>
+        ) : (
           <table className="dt">
             <thead>
               <tr><Th>Integration</Th><Th>State</Th><Th>What it needs</Th></tr>
             </thead>
-            <tbody>
-              {integrations.integrations.map((i: any) => (
-                <tr key={i.key} className={i.production_safe ? "" : "row-flag"}>
-                  <td>
-                    <b>{i.name}</b>
-                    <div className="muted small">{i.category}</div>
-                  </td>
-                  <td>
-                    <span className={`badge ${i.production_safe ? "ok" : "warn"}`}>
-                      {i.state}
-                    </span>
-                  </td>
-                  <td className="wrap muted small">
-                    {i.blocked_on?.length
-                      ? `Waiting on ${i.blocked_on.join(", ")}`
-                      : i.notes || (i.production_safe ? "Nothing." : "")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            {!integrations ? (
+              <GhostRows cols={3} rows={4} widths={["18ch", "8ch", "24ch"]}
+                         secondLine={[0]} />
+            ) : (
+              <tbody>
+                {integrations.integrations.map((i: any) => (
+                  <tr key={i.key} className={i.production_safe ? "" : "row-flag"}>
+                    <td>
+                      <b>{i.name}</b>
+                      <div className="muted small">{i.category}</div>
+                    </td>
+                    <td>
+                      <span className={`badge ${i.production_safe ? "ok" : "warn"}`}>
+                        {i.state}
+                      </span>
+                    </td>
+                    <td className="wrap muted small">
+                      {i.blocked_on?.length
+                        ? `Waiting on ${i.blocked_on.join(", ")}`
+                        : i.notes || (i.production_safe ? "Nothing." : "")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
           </table>
-        </section>
-      )}
+        )}
+      </section>
 
       <section className="card">
         <h3>Station</h3>

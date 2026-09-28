@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DownloadSimple, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
-import { Refreshable, StatsSkeleton } from "./Skeleton";
+import { Figure } from "./Skeleton";
 import { useToast } from "./Toast";
 
 interface Unmapped { code: string; name: string }
@@ -125,9 +125,21 @@ export default function PastelExport({ onFixMapping }: {
         </div>
       </div>
 
-      <Refreshable loading={loading && !summary} hasData={!!summary}
-                   skeleton={<StatsSkeleton tiles={4} />}>
-        {summary && (
+      {/* SCOPED LOADING.
+       *
+       * The skeleton here drew `sk-stats` and `card sk-stat` where the real
+       * markup is `wc-bands` and `wc-band`, so the swap did not merely fill the
+       * tiles in, it re-laid them out: four cards of one shape were replaced by
+       * four bands of another and everything under them moved. The four captions
+       * were being withheld too, which is the part that stings, because "Balanced"
+       * and "Unmapped accounts" are what the reader came to check and they are
+       * written right here.
+       *
+       * So the real bands are drawn from the first paint and only the figures
+       * pulse. The two hints under Balanced and Unmapped pulse with them on
+       * purpose: "every account has a Pastel code" is a verdict, and a screen
+       * that has not been told anything must not deliver one. */}
+      <div className={`refreshable${loading && !summary ? " is-refreshing" : ""}`}>
           <>
             {/* WHAT IS IN THE FILE, BEFORE IT IS A FILE.
                 Three figures, because three is what an accountant checks: how
@@ -137,38 +149,48 @@ export default function PastelExport({ onFixMapping }: {
             <div className="wc-bands">
               <div className="wc-band">
                 <span className="wc-band-label">Lines</span>
-                <b>{summary.lines.toLocaleString()}</b>
+                <b>
+                  <Figure ready={!!summary} w="6ch">
+                    {summary?.lines.toLocaleString()}
+                  </Figure>
+                </b>
                 <span className="muted small">
                   every posted journal line in those days
                 </span>
               </div>
               <div className="wc-band">
                 <span className="wc-band-label">Debits</span>
-                <b>{money(summary.debit)}</b>
+                <b><Figure ready={!!summary} w="9ch">{summary && money(summary.debit)}</Figure></b>
                 <span className="muted small">
-                  against {money(summary.credit)} credited
+                  against <Figure ready={!!summary} w="8ch">{summary && money(summary.credit)}</Figure> credited
                 </span>
               </div>
               <div className="wc-band">
                 <span className="wc-band-label">Balanced</span>
-                <b className={summary.balanced ? undefined : "neg"}>
-                  {summary.balanced ? "Yes" : "No"}
+                <b className={!summary || summary.balanced ? undefined : "neg"}>
+                  <Figure ready={!!summary} w="3ch">
+                    {summary && (summary.balanced ? "Yes" : "No")}
+                  </Figure>
                 </b>
                 <span className="muted small">
-                  {summary.balanced
-                    ? "Pastel will accept it"
-                    : "Pastel will refuse the file"}
+                  <Figure ready={!!summary} w="22ch">
+                    {summary && (summary.balanced
+                      ? "Pastel will accept it"
+                      : "Pastel will refuse the file")}
+                  </Figure>
                 </span>
               </div>
               <div className="wc-band">
                 <span className="wc-band-label">Unmapped accounts</span>
-                <b className={missing.length ? "neg" : undefined}>
-                  {missing.length}
+                <b className={summary && missing.length ? "neg" : undefined}>
+                  <Figure ready={!!summary} w="2ch">{missing.length}</Figure>
                 </b>
                 <span className="muted small">
-                  {missing.length
-                    ? "these lines would go under our numbering"
-                    : "every account has a Pastel code"}
+                  <Figure ready={!!summary} w="28ch">
+                    {summary && (missing.length
+                      ? "these lines would go under our numbering"
+                      : "every account has a Pastel code")}
+                  </Figure>
                 </span>
               </div>
             </div>
@@ -180,7 +202,7 @@ export default function PastelExport({ onFixMapping }: {
               </div>
             )}
 
-            {!summary.balanced && !nothing && (
+            {summary && !summary.balanced && !nothing && (
               <div className="alert error">
                 The two sides differ by{" "}
                 {money(Math.abs(summary.debit - summary.credit))}. Pastel will
@@ -226,17 +248,27 @@ export default function PastelExport({ onFixMapping }: {
                   The first thing anybody should do is send one file and ask. */}
               <p className="muted small">
                 Written as{" "}
-                <b>{summary.settings.single_amount
-                  ? "one signed amount" : "separate debit and credit columns"}</b>,
-                dates as <b>{summary.settings.date_format}</b>
-                {summary.settings.header ? ", with a header row" : ", with no header row"}.
+                <b><Figure ready={!!summary} w="30ch">
+                  {summary && (summary.settings.single_amount
+                    ? "one signed amount" : "separate debit and credit columns")}
+                </Figure></b>,
+                dates as <b><Figure ready={!!summary} w="10ch">
+                  {summary?.settings.date_format}
+                </Figure></b>
+                <Figure ready={!!summary} w="18ch">
+                  {summary && (summary.settings.header
+                    ? ", with a header row" : ", with no header row")}
+                </Figure>.
                 Pastel's import layout differs between versions, so send one
                 file to the accountant and have them confirm it before relying
                 on a month of them.
               </p>
 
+              {/* The buttons are the reason the screen exists, so they are here
+                  from the start rather than arriving with the figures. Held shut
+                  until the preview says the file is safe to produce. */}
               <div className="row-actions">
-                {missing.length > 0 && !nothing && (
+                {summary && missing.length > 0 && !nothing && (
                   <BusyButton className="btn secondary"
                               onClick={() => download(true)}
                               busyLabel="Exporting…">
@@ -244,7 +276,7 @@ export default function PastelExport({ onFixMapping }: {
                   </BusyButton>
                 )}
                 <BusyButton className="btn primary"
-                            disabled={nothing || missing.length > 0}
+                            disabled={!summary || nothing || missing.length > 0}
                             onClick={() => download(false)}
                             busyLabel="Exporting…">
                   <DownloadSimple size={15} /> Export for Pastel
@@ -252,8 +284,7 @@ export default function PastelExport({ onFixMapping }: {
               </div>
             </div>
           </>
-        )}
-      </Refreshable>
+      </div>
     </>
   );
 }

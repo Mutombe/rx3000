@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { GhostRows } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -163,13 +163,21 @@ export default function LayByDetail() {
           )}
         </div>
       )}
-      facts={d ? [
-        { label: "Total", value: money(d.total) },
-        { label: "Paid", value: money(d.paid) },
-        { label: "Balance", value: money(d.balance) },
-        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "No date set",
-          hint: overdue ? "past its date" : undefined },
-      ] : undefined}
+      facts={[
+        /* Total, paid, balance, due: the four words a lay-by is settled by, and
+           all four are true before the lay-by is read. Only the money waits. */
+        { label: "Total",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.total)}</Figure> },
+        { label: "Paid",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.paid)}</Figure> },
+        { label: "Balance",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.balance)}</Figure> },
+        { label: "Due",
+          value: <Figure ready={!!d} w="11ch">
+            {d && (d.due_date ? fmtDate(d.due_date) : "No date set")}
+          </Figure>,
+          hint: d && overdue ? "past its date" : undefined },
+      ]}
     >
       {/* The gate that stood here withheld both card headings and all eight
           column names until the lay-by came back. A lay-by always holds items

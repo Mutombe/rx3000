@@ -15,7 +15,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import ReportRunner, { ReportDef } from "./ReportRunner";
-import { TableSkeleton } from "./Skeleton";
+import { Block, Figure } from "./Skeleton";
+
+/** Six stand-in rows while the catalogue is fetched. Six is about what fits
+ *  above the fold, so the list does not grow into the reader as it lands. */
+const GHOST_ITEMS = [0, 1, 2, 3, 4, 5];
 
 export default function ReportCatalogue() {
   const [reports, setReports] = useState<ReportDef[] | null>(null);
@@ -56,18 +60,22 @@ export default function ReportCatalogue() {
 
   if (open) return <ReportRunner report={open} onBack={() => setOpen(null)} />;
 
-  if (!reports) {
-    return <div className="card"><TableSkeleton cols={2} rows={8} /></div>;
-  }
-
-  const count = reports.length;
+  const count = reports?.length ?? 0;
   const shown = Object.values(groups).reduce((n, g) => n + g.length, 0);
 
   return (
     <div className="card">
+      {/* SCOPED LOADING.
+          This used to return a grey table INSTEAD of the screen, so arriving at
+          Reports showed neither the heading nor the search box, and the one
+          thing a manager does here first is type a word into that box. The
+          heading, its sentence and the search are written in this file and are
+          the same on every visit. Only the count and the list are fetched. */}
       <div className="rc-head">
         <div>
-          <h3 style={{ margin: 0 }}>{count} reports</h3>
+          <h3 style={{ margin: 0 }}>
+            <Figure ready={!!reports} w="3ch">{count}</Figure> reports
+          </h3>
           <p className="muted" style={{ margin: "4px 0 0" }}>
             Every one exports to Excel and CSV, and prints.
           </p>
@@ -81,7 +89,25 @@ export default function ReportCatalogue() {
         />
       </div>
 
-      {shown === 0 ? (
+      {/* "No report matches" is only true once the catalogue has arrived. Before
+          that the list is unknown, not empty, and the two must not read alike. */}
+      {!reports ? (
+        <div className="rc-group" aria-busy="true">
+          <h4 className="rc-module"><Block w="14ch" h="1em" className="sk-val" /></h4>
+          <div className="rc-list">
+            {GHOST_ITEMS.map((i) => (
+              <div key={i} className="rc-item" aria-hidden="true">
+                <span className="rc-item-title">
+                  <Block w="22ch" h="1em" className="sk-val" />
+                </span>
+                <span className="rc-item-purpose">
+                  <Block w="36ch" h="1em" className="sk-val" />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : shown === 0 ? (
         <div className="empty">No report matches “{q}”.</div>
       ) : (
         Object.entries(groups).map(([module, items]) => (

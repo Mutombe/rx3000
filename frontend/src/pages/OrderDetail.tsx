@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure } from "../components/Skeleton";
 import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
@@ -77,16 +77,18 @@ export default function OrderDetail() {
         </p>
       </div>
     );
-  if (!order) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Purchase orders", to: "/orders" }, { label: "Loading" }]}
-        eyebrow="Purchase order"
-        cards={1}
-        table={5}
-      />;
+  /* A `DetailSkeleton` used to stand here and throw the order away while it
+   * loaded: the trail, the words Purchase order, the Supplier, Raised and
+   * Lines labels, the Quotes link, the three chevrons Draft, Sent to supplier
+   * and Received, the six figure labels and the seven column heads of the
+   * lines table. A purchase order has the same anatomy every time and none of
+   * that anatomy came from the server, so it is drawn immediately and only
+   * the figures pulse. */
 
-  const value = order.items.reduce((s, i) => s + i.unit_cost * i.quantity_ordered, 0);
-  const receivedValue = order.items.reduce((s, i) => s + i.unit_cost * i.quantity_received, 0);
-  const outstanding = order.items.reduce((s, i) => s + Math.max(0, i.quantity_ordered - i.quantity_received), 0);
+  const items = order?.items ?? [];
+  const value = items.reduce((s, i) => s + i.unit_cost * i.quantity_ordered, 0);
+  const receivedValue = items.reduce((s, i) => s + i.unit_cost * i.quantity_received, 0);
+  const outstanding = items.reduce((s, i) => s + Math.max(0, i.quantity_ordered - i.quantity_received), 0);
 
   const cols: Column<POItem>[] = [
     { key: "product", header: "Product", sortable: true,
@@ -134,23 +136,25 @@ export default function OrderDetail() {
 
   return (
     <RecordPage
+      loading={!order}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Purchase orders", to: "/orders" },
-              { label: order.order_number }]}
+              { label: order ? order.order_number : "Opening the order" }]}
       eyebrow="Purchase order"
       /* No avatar. An initial in a coloured circle is how this design shows
          a person; a purchase order is not one, and it broke the left edge
          the trail and the cards below it share. */
-      title={<span className="mono">{order.order_number}</span>}
+      title={order ? <span className="mono">{order.order_number}</span> : null}
       meta={[
         { label: "Supplier",
-          value: order.supplier
+          value: !order ? ""
+            : order.supplier
             ? <EntityLink kind="supplier" id={order.supplier_id}>
                 {order.supplier.name}
               </EntityLink>
             : <span className="muted">None recorded</span> },
-        { label: "Raised", value: fmtDateTime(order.created_at) },
-        { label: "Lines", value: order.items.length },
+        { label: "Raised", value: order ? fmtDateTime(order.created_at) : "" },
+        { label: "Lines", value: order ? order.items.length : "" },
       ]}
       actions={
         <Link to="/rfqs" className="btn secondary">Quotes</Link>
@@ -158,8 +162,17 @@ export default function OrderDetail() {
     >
 
       <div className="card record-hero">
-        <Path stages={PATH_STAGES} current={order.status} lostKey="cancelled" />
-        <Highlights items={[
+        {/* Draft, Sent to supplier and Received are the life of every order,
+            not a property of this one, so the chevrons are drawn at once and
+            simply have nothing lit until the status arrives. */}
+        <Path stages={PATH_STAGES} current={order?.status ?? ""} lostKey="cancelled" />
+        <Highlights items={!order ? [
+          { label: "Order value", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "Received value", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "Outstanding units", value: <Figure ready={false} w="4ch">{null}</Figure> },
+          { label: "They said", value: <Figure ready={false} w="11ch">{null}</Figure> },
+          { label: "Status", value: <Figure ready={false} w="8ch">{null}</Figure> },
+        ] : [
           { label: "Order value", value: money(value), hint: `${order.items.length} line(s)` },
           { label: "Received value", value: money(receivedValue),
             hint: value ? `${Math.round((receivedValue / value) * 100)}% of order` : "none" },
@@ -189,7 +202,7 @@ export default function OrderDetail() {
           {/* THIS NOW SENDS. It used to set a string to "sent" and the order
               never left the building, so an order a wholesaler had received
               and one somebody had clicked a button on looked identical. */}
-          {order.status === "draft" && (
+          {order?.status === "draft" && (
             <>
               {/* WHY IT CANNOT GO YET, SAID OUT LOUD.
                   A disabled button that does not explain itself is how a
@@ -218,7 +231,7 @@ export default function OrderDetail() {
               </button>
             </>
           )}
-          {order.status === "sent" && (
+          {order?.status === "sent" && (
             <span className="muted">
               {order.sent_at
                 ? <>Sent {fmtDateTime(order.sent_at)}
@@ -229,7 +242,7 @@ export default function OrderDetail() {
                     expiry dates can be captured</>}
             </span>
           )}
-          {order.status !== "received" && order.status !== "cancelled" && (
+          {order && order.status !== "received" && order.status !== "cancelled" && (
             <BusyButton className="secondary small" onClick={() => setStatus("cancelled")}>Cancel order</BusyButton>
           )}
         </div>
@@ -254,7 +267,7 @@ export default function OrderDetail() {
         </div>
       )}
 
-      {order.status !== "received" && order.status !== "cancelled" && (
+      {order && order.status !== "received" && order.status !== "cancelled" && (
         <ReceiveByScan
           orderId={order.id}
           orderNumber={order.order_number}
@@ -262,9 +275,12 @@ export default function OrderDetail() {
         />
       )}
 
+      {/* "This order has no lines" is a finding, and a finding needs an order
+          to have been read first. */}
       <DataTable
         columns={cols}
-        rows={order.items}
+        loading={!order}
+        rows={items}
         rowKey={(i) => i.id}
         totals
         empty="This order has no lines"

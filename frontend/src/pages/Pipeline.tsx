@@ -126,7 +126,7 @@ export default function Pipeline() {
       <PageHead
         title="Opportunities"
         sub="Supply contracts, wellness programmes and corporate opportunities. Drag cards to move a deal"
-        count={stats ? `${stats.open_deals} open` : undefined}
+        count={<><Figure ready={!!stats} w="3ch">{stats && stats.open_deals}</Figure>{" "}open</>}
         // The forecast, in the spreadsheet it is actually argued over.
         take={<ExportButton dataset="deals" />}
         primary={

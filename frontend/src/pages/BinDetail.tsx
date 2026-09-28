@@ -28,7 +28,7 @@ import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { GhostRows } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { Units } from "./BinsUnassigned";
 import { useToast } from "../components/Toast";
 import Th from "../components/Th";
@@ -146,27 +146,43 @@ export default function BinDetail() {
           </Link>
         </>
       }
-      facts={data ? [
-        { label: "Lines", value: data.lines.length,
-          hint: data.lines.length ? "on this shelf" : "Nothing is kept here" },
+      facts={[
+        /* What a shelf is worth reading for is the same on every shelf, so the
+           four labels are here from the first frame and only the counts pulse.
+           Nothing is coloured until the shelf has been read: a grey block is
+           not yet good news or bad. */
+        { label: "Lines",
+          value: <Figure ready={!!data} w="3ch">{data?.lines.length}</Figure>,
+          hint: <Figure ready={!!data} w="16ch">
+            {data && (data.lines.length ? "on this shelf" : "Nothing is kept here")}
+          </Figure> },
         // A shelf whose counts add up to less than nothing is not a shelf
         // holding a negative number of boxes; it is a record that is wrong.
-        { label: "Units", value: data.units < 0
-            ? `${Math.abs(data.units).toLocaleString()} over-issued`
-            : data.units.toLocaleString(),
-          hint: data.units < 0
-            ? "more has gone out than was booked in, so this needs counting"
-            : "counted on hand",
-          tone: data.units < 0 ? "bad" : undefined },
+        { label: "Units",
+          value: <Figure ready={!!data} w="6ch">
+            {data && (data.units < 0
+              ? `${Math.abs(data.units).toLocaleString()} over-issued`
+              : data.units.toLocaleString())}
+          </Figure>,
+          hint: <Figure ready={!!data} w="20ch">
+            {data && (data.units < 0
+              ? "more has gone out than was booked in, so this needs counting"
+              : "counted on hand")}
+          </Figure>,
+          tone: data && data.units < 0 ? "bad" : undefined },
         // Only the lines whose MAIN shelf this is. Said out loud, because a
         // bin total that claimed a line kept in two places would make the
         // directory add up to more than the pharmacy owns.
-        { label: "Worth", value: money(data.value),
+        { label: "Worth",
+          value: <Figure ready={!!data} w="9ch">{data && money(data.value)}</Figure>,
           hint: "at cost, for lines kept mainly here" },
-        { label: "Short", value: data.short,
-          hint: data.short ? "at or below the reorder level" : "Nothing is short",
-          tone: data.short ? "warn" : undefined },
-      ] : []}
+        { label: "Short",
+          value: <Figure ready={!!data} w="3ch">{data?.short}</Figure>,
+          hint: <Figure ready={!!data} w="18ch">
+            {data && (data.short ? "at or below the reorder level" : "Nothing is short")}
+          </Figure>,
+          tone: data?.short ? "warn" : undefined },
+      ]}
     >
       {/* The gate that stood here withheld the card heading and all seven
           column names until the shelf had been read. A bin's table has the

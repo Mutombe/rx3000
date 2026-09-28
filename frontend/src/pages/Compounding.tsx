@@ -19,7 +19,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
@@ -215,7 +215,12 @@ export default function Compounding() {
       <PageHead
         title="Compounding"
         sub="The formula book: what goes into each preparation, what it costs, and making it up"
-        count={mixtures?.length ? `${mixtures.length} formulae` : undefined}
+        /* The chip holds its place from the first frame and only the number in
+           it waits, so the title does not shift sideways when the formula book
+           lands. `list.items` is always an array, never null, which is also why
+           the two arms below are switched on `list.loading`: asked against the
+           list itself they read as "no formulae" before anybody has answered. */
+        count={<><Figure ready={!list.loading} w="3ch">{!list.loading && mixtures.length}</Figure>{" "}formulae</>}
         primary={
           <button className="btn primary" onClick={() => setAdding(true)}>
             <Plus size={14} weight="bold" /> Add a formula
@@ -227,7 +232,7 @@ export default function Compounding() {
       <div className="seg cmp-tabs" role="group" aria-label="Compounding">
         <button type="button" className={tab === "formulae" ? "on" : ""}
                 onClick={() => setTab("formulae")}>
-          Formula book{mixtures ? ` (${mixtures.length})` : ""}
+          Formula book{list.loading ? "" : ` (${mixtures.length})`}
         </button>
         <button type="button" className={tab === "made" ? "on" : ""}
                 onClick={() => setTab("made")}>
@@ -237,7 +242,12 @@ export default function Compounding() {
 
       {tab === "formulae" && (
       <div className="card">
-        {!mixtures ? <TableSkeleton cols={5} rows={4} /> : mixtures.length === 0 ? (
+        {list.loading ? (
+          <TableSkeleton cols={7} rows={4}
+            headers={["Code", "Preparation", "Form", "Yield", "Fee",
+                      "Ingredients", "Shelf life"]}
+            widths={["10ch", "24ch", "10ch", "10ch", "9ch", "8ch", "10ch"]} />
+        ) : mixtures.length === 0 ? (
           <div className="empty">
             No formulae yet. A formula records what goes into a preparation, so the
             price and the schedule follow from the ingredients rather than being
@@ -290,7 +300,12 @@ export default function Compounding() {
           as stock movements and none of it was readable. */}
       {tab === "made" && (
         <div className="card">
-          {made === null ? <TableSkeleton cols={6} rows={5} /> : made.length === 0 ? (
+          {made === null ? (
+            <TableSkeleton cols={7} rows={5}
+              headers={["Made", "Preparation", "Yield", "Expires", "By",
+                        "At cost", ""]}
+              widths={["18ch", "24ch", "7ch", "12ch", "14ch", "10ch", "14ch"]} />
+          ) : made.length === 0 ? (
             <div className="empty">
               <b>Nothing has been made up yet</b>
               <p>
@@ -397,7 +412,12 @@ export default function Compounding() {
 
       {openId !== null && mixtures && (
         <div className="card">
-          {!cost ? <TableSkeleton cols={4} rows={3} /> : (
+          {!cost ? (
+            <TableSkeleton cols={6} rows={3}
+              headers={["Ingredient", "Needed", "Unit cost", "Line", "On hand",
+                        "Schedule"]}
+              widths={["24ch", "10ch", "10ch", "10ch", "9ch", "10ch"]} />
+          ) : (
             <>
               <div className="cu-head">
                 <h3 style={{ margin: 0 }}>{cost.mixture}</h3>

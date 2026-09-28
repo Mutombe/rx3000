@@ -16,7 +16,7 @@ import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
 import Person from "../components/Person";
@@ -66,7 +66,7 @@ export default function Drivers() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "working", label: "Drivers", count: loading ? null : rows.length },
-    { key: "road", label: "On the road", count: road?.deliveries,
+    { key: "road", label: "On the road", count: road ? road.deliveries : null,
       hint: "Out now, and what they are carrying" },
     { key: "retired", label: "Retired", count: loading ? null : retired.length },
   ];
@@ -104,11 +104,16 @@ export default function Drivers() {
     <div className="page">
       <PageHead
         title="Drivers"
-        sub={rows.length
-          ? `${rows.length} driver${rows.length === 1 ? "" : "s"}`
-            + (road?.deliveries ? `, ${road.deliveries} delivery(ies) out` : "")
-            + (holding ? `, ${money(holding)} of shop money being carried` : "")
-          : "Nobody is set up to deliver yet."}
+        /* Ghosted rather than guessed: "Nobody is set up to deliver yet" was
+           being said before the drivers had been asked for, which is the one
+           thing a screen that has been told nothing must never claim. */
+        sub={<Figure ready={!!road} w="30ch">
+          {road && (rows.length
+            ? `${rows.length} driver${rows.length === 1 ? "" : "s"}`
+              + (road.deliveries ? `, ${road.deliveries} delivery(ies) out` : "")
+              + (holding ? `, ${money(holding)} of shop money being carried` : "")
+            : "Nobody is set up to deliver yet.")}
+        </Figure>}
         // Licence numbers and expiry dates. An inspector asks for this list,
         // and so does an insurer after a knock.
         take={<ExportButton dataset="drivers" />}
@@ -127,7 +132,10 @@ export default function Drivers() {
 
       {tab === "road" ? (
         <Refreshable loading={loading} hasData={!!road?.drivers.length}
-          skeleton={<TableSkeleton cols={5} rows={4} />}>
+          skeleton={<TableSkeleton cols={5} rows={4}
+            headers={["Driver", "Out", "To collect", "Holding",
+                      "Longest out since"]}
+            widths={["18ch", "4ch", "9ch", "9ch", "12ch"]} />}>
           {road && (
             <>
               <div className="wc-bands" style={{ marginBottom: 14 }}>
@@ -187,7 +195,10 @@ export default function Drivers() {
         <Refreshable
           loading={loading}
           hasData={(tab === "retired" ? retired : rows).length > 0}
-          skeleton={<TableSkeleton cols={6} rows={5} />}
+          skeleton={<TableSkeleton cols={7} rows={5}
+            headers={["Driver", "Vehicle", "Licence", "Out", "Holding",
+                      "Failed", ""]}
+            widths={["18ch", "12ch", "12ch", "4ch", "9ch", "6ch", "8ch"]} />}
         >
           <div className="dt-scroll">
             <table className="dt dt-drivers">

@@ -19,7 +19,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import { usePatientSearch } from "../hooks/usePatientSearch";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { Patient, Product } from "../types";
 import Select from "../components/Select";
@@ -208,7 +208,11 @@ export default function LayBys() {
       <PageHead
         title="Lay-bys"
         sub="Goods held for a customer and paid off over time. The stock leaves the shelf when the lay-by is raised"
-        count={list ? `${list.total.toLocaleString()} ${status}` : undefined}
+        /* The word after the number is the tab the reader is standing on, so
+           the chip can say what it is counting before it knows how many. */
+        count={<><Figure ready={!!list} w="5ch">
+          {list && list.total.toLocaleString()}
+        </Figure>{" "}{status}</>}
         // What is held, what has been paid and what is still owed on each. The
         // list a manager works through before a lay-by goes stale.
         take={<ExportButton dataset="lay-bys" />}
@@ -228,7 +232,15 @@ export default function LayBys() {
       </TabStrip>
 
       <div className="card">
-        {!list ? <TableSkeleton cols={8} rows={8} rowHeight={56} /> : list.laybys.length === 0 ? (
+        {/* The eight headings below, so somebody waiting on a slow answer can
+            at least see what they are waiting for. */}
+        {!list ? (
+          <TableSkeleton cols={8} rows={8} rowHeight={56}
+            headers={["Lay-by", "Customer", "Raised", "Due", "Total", "Paid",
+                      "Balance", ""]}
+            widths={["12ch", "18ch", "11ch", "11ch", "9ch", "9ch", "9ch",
+                     "16ch"]} />
+        ) : list.laybys.length === 0 ? (
           <div className="empty">No {status} lay-bys.</div>
         ) : (
           <>

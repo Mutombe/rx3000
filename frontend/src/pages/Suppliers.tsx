@@ -152,8 +152,14 @@ export default function Suppliers() {
           </FilterToggle>
         </div>
 
+        {/* Six columns, because the table has six. It claimed five, so the
+            ghost was a column short of the thing it stands in for and the
+            page shifted sideways the moment the wholesalers landed. */}
         <Refreshable loading={list.loading} hasData={list.items.length > 0}
-                     skeleton={<TableSkeleton cols={5} rows={8} />}>
+                     skeleton={<TableSkeleton cols={6} rows={8}
+                       headers={["Supplier", "Contact", "How they arrive",
+                                 "Paid to", "Terms", ""]}
+                       widths={["20ch", "18ch", "16ch", "14ch", "10ch", "12ch"]} />}>
           {shown.length === 0 ? (
             <div className="empty">
               <b>No supplier matches that.</b>

@@ -4731,6 +4731,13 @@ table.sh-history { min-width: 72rem; }
 .rx-repeats { width: 6rem; }
 .rx-next    { width: 9.5rem; }
 .rx-refill  { width: 8rem; }
+/* The script a group of lines belongs to, banded across the table rather than
+   given a table of its own. The headings above it are written in this source
+   and must not wait on how many scripts there turn out to be. */
+.rx-script > td {
+  background: var(--surface-sunk); white-space: normal;
+  padding-top: var(--s3); line-height: 1.5;
+}
 /* The controlled register. Four columns declare, four share, and the floor
    stops the four that share from falling below a person's name — this is the
    page an inspector is shown, and a prescriber's name cut in half on it is

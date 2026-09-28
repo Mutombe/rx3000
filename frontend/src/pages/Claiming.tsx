@@ -21,7 +21,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, errorText, fmtDate, money , sentence} from "../api";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import ExportButton from "../components/ExportButton";
@@ -148,7 +148,9 @@ export default function Claiming() {
     setParams(t === "batches" ? {} : { tab: t }, { replace: true });
 
   const [unbatched, setUnbatched] = useState<Unbatched[] | null>(null);
-  const [batches, setBatches] = useState<Batch[]>([]);
+  // Null until the batch list has answered. An empty array meant the header
+  // could say no batch was open before it had asked.
+  const [batches, setBatches] = useState<Batch[] | null>(null);
   const [models, setModels] = useState<FeeModel[] | null>(null);
   /* Try a price against a model's bands. A table of tiers is arithmetic
      somebody has to do in their head to know what it charges, and the band a
@@ -479,7 +481,7 @@ export default function Claiming() {
     }
   }
 
-  const open = batches.filter((b) => b.status !== "settled");
+  const open = (batches ?? []).filter((b) => b.status !== "settled");
 
   return (
     <>
@@ -487,9 +489,11 @@ export default function Claiming() {
       <PageHead
         title="Claiming"
         sub="Group claims into batches, send them, record what came back, and set how a claim is priced"
-        count={open.length
-          ? `${open.length} batch${open.length === 1 ? "" : "es"} open`
-          : undefined}
+        count={<Figure ready={!!batches} w="14ch">
+          {batches && (open.length
+            ? `${open.length} batch${open.length === 1 ? "" : "es"} open`
+            : "No batch open")}
+        </Figure>}
         // A pharmacy reconciles what a funder paid against what was claimed in
         // Excel, whatever the software offers.
         take={<ExportButton dataset="claims" />}
@@ -528,8 +532,11 @@ export default function Claiming() {
         <>
           <div className="card">
             <h3>Waiting to be batched</h3>
-            {!unbatched ? <TableSkeleton cols={4} rows={5} rowHeight={64}
-                                         widths={["22ch", "6ch", "10ch", "8ch"]} />
+            {!unbatched ? <TableSkeleton cols={5} rows={5} rowHeight={64}
+                                         headers={["Pay office", "Claims",
+                                                   "Value", "In by", ""]}
+                                         widths={["22ch", "6ch", "10ch", "8ch",
+                                                  "18ch"]} />
               : unbatched.length === 0 ? (
                 <p className="st-note is-ok">
                   Every claim is in a batch. Nothing is sitting unsent.
@@ -628,7 +635,7 @@ export default function Claiming() {
                   </tr>
                 </thead>
                 <tbody>
-                  {batches.map((b) => {
+                  {(batches ?? []).map((b) => {
                     const short = round2(b.total_claimed - b.total_settled);
                     return (
                       <tr key={b.id}>
@@ -747,6 +754,8 @@ export default function Claiming() {
             </div>
             {formularyList.loading && formularies.length === 0 ? (
               <TableSkeleton cols={4} rows={7}
+                             headers={["Formulary", "What it does by default",
+                                       "Listed", ""]}
                              widths={["22ch", "30ch", "6ch", "5ch"]} />
             ) : formularies.length === 0 ? (
               <div className="empty">
@@ -818,6 +827,9 @@ export default function Claiming() {
               </p>
               {entryList.loading && entries.length === 0 ? (
                 <TableSkeleton cols={5} rows={8}
+                               headers={["Product", "Standing",
+                                         "Reference price",
+                                         "Max per dispensing", "Note"]}
                                widths={["24ch", "12ch", "10ch", "10ch", "18ch"]} />
               ) : entries.length === 0 ? (
                 <div className="empty">
@@ -1005,7 +1017,12 @@ export default function Claiming() {
             How a claim is priced: what the fee is based on, the bands that apply,
             and whether the charge is capped at the published reference price.
           </p>
-          {!models ? <TableSkeleton cols={4} rows={3} /> : models.map((m) => (
+          {!models ? (
+            <TableSkeleton cols={5} rows={3}
+                           headers={["Up to", "Percentage", "Fixed fee",
+                                     "Minimum", "Maximum"]}
+                           widths={["10ch", "8ch", "9ch", "8ch", "8ch"]} />
+          ) : models.map((m) => (
             <div className="fm-model" key={m.id}>
               <div className="fm-head">
                 <div>

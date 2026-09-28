@@ -172,7 +172,14 @@ export default function Rfqs() {
 
       <div className="card">
         <Refreshable loading={rows === null} hasData={(rows?.length ?? 0) > 0}
-                     skeleton={<TableSkeleton cols={5} rows={5} />}>
+                     /* The seven headings below are written here and are the
+                        same on every visit, so they are drawn rather than
+                        ghosted; the actions column has no name to draw. */
+                     skeleton={<TableSkeleton cols={7} rows={5}
+                       headers={["Reference", "Status", "Raised", "Lines",
+                                 "Replies", "Closes", ""]}
+                       widths={["16ch", "14ch", "11ch", "6ch", "10ch", "11ch",
+                                "10ch"]} />}>
           {(rows?.length ?? 0) === 0 ? (
             <div className="empty">
               <b>No requests yet.</b>

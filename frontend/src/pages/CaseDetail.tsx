@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure } from "../components/Skeleton";
 import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDateTime } from "../api";
@@ -93,24 +93,28 @@ export default function CaseDetail() {
         </p>
       </div>
     );
-  if (!ticket) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Help desk", to: "/helpdesk" }, { label: "Loading" }]}
-        eyebrow="Case"
-        cards={2}
-      />;
+  /* A `DetailSkeleton` used to replace the whole case with two grey cards
+   * while it loaded, and with it went the trail, the word Case, the Case
+   * number, Opened and Account labels, the four chevrons Open, Pending,
+   * Resolved and Closed, the five figure labels, the three field labels and
+   * the Conversation heading with its reply box. A help desk case has the
+   * same anatomy every time and none of it comes back from the server, so it
+   * is all drawn at once and only the case's own words wait. */
 
   return (
     <RecordPage
+      loading={!ticket}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Help desk", to: "/helpdesk" },
-              { label: ticket.ticket_number }]}
+              { label: ticket ? ticket.ticket_number : "Opening the case" }]}
       eyebrow="Case"
-      title={ticket.subject}
+      title={ticket ? ticket.subject : null}
       meta={[
-        { label: "Case number", value: ticket.ticket_number, mono: true },
-        { label: "Opened", value: fmtDateTime(ticket.created_at) },
+        { label: "Case number", value: ticket?.ticket_number ?? "", mono: true },
+        { label: "Opened", value: ticket ? fmtDateTime(ticket.created_at) : "" },
         { label: "Account",
-          value: ticket.company
+          value: !ticket ? ""
+            : ticket.company
             ? <EntityLink to={`/accounts/${ticket.company.id}`}>
                 {ticket.company.name}
               </EntityLink>
@@ -119,8 +123,17 @@ export default function CaseDetail() {
     >
 
       <div className="card record-hero">
-        <Path stages={PATH_STAGES} current={ticket.status} onPick={(s) => patch({ status: s })} />
-        <Highlights items={[
+        {/* The four stages are what a case can be, not what this one is, so
+            the chevrons are there from the first frame with nothing lit. */}
+        <Path stages={PATH_STAGES} current={ticket?.status ?? ""}
+              onPick={ticket ? (s) => patch({ status: s }) : undefined} />
+        <Highlights items={!ticket ? [
+          { label: "Priority", value: <Figure ready={false} w="7ch">{null}</Figure> },
+          { label: "Category", value: <Figure ready={false} w="12ch">{null}</Figure> },
+          { label: "Assigned to", value: <Figure ready={false} w="16ch">{null}</Figure> },
+          { label: "Replies", value: <Figure ready={false} w="3ch">{null}</Figure> },
+          { label: "CSAT", value: <Figure ready={false} w="4ch">{null}</Figure> },
+        ] : [
           { label: "Priority", value: ticket.priority, hint: slaBadge(ticket) },
           { label: "Category", value: ticket.category.replace(/_/g, " "), hint: ticket.channel || "none" },
           { label: "Assigned to", value: ticket.assigned_to?.full_name ?? "Unassigned",
@@ -134,7 +147,8 @@ export default function CaseDetail() {
           <div className="field">
             <label>Priority</label>
             <Select
-              value={String(ticket.priority ?? "")}
+              value={String(ticket?.priority ?? "")}
+              disabled={!ticket}
               onChange={(__value) => patch({ priority: __value })}
               options={[...PRIORITIES.map(([v, l]) => ({ value: String(v), label: l }))]}
             />
@@ -142,12 +156,13 @@ export default function CaseDetail() {
           <div className="field">
             <label>Assigned to</label>
             <Select
-              value={String(ticket.assigned_to?.id)}
+              value={ticket?.assigned_to ? String(ticket.assigned_to.id) : ""}
+              disabled={!ticket}
               onChange={(__value) => patch({ assigned_to_id: __value ? Number(__value) : null })}
               options={[{ value: "", label: "Unassigned" }, ...users.map((u) => ({ value: String(u.id), label: u.full_name }))]}
             />
           </div>
-          {(ticket.status === "resolved" || ticket.status === "closed") && (
+          {(ticket?.status === "resolved" || ticket?.status === "closed") && (
             <div className="field">
               <label>Customer satisfaction</label>
               <Select
@@ -163,7 +178,13 @@ export default function CaseDetail() {
       <div className="card">
         <h3>Conversation</h3>
         <div className="thread">
-          {ticket.messages.map((m) => (
+          {/* "No messages yet" is a claim about a conversation, and it waits
+              until the conversation has actually been read. */}
+          {!ticket ? (
+            <div className="msg staff">
+              <Figure ready={false} w="34ch">{null}</Figure>
+            </div>
+          ) : ticket.messages.map((m) => (
             <div key={m.id} className={`msg ${m.internal_note ? "note" : m.from_customer ? "customer" : "staff"}`}>
               <div className="who">
                 {m.internal_note ? "Internal note" : m.from_customer ? "Customer" : m.author?.full_name ?? "Staff"}
@@ -172,7 +193,7 @@ export default function CaseDetail() {
               {m.body}
             </div>
           ))}
-          {ticket.messages.length === 0 && <div className="empty">No messages yet</div>}
+          {ticket?.messages.length === 0 && <div className="empty">No messages yet</div>}
         </div>
 
         <form onSubmit={sendReply}>
@@ -190,7 +211,7 @@ export default function CaseDetail() {
               {ai.streaming ? "Stop" : <><ClaudeIcon size={14} /> Draft reply</>}
             </button>
             <Checkbox checked={internal} onChange={setInternal}>Internal note (not sent to customer)</Checkbox>
-            <button type="submit" disabled={!reply.trim()}>Send</button>
+            <button type="submit" disabled={!reply.trim() || !ticket}>Send</button>
           </div>
         </form>
       </div>

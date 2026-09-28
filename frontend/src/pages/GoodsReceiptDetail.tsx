@@ -203,18 +203,35 @@ export default function GoodsReceiptDetail() {
           ) : null}
         </>
       }
-      facts={row ? [
-        { label: "Goods", value: money(row.goods_total),
-          hint: `${row.packs} pack(s)` },
-        { label: "Damaged", value: row.damaged,
-          hint: row.damaged ? "claim a credit for these" : "None reported",
-          tone: row.damaged ? "warn" : undefined },
-        { label: "On a bill", value: row.invoice_number || "Not yet",
-          hint: row.invoice_number ? "matched" : "Unbilled goods",
-          tone: row.invoice_number ? undefined : "warn" },
-        { label: "Signed for by", value: row.received_by || "Not recorded",
-          hint: row.received_at ? fmtDateTime(row.received_at) : "" },
-      ] : []}
+      facts={[
+        /* Every delivery is judged on the same four things, so the labels come
+           up with the page and only the van's contents wait. Nothing is flagged
+           amber until the delivery has actually been read back. */
+        { label: "Goods",
+          value: <Figure ready={!!row} w="9ch">{row && money(row.goods_total)}</Figure>,
+          hint: <><Figure ready={!!row} w="3ch">{row?.packs}</Figure> pack(s)</> },
+        { label: "Damaged",
+          value: <Figure ready={!!row} w="3ch">{row?.damaged}</Figure>,
+          hint: <Figure ready={!!row} w="16ch">
+            {row && (row.damaged ? "claim a credit for these" : "None reported")}
+          </Figure>,
+          tone: row?.damaged ? "warn" : undefined },
+        { label: "On a bill",
+          value: <Figure ready={!!row} w="12ch">
+            {row && (row.invoice_number || "Not yet")}
+          </Figure>,
+          hint: <Figure ready={!!row} w="13ch">
+            {row && (row.invoice_number ? "matched" : "Unbilled goods")}
+          </Figure>,
+          tone: row && !row.invoice_number ? "warn" : undefined },
+        { label: "Signed for by",
+          value: <Figure ready={!!row} w="14ch">
+            {row && (row.received_by || "Not recorded")}
+          </Figure>,
+          hint: <Figure ready={!!row} w="16ch">
+            {row && (row.received_at ? fmtDateTime(row.received_at) : "No time recorded")}
+          </Figure> },
+      ]}
     >
       {row && matching && (
         <MatchToBill delivery={row} onClose={() => setMatching(false)}

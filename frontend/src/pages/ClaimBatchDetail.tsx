@@ -142,22 +142,37 @@ export default function ClaimBatchDetail() {
           )}
         </div>
       )}
-      facts={d && b ? [
-        { label: "Claimed", value: money(b.total_claimed),
-          hint: `${b.claim_count} claim${b.claim_count === 1 ? "" : "s"}` },
-        { label: "Settled", value: money(b.total_settled),
-          hint: d.settled ? "paid by the scheme" : "Not paid yet" },
+      facts={[
+        /* A claim batch is judged on the same four figures whatever is in it,
+           so the strip is drawn at once and the money alone pulses. The third
+           label is the exception: whether it reads Short or Outstanding depends
+           on whether the scheme has paid, so it opens on the unpaid wording and
+           settles once the batch is in hand. */
+        { label: "Claimed",
+          value: <Figure ready={!!b} w="9ch">{b && money(b.total_claimed)}</Figure>,
+          hint: <><Figure ready={!!b} w="2ch">{b?.claim_count}</Figure>
+            {" "}claim{b && b.claim_count === 1 ? "" : "s"}</> },
+        { label: "Settled",
+          value: <Figure ready={!!b} w="9ch">{b && money(b.total_settled)}</Figure>,
+          hint: <Figure ready={!!d} w="16ch">
+            {d && (d.settled ? "paid by the scheme" : "Not paid yet")}
+          </Figure> },
         // Only meaningful once the money has come back. Before that it is the
         // whole batch, which is not a shortfall, it is a queue.
-        { label: d.settled ? "Short" : "Outstanding",
-          value: money(d.settled ? d.shortfall : b.total_claimed),
-          hint: d.settled
-            ? `${d.short_count} claim${d.short_count === 1 ? "" : "s"} cut`
-            : "Waiting on the scheme",
-          tone: d.settled && d.shortfall > 0.005 ? "bad" : undefined },
-        { label: "Levies", value: money(b.total_levy),
+        { label: d?.settled ? "Short" : "Outstanding",
+          value: <Figure ready={!!d && !!b} w="9ch">
+            {d && b && money(d.settled ? d.shortfall : b.total_claimed)}
+          </Figure>,
+          hint: <Figure ready={!!d} w="18ch">
+            {d && (d.settled
+              ? `${d.short_count} claim${d.short_count === 1 ? "" : "s"} cut`
+              : "Waiting on the scheme")}
+          </Figure>,
+          tone: d && d.settled && d.shortfall > 0.005 ? "bad" : undefined },
+        { label: "Levies",
+          value: <Figure ready={!!b} w="9ch">{b && money(b.total_levy)}</Figure>,
           hint: "paid by patients at the counter" },
-      ] : undefined}
+      ]}
     >
       {/* The gate that stood here withheld three card headings, the whole
           head of the claims table and every word of the pricing breakdown

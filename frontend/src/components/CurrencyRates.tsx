@@ -13,7 +13,7 @@
 import { useEffect, useState } from "react";
 import { api, fmtDateTime, errorText  } from "../api";
 import { useToast } from "./Toast";
-import { TableSkeleton } from "./Skeleton";
+import { Block, Figure, GhostRows } from "./Skeleton";
 import Select from "./Select";
 import Th from "./Th";
 
@@ -81,40 +81,53 @@ export default function CurrencyRates() {
     <>
       <div className="card">
         <h3>Currencies</h3>
-        {!state ? (
-          <TableSkeleton rows={2} cols={3} />
-        ) : (
-          <>
-            <p className="muted" style={{ marginTop: 0 }}>
-              Prices are held in {base?.code}. Everything else is converted for display
-              and at the till, at the rate in force when the sale is settled.
-            </p>
-            <div className="rate-grid">
-              {state.currencies.map((c) => (
-                <div key={c.code} className="rate-card">
-                  <div className="rate-code">
-                    {c.code} <span className="muted">{c.symbol}</span>
-                  </div>
-                  <div className="rate-value mono">
-                    {c.is_base ? "base" : c.rate ? c.rate.toFixed(4) : "No rate set"}
-                  </div>
-                  {!c.is_base && (
-                    <div className="muted" style={{ fontSize: ".78rem" }}>
-                      per 1 {state.base}
-                    </div>
-                  )}
-                </div>
-              ))}
+        {/* SCOPED LOADING.
+            A grey table stood where a grid of rate cards goes, which is neither
+            the right shape nor the right height, and it hid a sentence that is
+            true of this pharmacy whatever the rate happens to be. Only the codes
+            and the figures are fetched now. */}
+        <p className="muted" style={{ marginTop: 0 }}>
+          Prices are held in <Figure ready={!!state} w="4ch">{base?.code}</Figure>.
+          Everything else is converted for display
+          and at the till, at the rate in force when the sale is settled.
+        </p>
+        <div className="rate-grid">
+          {!state && [0, 1].map((i) => (
+            <div key={i} className="rate-card" aria-busy="true">
+              <div className="rate-code"><Block w="7ch" h="1em" className="sk-val" /></div>
+              <div className="rate-value mono"><Block w="8ch" h="1em" className="sk-val" /></div>
+              <div className="muted" style={{ fontSize: ".78rem" }}>
+                <Block w="9ch" h="1em" className="sk-val" />
+              </div>
             </div>
-          </>
-        )}
+          ))}
+          {(state?.currencies ?? []).map((c) => (
+            <div key={c.code} className="rate-card">
+              <div className="rate-code">
+                {c.code} <span className="muted">{c.symbol}</span>
+              </div>
+              <div className="rate-value mono">
+                {c.is_base ? "base" : c.rate ? c.rate.toFixed(4) : "No rate set"}
+              </div>
+              {!c.is_base && (
+                <div className="muted" style={{ fontSize: ".78rem" }}>
+                  per 1 {state?.base}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {others.length > 0 && (
+      {/* The form is kept up while the currencies are read: its three labels and
+          its button are written here, and a control that appears a beat later is
+          one somebody has already clicked past. */}
+      {(!state || others.length > 0) && (
         <div className="card">
           <h3>Publish a rate</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            How many units of the currency one {state?.base} buys. Rates are never
+            How many units of the currency one{" "}
+            <Figure ready={!!state} w="4ch">{state?.base}</Figure> buys. Rates are never
             edited, publishing a correction adds an entry, so what a past sale was
             settled at stays true.
           </p>
@@ -128,7 +141,7 @@ export default function CurrencyRates() {
               />
             </div>
             <div className="field">
-              <label>Units per 1 {state?.base}</label>
+              <label>Units per 1 <Figure ready={!!state} w="4ch">{state?.base}</Figure></label>
               <input
                 type="number" step="0.0001" min="0" value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -152,14 +165,16 @@ export default function CurrencyRates() {
 
       <div className="card">
         <h3>Rate history</h3>
-        {history === null ? (
-          <TableSkeleton rows={5} cols={4} />
-        ) : historyUnknown ? (
+        {/* The head is written here and the same on every visit, so it is drawn
+            under the heading straight away. "No rate has been published yet" is
+            still the last arm of the four: a shop's whole price list hangs off
+            that sentence and it must never be said on a guess. */}
+        {historyUnknown ? (
           <div className="empty">
             The rate history could not be read. That is not the same as no
             rate having been published.
           </div>
-        ) : history.length === 0 ? (
+        ) : history !== null && history.length === 0 ? (
           <div className="empty">No rate has been published yet</div>
         ) : (
           <table>
@@ -171,6 +186,10 @@ export default function CurrencyRates() {
                 <Th>Source</Th>
               </tr>
             </thead>
+            {history === null ? (
+              <GhostRows cols={4} rows={5}
+                         widths={["40%", "50%", "70%", "60%"]} />
+            ) : (
             <tbody>
               {history.map((r) => (
                 <tr key={r.id}>
@@ -188,6 +207,7 @@ export default function CurrencyRates() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
         )}
       </div>

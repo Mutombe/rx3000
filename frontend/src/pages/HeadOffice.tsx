@@ -29,7 +29,7 @@ import { Eye, Snowflake, Warning } from "@phosphor-icons/react";
 import { api, errorText, getToken, money, setToken } from "../api";
 import BusyButton from "../components/BusyButton";
 import PageTabs, { TabDef, TabStrip, usePageTabs } from "../components/PageTabs";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { OWN_SESSION } from "../components/ActingAs";
 import { writeStored } from "../storage";
@@ -215,8 +215,15 @@ export default function HeadOffice() {
       <PageHead
         title="Head office"
         sub={estate?.headline ?? "The estate, and the controls above it."}
-        count={estate?.branches?.length
-          ? `${estate.branches.length} shops` : undefined}
+        count={!estate && !loading ? undefined : (
+          // A group has shops whether or not the estate has been read yet, so
+          // the noun is drawn and only the tally of them waits.
+          <>
+            <Figure ready={!!estate} w="4ch">
+              {estate && estate.branches.length}
+            </Figure>{" "}shops
+          </>
+        )}
         // The estate as a sheet, which is what a group owner takes to a bank or
         // a regulator. A screen cannot be attached to either.
         take={<ExportButton dataset="branches" />}
@@ -224,8 +231,16 @@ export default function HeadOffice() {
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
+      {/* One skeleton stands in for whichever tab is open, so the estate's
+          column names are only given while the estate is the thing coming.
+          Naming Branch and Taken over a skeleton that resolves into the
+          authority matrix would be a worse lie than a grey bar. */}
       <Refreshable loading={loading} hasData={!!estate}
-        skeleton={<TableSkeleton cols={5} rows={5} />}>
+        skeleton={tab === "map"
+          ? <TableSkeleton cols={6} rows={5}
+              headers={["Branch", "Taken", "Sales", "On the period before",
+                        "Standing", ""]} />
+          : <TableSkeleton cols={5} rows={5} />}>
         {estate && tab === "map" && (
           <>
             {estate.frozen.length > 0 && (
@@ -542,8 +557,11 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
           </button>
         ))}
       </TabStrip>
-      {!people ? <TableSkeleton cols={5} rows={6} rowHeight={62} />
-       : !people.people.length ? (
+      {!people ? (
+        <TableSkeleton cols={6} rows={6} rowHeight={62}
+          headers={["Person", "Role", "Till code", "Also allowed",
+                    "Prevented from", ""]} />
+      ) : !people.people.length ? (
         /* A branch with nobody in it drew a header and then nothing, which
            reads as a table that failed to load rather than a branch with no
            staff on it. */
@@ -651,7 +669,10 @@ function WhoSignsIn({ pins, types, unknown }: {
       </div>
     );
   }
-  if (!types) return <TableSkeleton cols={4} rows={5} />;
+  if (!types) {
+    return <TableSkeleton cols={4} rows={5}
+      headers={["Kind", "How many", "How they prove it", "What they reach"]} />;
+  }
   return (
     <>
       <div className="dt-scroll">

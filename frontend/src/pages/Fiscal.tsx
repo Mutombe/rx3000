@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
-import { Figure, TableSkeleton } from "../components/Skeleton";
+import { Block, Figure, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
@@ -123,7 +123,7 @@ export default function Fiscal() {
   const toast = useToast();
   const confirm = useConfirm();
   const [status, setStatus] = useState<Status | null>(null);
-  const [days, setDays] = useState<Day[]>([]);
+  const [days, setDays] = useState<Day[] | null>(null);
   const [daysUnknown, setDaysUnknown] = useState(false);
   const [receiptsUnknown, setReceiptsUnknown] = useState(false);
   const [busy, setBusy] = useState("");
@@ -235,7 +235,13 @@ export default function Fiscal() {
 
       <div className="card">
         <h3>The trading day</h3>
-        {day ? (
+        {/* Whether a day is open is the one thing this card is read for, and
+            "No day is open" is an instruction to go and open one. It waits for
+            the status rather than being said about a till nobody has asked
+            about yet. */}
+        {!status ? (
+          <Block h={132} round="md" />
+        ) : day ? (
           <>
             <div className="fs-day">
               <div>
@@ -369,7 +375,10 @@ export default function Fiscal() {
             The register could not be read. This is not a statement about what
             has been filed. Reload the page before answering anybody from it.
           </div>
-        ) : !receipts || receipts.items.length === 0 ? (
+        ) : !receipts ? (
+          <TableSkeleton cols={7} rows={6}
+            headers={["No.", "Type", "Filed", "Total", "VAT", "Status", ""]} />
+        ) : receipts.items.length === 0 ? (
           <div className="empty">
             {filter
               ? "No receipt matches that."
@@ -439,6 +448,10 @@ export default function Fiscal() {
             The closed days could not be read. Whether a day is still open is
             answered above, from the status, and that is the part to trust here.
           </div>
+        ) : !days ? (
+          <TableSkeleton cols={8} rows={5}
+            headers={["Day", "Opened", "Closed", "Receipts", "Sales", "VAT",
+                      "Credit notes", "Z-report"]} />
         ) : days.length === 0 ? (
           <div className="empty">No fiscal days yet.</div>
         ) : (

@@ -639,8 +639,25 @@ function safeFormat(d: Date, opts: Intl.DateTimeFormatOptions, time = false) {
   }
 }
 
-export function fmtDate(s?: string | null) {
-  if (!s) return "—";
+/** THE DEFAULT WORDS FOR A DATE NOBODY RECORDED.
+ *
+ *  These three formatters print very nearly every date in the product, and all
+ *  three returned an em dash when handed nothing. So the commonest missing
+ *  value in the software was also the one place the rule against dashes was
+ *  broken, on every table with an unfilled date column, for as long as they
+ *  have existed. `qa/a-blank-cell-says-what-is-missing.py` said there were
+ *  none, because it looked for the shapes somebody remembered writing and not
+ *  for `if (!s) return "-"`.
+ *
+ *  "Not recorded" is the default rather than the answer. A date column knows
+ *  what its own absence means and should say so: a collection date that never
+ *  came is "Not collected", a filing date is "Not filed". Pass `absent` and
+ *  say it. The default is only there so that no caller can go back to nothing.
+ */
+const NO_DATE = "Not recorded";
+
+export function fmtDate(s?: string | null, absent = NO_DATE) {
+  if (!s) return absent;
   return safeFormat(new Date(s), { year: "numeric", month: "short", day: "numeric" });
 }
 
@@ -650,8 +667,8 @@ export function fmtDate(s?: string | null) {
  *
  *  Falls back to the full form once the date is not in the current year, since
  *  at that point the year is the thing you need. */
-export function fmtWhen(s?: string | null) {
-  if (!s) return "—";
+export function fmtWhen(s?: string | null, absent = NO_DATE) {
+  if (!s) return absent;
   const d = new Date(s);
   if (d.getFullYear() !== new Date().getFullYear()) return fmtDateTime(s);
   return safeFormat(d, {
@@ -659,8 +676,8 @@ export function fmtWhen(s?: string | null) {
   }, true);
 }
 
-export function fmtDateTime(s?: string | null) {
-  if (!s) return "—";
+export function fmtDateTime(s?: string | null, absent = NO_DATE) {
+  if (!s) return absent;
   return safeFormat(new Date(s), {
     year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
   }, true);

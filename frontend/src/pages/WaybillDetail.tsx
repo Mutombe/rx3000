@@ -178,21 +178,30 @@ export default function WaybillDetail() {
           )}
         </div>
       )}
-      facts={w ? [
-        { label: "Status", value: w.status,
-          tone: TONE[w.status] || undefined,
-          hint: w.status === "failed" ? "the medicine is still ours" : undefined },
-        { label: "Raised", value: fmtDateTime(w.created_at),
-          hint: w.created_by || undefined },
+      facts={[
+        /* A delivery is asked the same four questions whoever is driving, so
+           the four labels are up before the answers are. The colours wait with
+           the answers: a run nobody has read yet has not failed. */
+        { label: "Status",
+          value: <Figure ready={!!w} w="10ch">{w?.status}</Figure>,
+          tone: w ? (TONE[w.status] || undefined) : undefined,
+          hint: w?.status === "failed" ? "the medicine is still ours" : undefined },
+        { label: "Raised",
+          value: <Figure ready={!!w} w="16ch">{w && fmtDateTime(w.created_at)}</Figure>,
+          hint: w?.created_by || undefined },
         { label: "Delivered",
-          value: w.delivered_at ? fmtDateTime(w.delivered_at) : "Not yet",
-          hint: w.received_by ? `signed by ${w.received_by}` : undefined },
+          value: <Figure ready={!!w} w="16ch">
+            {w && (w.delivered_at ? fmtDateTime(w.delivered_at) : "Not yet")}
+          </Figure>,
+          hint: w?.received_by ? `signed by ${w.received_by}` : undefined },
         { label: "Identity check",
-          value: w.requires_id_check ? "required" : "Not required",
-          tone: w.requires_id_check && !w.id_number_seen && w.status === "delivered"
+          value: <Figure ready={!!w} w="12ch">
+            {w && (w.requires_id_check ? "required" : "Not required")}
+          </Figure>,
+          tone: w && w.requires_id_check && !w.id_number_seen && w.status === "delivered"
             ? "bad" : undefined,
-          hint: w.id_number_seen || undefined },
-      ] : undefined}
+          hint: w?.id_number_seen || undefined },
+      ]}
     >
       {w && (
         <>

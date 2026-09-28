@@ -43,10 +43,13 @@ export default function Orders() {
   const [meta, setMeta] = useState<Paged<PurchaseOrder> | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
-  const [lowStock, setLowStock] = useState<Product[]>([]);
+  // Null until the shelf has answered. An empty array meant the reorder tab
+  // could say nothing was low before it had asked, which is how a shelf runs
+  // out.
+  const [lowStock, setLowStock] = useState<Product[] | null>(null);
   const [lowUnknown, setLowUnknown] = useState(false);
   // A reorder sheet needs every shortfall to decide from; the DOM does not.
-  const lowStockRows = useClientPage<Product>(lowStock, 25);
+  const lowStockRows = useClientPage<Product>(lowStock ?? [], 25);
   const [expanded, setExpanded] = useState<number | null>(null);
   const toast = useToast();
   const work = useRowWork();
@@ -85,7 +88,7 @@ export default function Orders() {
   const TABS: TabDef<Tab>[] = [
     { key: "orders", label: "Purchase orders", count: loading ? null : orders.length },
     { key: "low", label: "Reorder needs",
-      count: lowUnknown ? undefined : lowStock.length,
+      count: lowUnknown ? undefined : lowStock ? lowStock.length : null,
       hint: "Products at or below their reorder level" },
     /* THE QUEUE. Without one, approval is a thing somebody discovers at the
        moment they try to send — the worst time, and usually the wrong
@@ -201,7 +204,10 @@ export default function Orders() {
           <Refreshable
             loading={loading}
             hasData={orders.length > 0}
-            skeleton={<TableSkeleton cols={8} rows={8} rowHeight={55} widths={["3ch", "14ch", "20ch", "12ch", "16ch", "7ch", "12ch", "10ch"]} />}
+            skeleton={<TableSkeleton cols={8} rows={8} rowHeight={55}
+              headers={["", "Order", "Supplier", "Status", "Raised", "Lines",
+                        "Value", ""]}
+              widths={["3ch", "14ch", "20ch", "12ch", "16ch", "7ch", "12ch", "10ch"]} />}
           >
             <table>
               <thead>
@@ -370,7 +376,7 @@ export default function Orders() {
               What is low could not be read, so this is not a statement that
               nothing needs ordering. Reload the page.
             </div>
-          ) : lowStock.length === 0 && (
+          ) : lowStock && lowStock.length === 0 && (
             <div className="empty">Nothing is at or below its reorder level</div>
           )}
         </div>

@@ -17,7 +17,7 @@ import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { EntityLink , TableSearch, useSearch } from "../components/Filters";
 import RowLink, { RowActions } from "../components/RowLink";
 import { useToast } from "../components/Toast";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
@@ -127,7 +127,7 @@ export default function DeferredClaims() {
       <PageHead
         title="Claims held"
         sub={headline}
-        count={rows.length ? `${rows.length} held` : undefined}
+        count={<><Figure ready={!loading} w="3ch">{!loading && rows.length}</Figure>{" "}held</>}
         // What is stuck and why, which is what a pharmacy takes to the funder
         // when the same rejection keeps arriving.
         take={<ExportButton dataset="claims" />}
@@ -158,7 +158,10 @@ export default function DeferredClaims() {
         </div>
       )}
 
-      {!rows.length ? (
+      {/* Only once the list is actually in hand. Held claims are money nobody
+          has asked for yet, and telling a pharmacy there are none while the
+          request is still out is the one wrong answer this screen can give. */}
+      {!loading && !rows.length ? (
         <p className="muted pad">
           Nothing held. Claims land here when the switch is unreachable or a member's
           card is not present. The medicine goes out, and the claim waits.
@@ -175,7 +178,9 @@ export default function DeferredClaims() {
           <Refreshable
             loading={loading}
             hasData={rows.length > 0}
-            skeleton={<TableSkeleton cols={6} rows={5} />}
+            skeleton={<TableSkeleton cols={7} rows={5}
+              headers={["Claim", "Sale", "Patient", "Scheme", "Value",
+                        "Why it is held", ""]} />}
           >
           <table className="dt dt-wider">
             <thead>

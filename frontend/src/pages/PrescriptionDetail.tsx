@@ -28,6 +28,7 @@ import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RepeatValue from "../components/RepeatValue";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Person from "../components/Person";
 import Th from "../components/Th";
@@ -161,44 +162,68 @@ export default function PrescriptionDetail() {
           )}
         </div>
       )}
-      facts={d ? [
-        { label: "Status", value: d.status },
-        { label: "Items", value: d.items.length },
-        { label: "Repeats left", value: repeatsLeft,
-          hint: repeatsLeft ? "across all items" : "None remaining" },
+      facts={[
+        /* Five words that are true of every script ever written, so they stand
+           before this one arrives and only the counts and the money pulse.
+           Altered stays behind its own answer: most scripts have no alteration
+           at all, and a label promising one would be a promise the page cannot
+           keep. */
+        { label: "Status",
+          value: <Figure ready={!!d} w="10ch">{d?.status}</Figure> },
+        { label: "Items",
+          value: <Figure ready={!!d} w="3ch">{d?.items.length}</Figure> },
+        { label: "Repeats left",
+          value: <Figure ready={!!d} w="3ch">{d && repeatsLeft}</Figure>,
+          hint: <Figure ready={!!d} w="14ch">
+            {d && (repeatsLeft ? "across all items" : "None remaining")}
+          </Figure> },
         // What is still in the script. The figure a shop wants on the day a
         // patient says they are moving away, and nothing produced it.
-        { label: "Still to come", value: money(worthToCome),
-          hint: repeatsLeft ? "if the patient keeps returning"
-                            : "the script is used up" },
-        { label: "Written", value: fmtDate(d.date_prescribed) },
+        { label: "Still to come",
+          value: <Figure ready={!!d} w="9ch">{d && money(worthToCome)}</Figure>,
+          hint: <Figure ready={!!d} w="20ch">
+            {d && (repeatsLeft ? "if the patient keeps returning"
+                               : "the script is used up")}
+          </Figure> },
+        { label: "Written",
+          value: <Figure ready={!!d} w="11ch">{d && fmtDate(d.date_prescribed)}</Figure> },
         // Only when there is something to say. A zero here would be a fifth
         // figure competing with four that change a decision.
         ...(trail && trail.alterations.length ? [{
           label: "Altered", value: trail.alterations.length,
           tone: "warn", hint: "corrected since capture. See below",
         }] : []),
-      ] : undefined}
+      ]}
     >
-      {d && (
-        <>
-          <Panel title="Items on this script" count={d.items.length}
-                 empty="Nothing was captured against this script.">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <Th>Medicine</Th><Th>Directions</Th>
-                  <Th className="num">Qty</Th><Th className="num">Repeats</Th>
-                  {/* A script listing four repeats and no money cannot answer
-                      what the script is worth if the patient keeps coming
-                      back, which is the only commercial question anybody asks
-                      of one. */}
-                  <Th className="num">Worth</Th>
-                  <Th>Next due</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.items.map((i) => {
+      {/* Four panel headings, seventeen column heads and four field labels, all
+          of them written here and none of them fetched. A script is the
+          document a dispensary organises itself around and this page used to
+          arrive as a title over nothing, then as four tables at once. The
+          frame stands from the first frame now, and every empty line waits
+          for its own count: telling somebody that nothing has been dispensed
+          on a script before the supply history has been read is how a script
+          gets dispensed twice. */}
+      <Panel title="Items on this script" count={d?.items.length}
+             empty={d ? "Nothing was captured against this script." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr>
+              <Th>Medicine</Th><Th>Directions</Th>
+              <Th className="num">Qty</Th><Th className="num">Repeats</Th>
+              {/* A script listing four repeats and no money cannot answer
+                  what the script is worth if the patient keeps coming
+                  back, which is the only commercial question anybody asks
+                  of one. */}
+              <Th className="num">Worth</Th>
+              <Th>Next due</Th>
+            </tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={6} rows={3} secondLine={[0]}
+                       widths={["80%", "70%", "30%", "45%", "45%", "50%"]} />
+          ) : (
+            <tbody>
+              {d.items.map((i) => {
                   const left = Math.max(0, (i.repeats_allowed || 0) - (i.repeats_used || 0));
                   return (
                     <tr key={i.id}>
@@ -231,35 +256,38 @@ export default function PrescriptionDetail() {
                         {i.auto_refill && <div className="muted small">auto refill</div>}
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </Panel>
-
-          {/* What has actually left the shelf. A script and a supply are not
-              the same thing, and this page said nothing about the difference. */}
-          {trailUnknown && (
-            <Panel title="What has gone out">
-              <p className="muted pad">
-                What has been dispensed against this script could not be read.
-                Do not read this as a script nothing has gone out on. Reload
-                the page before supplying it.
-              </p>
-            </Panel>
+                );
+              })}
+            </tbody>
           )}
-          {trail && (
-            <Panel title="What has gone out" count={trail.dispensings.length}
-                   empty="Nothing on this script has been dispensed yet.">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>When</Th><Th>Medicine</Th>
-                    <Th className="num">Qty</Th><Th>Dispensed by</Th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trail.dispensings.map((x) => (
+        </table>
+      </Panel>
+
+      {/* What has actually left the shelf. A script and a supply are not
+          the same thing, and this page said nothing about the difference. */}
+      {trailUnknown ? (
+        <Panel title="What has gone out">
+          <p className="muted pad">
+            What has been dispensed against this script could not be read.
+            Do not read this as a script nothing has gone out on. Reload
+            the page before supplying it.
+          </p>
+        </Panel>
+      ) : (
+        <Panel title="What has gone out" count={trail?.dispensings.length}
+               empty={trail ? "Nothing on this script has been dispensed yet." : undefined}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>When</Th><Th>Medicine</Th>
+                <Th className="num">Qty</Th><Th>Dispensed by</Th><th></th>
+              </tr>
+            </thead>
+            {!trail ? (
+              <GhostRows cols={5} rows={3} widths={["70%", "80%", "30%", "55%", "40%"]} />
+            ) : (
+              <tbody>
+                {trail.dispensings.map((x) => (
                     <tr key={x.id}>
                       <td>{fmtDateTime(x.dispensed_at)}</td>
                       <td>
@@ -279,27 +307,36 @@ export default function PrescriptionDetail() {
                           </Link>
                         )}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          )}
-
-          {/* Newest first: somebody checking a script wants the last thing
-              that happened to it and reads backwards from there. */}
-          {trail && (
-            <Panel title="Alterations" count={trail.alterations.length}
-                   empty="Nothing on this script has been changed since it was captured.">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>When</Th><Th>Field</Th><Th>Change</Th>
-                    <Th>Reason</Th><Th>By</Th>
                   </tr>
-                </thead>
-                <tbody>
-                  {trail.alterations.map((a) => (
+                ))}
+              </tbody>
+            )}
+          </table>
+        </Panel>
+      )}
+
+      {/* Newest first: somebody checking a script wants the last thing
+          that happened to it and reads backwards from there.
+
+          Nothing is offered at all when the trail could not be read, since an
+          alterations panel that will never fill reads as a script nobody has
+          ever corrected. */}
+      {!trailUnknown && (
+        <Panel title="Alterations" count={trail?.alterations.length}
+               empty={trail ? "Nothing on this script has been changed since it was captured."
+                            : undefined}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>When</Th><Th>Field</Th><Th>Change</Th>
+                <Th>Reason</Th><Th>By</Th>
+              </tr>
+            </thead>
+            {!trail ? (
+              <GhostRows cols={5} rows={3} widths={["70%", "45%", "80%", "60%", "45%"]} />
+            ) : (
+              <tbody>
+                {trail.alterations.map((a) => (
                     <tr key={a.id}>
                       <td>{fmtDateTime(a.changed_at)}</td>
                       <td>{FIELD_NAMES[a.field] ?? a.field}</td>
@@ -316,47 +353,67 @@ export default function PrescriptionDetail() {
                         <b>{a.new_value || <em>blank</em>}</b>
                       </td>
                       <td>{a.reason || <span className="muted">None</span>}</td>
-                      <td className="muted">{a.changed_by || "none"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          )}
-
-          <div className="grid cols-2">
-            <Panel title="Who it is for">
-              <dl className="kv">
-                <dt>Patient</dt>
-                <dd>
-                  <EntityLink kind="patient" id={d.patient_id}>
-                    {patientName || "Walk-in"}
-                  </EntityLink>
-                  {d.patient?.phone && <div className="muted small">{d.patient.phone}</div>}
-                </dd>
-                <dt>Prescriber</dt>
-                <dd>
-                  <EntityLink kind="prescriber" id={d.doctor_id}>
-                    {d.doctor?.name ?? "Not recorded"}
-                  </EntityLink>
-                  {d.doctor?.practice_number && (
-                    <div className="muted small mono">{d.doctor.practice_number}</div>
-                  )}
-                </dd>
-                <dt>Written</dt><dd>{fmtDate(d.date_prescribed)}</dd>
-                <dt>Status</dt><dd><span className="badge">{sentence(d.status)}</span></dd>
-              </dl>
-            </Panel>
-
-            <Panel title="Notes"
-                   empty="Nothing was noted on this script.">
-              {d.notes
-                ? <p className="prose">{d.notes}</p>
-                : <div className="empty"><p>Nothing was noted on this script.</p></div>}
-            </Panel>
-          </div>
-        </>
+                    <td className="muted">{a.changed_by || "none"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </Panel>
       )}
+
+      <div className="grid cols-2">
+        <Panel title="Who it is for">
+          <dl className="kv">
+            <dt>Patient</dt>
+            <dd>
+              <Figure ready={!!d} w="20ch">
+                {d && (
+                  <>
+                    <EntityLink kind="patient" id={d.patient_id}>
+                      {patientName || "Walk-in"}
+                    </EntityLink>
+                    {d.patient?.phone && <div className="muted small">{d.patient.phone}</div>}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Prescriber</dt>
+            <dd>
+              <Figure ready={!!d} w="20ch">
+                {d && (
+                  <>
+                    <EntityLink kind="prescriber" id={d.doctor_id}>
+                      {d.doctor?.name ?? "Not recorded"}
+                    </EntityLink>
+                    {d.doctor?.practice_number && (
+                      <div className="muted small mono">{d.doctor.practice_number}</div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Written</dt>
+            <dd><Figure ready={!!d} w="11ch">{d && fmtDate(d.date_prescribed)}</Figure></dd>
+            <dt>Status</dt>
+            <dd>
+              <Figure ready={!!d} w="10ch">
+                {d && <span className="badge">{sentence(d.status)}</span>}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+
+        {/* A script that has not arrived has not told us it was noteless. */}
+        <Panel title="Notes"
+               empty={d ? "Nothing was noted on this script." : undefined}>
+          <Figure ready={!!d} w="36ch">
+            {d && (d.notes
+              ? <p className="prose">{d.notes}</p>
+              : <div className="empty"><p>Nothing was noted on this script.</p></div>)}
+          </Figure>
+        </Panel>
+      </div>
     </RecordPage>
   );
 }

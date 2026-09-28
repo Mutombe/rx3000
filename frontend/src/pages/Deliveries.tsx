@@ -16,7 +16,7 @@ import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
 import { useSelection } from "../hooks/useSelection";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
 import BusyButton from "../components/BusyButton";
@@ -210,6 +210,12 @@ export default function Deliveries() {
         after: load });
   }
 
+  /* The four queues have answered at least once. Not `!loading`, because a
+     refetch must not un-say a sentence the reader is already reading, and not
+     an empty `rows` either: "Nothing is out" before the first answer is the
+     screen telling a dispatcher there is no round when it has not yet asked. */
+  const answered = Object.keys(rows).length > 0;
+
   const headline = useMemo(() => {
     const out = rows.out?.length ?? 0;
     const pending = rows.pending?.length ?? 0;
@@ -221,8 +227,12 @@ export default function Deliveries() {
     <div className="page">
       <PageHead
         title="Deliveries"
-        sub={headline}
-        count={list.length ? `${list.length} on this tab` : undefined}
+        sub={<Figure ready={answered} w="26ch">{answered && headline}</Figure>}
+        /* "on this tab" names the tab the reader just clicked, not anything
+           the server said, so it is drawn at once and only the count waits. */
+        count={<><Figure ready={answered} w="6ch">
+          {answered && (list.length ? list.length : "Nothing")}
+        </Figure>{" "}on this tab</>}
         // The round, as the sheet a supervisor carries or a driver is handed.
         // The address and the telephone number are the whole point of it off
         // screen.
@@ -253,8 +263,11 @@ export default function Deliveries() {
       <Refreshable
         loading={loading}
         hasData={list.length > 0}
-        skeleton={<TableSkeleton cols={8} rows={8} rowHeight={65}
-          widths={["12ch", "18ch", "26ch", "12ch", "16ch", "18ch"]} />}
+        skeleton={<TableSkeleton cols={9} rows={8} rowHeight={65}
+          headers={["", "Waybill", "Journey", "Recipient", "Address", "Driver",
+                    "To collect", "Raised", ""]}
+          widths={["3ch", "12ch", "10ch", "18ch", "26ch", "12ch", "9ch",
+                   "16ch", "18ch"]} />}
       >
         <div className="dt-scroll">
           <table className="dt dt-wider">
@@ -399,7 +412,7 @@ export default function Deliveries() {
                 </RowLink>
               ))}
               {!list.length && !loading && (
-                <tr><td colSpan={8} className="muted pad">Nothing here.</td></tr>
+                <tr><td colSpan={9} className="muted pad">Nothing here.</td></tr>
               )}
             </tbody>
           </table>

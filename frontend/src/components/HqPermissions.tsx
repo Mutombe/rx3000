@@ -21,7 +21,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
 import Select from "./Select";
-import { TableSkeleton } from "./Skeleton";
+import { Figure, GhostRows } from "./Skeleton";
 import { useConfirm } from "./Confirm";
 import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
@@ -129,9 +129,14 @@ export default function HqPermissions() {
         </div>
       </div>
 
-      {!detail ? <TableSkeleton cols={4} rows={6} /> : (
-        <>
-          {grantList.items.length > 0 && (
+      {/* SCOPED LOADING.
+          Both section headings, the sentence about what a permission check is
+          for, and every column head in both tables are written here and read
+          the same for whoever is picked in the box above. They used to be
+          replaced wholesale by a grey table, so switching person blanked the
+          page and rebuilt it. Now only the grants and the answers pulse. */}
+      <>
+          {(!detail || grantList.items.length > 0) && (
             <>
               <h4 className="cu-section">Granted by name</h4>
               <div className="dt-scroll">
@@ -144,6 +149,10 @@ export default function HqPermissions() {
                       <th className="actions" />
                     </tr>
                   </thead>
+                  {!detail ? (
+                    <GhostRows cols={7} rows={3}
+                               widths={["70%", "60%", "50%", "60%", "50%", "80%", "40%"]} />
+                  ) : (
                   <tbody>
                     {grantList.items.map((g) => (
                       <tr key={g.id}
@@ -196,13 +205,15 @@ export default function HqPermissions() {
                       </tr>
                     ))}
                   </tbody>
+                  )}
                 </table>
               </div>
             </>
           )}
 
           <h4 className="cu-section">
-            Everything {detail.user.full_name} may and may not do
+            Everything <Figure ready={!!detail} w="16ch">{detail?.user.full_name}</Figure>{" "}
+            may and may not do
           </h4>
           <p className="muted small">
             <Info size={13} /> A permission check that can only say no is one
@@ -214,6 +225,10 @@ export default function HqPermissions() {
               <thead>
                 <tr><Th>Can they</Th><Th>Answer</Th><Th>Why</Th></tr>
               </thead>
+              {!detail ? (
+                <GhostRows cols={3} rows={6} secondLine={[0]}
+                           widths={["70%", "30%", "80%"]} />
+              ) : (
               <tbody>
                 {detail.capabilities.length === 0 && (
                   <EmptyRow cols={3} title="No capabilities are defined here">
@@ -244,10 +259,10 @@ export default function HqPermissions() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
           </div>
-        </>
-      )}
+      </>
 
       {adding && who && (
         <GrantForm userId={who} caps={caps} branches={branches}

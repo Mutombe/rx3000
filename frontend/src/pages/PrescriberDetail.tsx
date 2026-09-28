@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { GhostRows } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -128,15 +128,25 @@ export default function PrescriberDetail() {
           </BusyButton>
         </div>
       )}
-      facts={d ? [
-        { label: "Scripts sent in", value: d.script_count },
+      facts={[
+        /* The same five things are asked of every prescriber, and asking them
+           costs nothing, so the words are up before the doctor is. Only the
+           count and the numbers beside them wait. */
+        { label: "Scripts sent in",
+          value: <Figure ready={!!d} w="4ch">{d?.script_count}</Figure> },
         { label: "Practice number",
-          value: <span className="mono">{d.practice_number || "none"}</span> },
+          value: <span className="mono">
+            <Figure ready={!!d} w="12ch">{d && (d.practice_number || "none")}</Figure>
+          </span> },
         { label: "AHFoZ number",
-          value: <span className="mono">{d.ahfoz_number || "none"}</span> },
-        { label: "Telephone", value: d.phone || "none" },
-        { label: "Email", value: d.email || "none" },
-      ] : undefined}
+          value: <span className="mono">
+            <Figure ready={!!d} w="12ch">{d && (d.ahfoz_number || "none")}</Figure>
+          </span> },
+        { label: "Telephone",
+          value: <Figure ready={!!d} w="13ch">{d && (d.phone || "none")}</Figure> },
+        { label: "Email",
+          value: <Figure ready={!!d} w="16ch">{d && (d.email || "none")}</Figure> },
+      ]}
     >
       {/* A prescriber page always has these two panels and always has these
           column heads: what changes between one doctor and the next is the

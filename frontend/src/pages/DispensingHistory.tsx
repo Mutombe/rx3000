@@ -21,7 +21,7 @@ import LabelSheet from "../components/LabelSheet";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
@@ -157,7 +157,8 @@ export default function DispensingHistory() {
       <PageHead
         title="Dispensing history"
         sub="What has gone out, who checked it, whether it was paid for and whether it has been collected"
-        count={data ? `${data.total.toLocaleString()} dispensings` : undefined}
+        // The chip holds its place from the first frame; only the tally waits.
+        count={<><Figure ready={!!data} w="6ch">{data && data.total.toLocaleString()}</Figure>{" "}dispensings</>}
         // THE FILE A SCHEME AUDIT IS ANSWERED FROM.
         // A funder asks what a patient was given in March and expects it in a
         // sheet, not a screenshot. It carries who checked each one, because

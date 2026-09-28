@@ -26,7 +26,7 @@ import BusyButton from "./BusyButton";
 import Select from "./Select";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
-import { TableSkeleton } from "./Skeleton";
+import { GhostRows } from "./Skeleton";
 import Th from "./Th";
 
 interface Held {
@@ -96,6 +96,14 @@ export default function EstateStock() {
       .catch((e) => toast.error(errorText(e, "That product could not be read.")))
       .finally(() => setLooking(false));
   }
+
+  /** The holdings only once they are the ones that were asked for.
+   *
+   *  `holdings` keeps the previous medicine's shelves on screen while the next
+   *  is fetched, which is right for the page but wrong for a row of figures
+   *  somebody is about to send stock against. Null while a look-up is running,
+   *  so the shelves ghost rather than quietly show another medicine's. */
+  const shelves = looking ? null : holdings;
 
   const moving = Math.max(0, Math.floor(Number(quantity) || 0));
   const sender = holdings?.branches.find((b) => b.branch_id === fromId) ?? null;
@@ -177,9 +185,14 @@ export default function EstateStock() {
           )}
         </div>
 
-        {looking && <TableSkeleton cols={3} rows={3} rowHeight={44} />}
-
-        {holdings && !looking && (
+        {/* SCOPED LOADING.
+            Picking a medicine used to swap the whole shelves panel for a grey
+            table, taking the three column heads, the From and To pickers, the
+            quantity box and the Send button with it. None of those depend on
+            which medicine was chosen. They stay, and the shelves alone pulse,
+            so somebody who already knows they are sending twenty can type the
+            twenty while the branches are read. */}
+        {(holdings || looking) && (
           <>
             <div className="dt-scroll">
               <table className="dt es-shelves">
@@ -187,8 +200,12 @@ export default function EstateStock() {
                   <tr><Th>Branch</Th><Th className="num">On the shelf</Th>
                     <Th className="num">After this move</Th></tr>
                 </thead>
+                {shelves === null ? (
+                  <GhostRows cols={3} rows={4} rowHeight={44}
+                             widths={["60%", "40%", "50%"]} />
+                ) : (
                 <tbody>
-                  {holdings.branches.map((b) => {
+                  {shelves.branches.map((b) => {
                     const delta = b.branch_id === fromId ? -moving
                       : b.branch_id === toId ? moving : 0;
                     return (
@@ -213,12 +230,13 @@ export default function EstateStock() {
                   })}
                   <tr className="es-total">
                     <td>Across the group</td>
-                    <td className="num">{holdings.group_total}</td>
+                    <td className="num">{shelves.group_total}</td>
                     <td className="num muted">
                       {moving ? "the same, once it arrives" : "unchanged"}
                     </td>
                   </tr>
                 </tbody>
+                )}
               </table>
             </div>
 
@@ -245,20 +263,22 @@ export default function EstateStock() {
                 <input value={notes} onChange={(e) => setNotes(e.target.value)}
                        placeholder="optional" />
               </label>
-              <BusyButton className="btn primary" disabled={!ready} onClick={send}
-                          busyLabel="Sending…">
+              <BusyButton className="btn primary" disabled={!ready || looking}
+                          onClick={send} busyLabel="Sending…">
                 Send it
               </BusyButton>
             </div>
 
-            {tooMuch && sender && (
+            {/* Both of these are verdicts on shelves that have arrived, so
+                neither is said while they are still being read. */}
+            {shelves && tooMuch && sender && (
               <p className="alert warn es-warn">
                 <Warning size={15} weight="fill" />
                 {sender.branch} holds {sender.on_hand}. Send that or less, or
                 move some there first.
               </p>
             )}
-            {fromId === toId && fromId !== null && (
+            {shelves && fromId === toId && fromId !== null && (
               <p className="alert warn es-warn">
                 <Warning size={15} weight="fill" />
                 A transfer needs two different branches.
@@ -274,8 +294,12 @@ export default function EstateStock() {
           Off one shelf and not yet on the other. While a transfer sits here the
           group total on the product record counts it, and neither branch does.
         </p>
-        {!transit ? <TableSkeleton cols={6} rows={3} rowHeight={48} />
-         : transitUnknown ? (
+        {/* The heading, the sentence under it and the seven column heads below
+            are written here, so they are drawn straight away and only the
+            consignments pulse. "Nothing is in transit" stays the last arm of
+            the three: it is the sentence that stops a lost consignment being
+            looked for, and it is never said on a guess. */}
+        {transitUnknown ? (
           <div className="empty">
             <b>What is in transit could not be read.</b>
             <p>
@@ -283,7 +307,7 @@ export default function EstateStock() {
               end. Reload before deciding a consignment arrived.
             </p>
           </div>
-         ) : transit.length === 0 ? (
+         ) : transit !== null && transit.length === 0 ? (
           <div className="empty">
             <b>Nothing is in transit.</b>
             <p>Every transfer that has been sent has been booked in at the other end.</p>
@@ -296,6 +320,10 @@ export default function EstateStock() {
                   <Th>From</Th><Th>To</Th><Th className="num">Days out</Th>
                   <th className="actions" /></tr>
               </thead>
+              {transit === null ? (
+                <GhostRows cols={7} rows={3} rowHeight={48}
+                           widths={["60%", "70%", "30%", "60%", "60%", "30%", "50%"]} />
+              ) : (
               <tbody>
                 {transit.map((t) => (
                   <tr key={t.id} className={t.days_in_transit >= 7 ? "is-off" : undefined}>
@@ -316,6 +344,7 @@ export default function EstateStock() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
           </div>
         )}

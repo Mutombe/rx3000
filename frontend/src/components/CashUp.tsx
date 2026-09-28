@@ -20,7 +20,14 @@ import { api, money, errorText, fmtDateTime } from "../api";
 import { useToast } from "./Toast";
 import { useConfirm } from "./Confirm";
 import Select from "./Select";
+import { Block } from "./Skeleton";
 import Th from "./Th";
+
+/** Placeholders for the two lists this sheet is sent: eight note and coin
+ *  faces, three other instruments. Both are close to what every branch has, so
+ *  the sheet settles rather than jumps when the real list lands. */
+const GHOST_TILES = [0, 1, 2, 3, 4, 5, 6, 7];
+const GHOST_TENDERS = [0, 1, 2];
 
 interface Tender {
   method: string; instrument: string; label: string;
@@ -142,8 +149,6 @@ export default function CashUp(
       setBusy(false);
     }
   }
-
-  if (!setup) return <div className="card"><div className="empty">Loading the drawer…</div></div>;
 
   async function loadRun() {
     setShowRun(true);
@@ -330,6 +335,18 @@ export default function CashUp(
     );
   }
 
+  /* SCOPED LOADING.
+   *
+   * "Reading the drawer…" used to replace this entire sheet, so a cashier
+   * standing at a till with a handful of notes saw one grey sentence. Everything
+   * here except the faces and the tender names is written in this file: the
+   * heading, the explanation of why the expected figure is withheld, the Till
+   * and Drawer boxes they can fill in straight away, both section headings, the
+   * running total of their own arithmetic, the notes box and the commit button.
+   *
+   * Only two things are genuinely the server's: which notes and coins this
+   * currency has, and which instruments this pharmacy takes. Those, and nothing
+   * else, are what pulse. */
   return (
     <div className="card">
       <div className="cu-head">
@@ -349,7 +366,7 @@ export default function CashUp(
             <span>Drawer</span>
             <input value={draw} onChange={(e) => setDraw(e.target.value)} />
           </label>
-          {setup.currencies.length > 1 && (
+          {setup && setup.currencies.length > 1 && (
             <label className="rr-param">
               <span>Currency</span>
               <Select
@@ -364,7 +381,16 @@ export default function CashUp(
 
       <h4 className="cu-section">Notes and coins</h4>
       <div className="cu-denoms">
-        {setup.denominations.map((face) => {
+        {/* Which faces exist is the one thing here only the server knows, so the
+            tiles are held at their real size until it says. */}
+        {!setup && GHOST_TILES.map((i) => (
+          <label key={i} className="cu-denom" aria-hidden="true">
+            <span className="cu-face"><Block w="6ch" h="1em" className="sk-val" /></span>
+            <input disabled placeholder="0" />
+            <span className="cu-sub mono" />
+          </label>
+        ))}
+        {(setup?.denominations ?? []).map((face) => {
           const key = String(face);
           const n = Number(coins[key]) || 0;
           return (
@@ -397,7 +423,13 @@ export default function CashUp(
             Cash is counted by denomination above; anything a driver is holding
             is not this drawer's to count and is left off entirely rather than
             offered to somebody being helpful. */}
-        {setup.tenders.filter((t) => !t.is_cash_drawer && !t.is_delivery)
+        {!setup && GHOST_TENDERS.map((i) => (
+          <label key={i} className="rr-param" aria-hidden="true">
+            <span><Block w="12ch" h="1em" className="sk-val" /></span>
+            <input disabled placeholder="0.00" />
+          </label>
+        ))}
+        {(setup?.tenders ?? []).filter((t) => !t.is_cash_drawer && !t.is_delivery)
           .map((t) => (
           <label key={t.instrument} className="rr-param">
             <span>{t.label}</span>
@@ -423,7 +455,10 @@ export default function CashUp(
       </label>
 
       <div className="cu-actions">
-        <button className="small" onClick={submit} disabled={busy}>
+        {/* Present from the first frame, shut until there is a denomination
+            list to have counted into. A button that appears late is a button
+            somebody presses twice. */}
+        <button className="small" onClick={submit} disabled={busy || !setup}>
           {busy ? "Recording…" : "Commit the count"}
         </button>
       </div>

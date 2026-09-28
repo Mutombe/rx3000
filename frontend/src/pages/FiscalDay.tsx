@@ -79,22 +79,32 @@ export default function FiscalDay() {
   useEffect(load, [load]);
 
   const open = day?.closed_at === null;
-  const facts: Fact[] = day ? [
-    { label: "Receipts", value: day.receipt_count,
-      hint: day.credit_note_count
+  /* A fiscal day is counted the same four ways every time, so the four words
+     are written here and not fetched. Only the totals wait, and the verdict on
+     the chain waits with them: nothing is called sound or broken until it has
+     been read. */
+  const facts: Fact[] = [
+    { label: "Receipts",
+      value: <Figure ready={!!day} w="4ch">{day?.receipt_count}</Figure>,
+      hint: day && day.credit_note_count
         ? `${day.sale_count} sales, ${day.credit_note_count} credit notes`
         : undefined },
-    { label: "Net", value: money(day.net),
-      hint: day.total_credit_notes
+    { label: "Net",
+      value: <Figure ready={!!day} w="9ch">{day && money(day.net)}</Figure>,
+      hint: day && day.total_credit_notes
         ? `${money(day.total_sales)} less ${money(day.total_credit_notes)} credited`
         : undefined },
-    { label: "VAT", value: money(day.total_vat) },
-    { label: "Chain", value: day.chain_holds ? "Holds" : "Broken",
-      tone: day.chain_holds ? "ok" : "bad",
-      hint: day.chain_holds
-        ? "every receipt follows the one before it"
-        : `first break at receipt ${day.chain_broken_at}` },
-  ] : [];
+    { label: "VAT",
+      value: <Figure ready={!!day} w="9ch">{day && money(day.total_vat)}</Figure> },
+    { label: "Chain",
+      value: <Figure ready={!!day} w="7ch">{day && (day.chain_holds ? "Holds" : "Broken")}</Figure>,
+      tone: day ? (day.chain_holds ? "ok" : "bad") : undefined,
+      hint: <Figure ready={!!day} w="22ch">
+        {day && (day.chain_holds
+          ? "every receipt follows the one before it"
+          : `first break at receipt ${day.chain_broken_at}`)}
+      </Figure> },
+  ];
 
   return (
     <RecordPage
@@ -279,99 +289,99 @@ export default function FiscalDay() {
       {/* Most days have nothing outstanding, so this card is not part of the
           frame: it appears because there is something wrong to report. */}
       {day && day.not_filed.length > 0 && (
-            <Panel title="Not filed" count={day.not_filed.length}>
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th className="num">Receipt</Th><Th className="num">Global</Th>
-                    <Th className="num">Total</Th><Th>State</Th><Th>The authority said</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {day.not_filed.map((r) => (
-                    <tr key={r.id} className="row-flag">
-                      <td className="num mono">{r.receipt_counter}</td>
-                      <td className="num mono">{r.global_counter}</td>
-                      <td className="num">{money(r.total)}</td>
-                      <td>
-                        <span className={`badge ${STATUS_TONE[r.status] ?? "muted"}`}>
-                          {r.status}
-                        </span>
-                      </td>
-                      <td className="muted small wrap">
-                        {r.response_message || "none"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          )}
+        <Panel title="Not filed" count={day.not_filed.length}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th className="num">Receipt</Th><Th className="num">Global</Th>
+                <Th className="num">Total</Th><Th>State</Th><Th>The authority said</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {day.not_filed.map((r) => (
+                <tr key={r.id} className="row-flag">
+                  <td className="num mono">{r.receipt_counter}</td>
+                  <td className="num mono">{r.global_counter}</td>
+                  <td className="num">{money(r.total)}</td>
+                  <td>
+                    <span className={`badge ${STATUS_TONE[r.status] ?? "muted"}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="muted small wrap">
+                    {r.response_message || "none"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+      )}
 
       <Panel title="Receipts, in the order they were written"
              count={day?.receipts.length}
              /* Said only once the day has answered. A register nobody has
                 read yet is not a register with nothing in it. */
              empty={day ? "Nothing was rung up on this day." : undefined}>
-            <div className="dt-scroll">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <th className="num">#</th><Th className="num">Global</Th>
-                    <Th>When</Th><Th>Type</Th><Th className="num">Total</Th>
-                    <Th className="num">VAT</Th><Th>State</Th><Th>Sale</Th>
-                    <Th>Hash</Th>
-                  </tr>
-                </thead>
-                {!day ? (
-                  <GhostRows cols={9} rows={3}
-                             widths={["30%", "35%", "70%", "45%", "50%",
-                                      "40%", "45%", "40%", "70%"]} />
-                ) : (
-                <tbody>
-                  {day.receipts.map((r) => (
-                    <tr key={r.id}
-                        className={r.receipt_type === "credit_note"
-                          ? "row-muted" : undefined}>
-                      <td className="num mono">{r.receipt_counter}</td>
-                      <td className="num mono">{r.global_counter}</td>
-                      <td>{fmtDateTime(r.created_at)}</td>
-                      <td>
-                        {r.receipt_type === "credit_note"
-                          ? <span className="badge warn">Credit note</span>
-                          : <span className="muted">Sale</span>}
-                      </td>
-                      <td className="num">{money(r.total)}</td>
-                      <td className="num muted">
-                        {r.vat_amount ? money(r.vat_amount)
-                          : <span className="muted">None</span>}
-                      </td>
-                      <td>
-                        <span className={`badge ${STATUS_TONE[r.status] ?? "muted"}`}>
-                          {r.status === "accepted" && <CheckCircle size={10} weight="fill" />}
-                          {" "}{r.status}
-                        </span>
-                      </td>
-                      <td>
-                        <EntityLink kind="sale" id={r.sale_id}>
-                          the sale
-                        </EntityLink>
-                      </td>
-                      <td className="mono small" title={r.receipt_hash}>
-                        {r.verification_url ? (
-                          // The authority's own verification page for this
-                          // receipt. It is theirs, not ours, so it is an
-                          // ordinary link — no session of ours to carry.
-                          <a href={r.verification_url} target="_blank"
-                             rel="noreferrer">{shortHash(r.receipt_hash)}</a>
-                        ) : shortHash(r.receipt_hash)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                )}
-              </table>
-            </div>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <th className="num">#</th><Th className="num">Global</Th>
+                <Th>When</Th><Th>Type</Th><Th className="num">Total</Th>
+                <Th className="num">VAT</Th><Th>State</Th><Th>Sale</Th>
+                <Th>Hash</Th>
+              </tr>
+            </thead>
+            {!day ? (
+              <GhostRows cols={9} rows={3}
+                         widths={["30%", "35%", "70%", "45%", "50%",
+                                  "40%", "45%", "40%", "70%"]} />
+            ) : (
+            <tbody>
+              {day.receipts.map((r) => (
+                <tr key={r.id}
+                    className={r.receipt_type === "credit_note"
+                      ? "row-muted" : undefined}>
+                  <td className="num mono">{r.receipt_counter}</td>
+                  <td className="num mono">{r.global_counter}</td>
+                  <td>{fmtDateTime(r.created_at)}</td>
+                  <td>
+                    {r.receipt_type === "credit_note"
+                      ? <span className="badge warn">Credit note</span>
+                      : <span className="muted">Sale</span>}
+                  </td>
+                  <td className="num">{money(r.total)}</td>
+                  <td className="num muted">
+                    {r.vat_amount ? money(r.vat_amount)
+                      : <span className="muted">None</span>}
+                  </td>
+                  <td>
+                    <span className={`badge ${STATUS_TONE[r.status] ?? "muted"}`}>
+                      {r.status === "accepted" && <CheckCircle size={10} weight="fill" />}
+                      {" "}{r.status}
+                    </span>
+                  </td>
+                  <td>
+                    <EntityLink kind="sale" id={r.sale_id}>
+                      the sale
+                    </EntityLink>
+                  </td>
+                  <td className="mono small" title={r.receipt_hash}>
+                    {r.verification_url ? (
+                      // The authority's own verification page for this
+                      // receipt. It is theirs, not ours, so it is an
+                      // ordinary link — no session of ours to carry.
+                      <a href={r.verification_url} target="_blank"
+                         rel="noreferrer">{shortHash(r.receipt_hash)}</a>
+                    ) : shortHash(r.receipt_hash)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            )}
+          </table>
+        </div>
       </Panel>
 
       <p className="muted small">

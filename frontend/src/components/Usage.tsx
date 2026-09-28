@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 
 import { api, errorText } from "../api";
+import { Block, Figure } from "./Skeleton";
 
 interface Month {
   month: string;
@@ -53,20 +54,31 @@ export default function Usage({ productId }: { productId: number }) {
   }, [productId, months]);
 
   if (error) return <p className="alert warn">{error}</p>;
-  if (!data) return <p className="muted">Reading the movements…</p>;
 
-  const busiest = Math.max(1, ...data.months.map((m) => Math.max(m.out, m.in)));
-  const everything = data.months.some((m) => m.out || m.in || m.adjusted
+  const busiest = Math.max(1, ...(data?.months ?? []).map((m) => Math.max(m.out, m.in)));
+  const everything = !!data && data.months.some((m) => m.out || m.in || m.adjusted
     || m.written_off || m.moved);
 
+  /* SCOPED LOADING.
+   *
+   * "Reading the movements…" replaced the tab, and it took the window switch
+   * with it: a buyer who opened this on 12m and wanted 24m had to wait for the
+   * 12m answer before the 24m button existed. The switch is not fetched, it is
+   * three numbers written below, and it now stays put and stays pressable while
+   * the next window loads.
+   *
+   * The bars hold their row count from the window that was asked for, so the
+   * panel does not grow into the page as the answer lands, and "nothing has
+   * moved in this window" waits behind the answer, because it is a finding. */
   return (
     <section className="usage">
       <div className="usage-head">
         <div className="usage-sum">
-          <b>{data.out_total}</b> units out over {data.months.length} months,
-          about <b>{data.a_month}</b> a month
-          {data.in_total > 0 && <> · <b>{data.in_total}</b> received</>}
-          {data.written_off_total > 0 && (
+          <b><Figure ready={!!data} w="4ch">{data?.out_total}</Figure></b> units out over{" "}
+          <Figure ready={!!data} w="2ch">{data?.months.length}</Figure> months,
+          about <b><Figure ready={!!data} w="3ch">{data?.a_month}</Figure></b> a month
+          {data && data.in_total > 0 && <> · <b>{data.in_total}</b> received</>}
+          {data && data.written_off_total > 0 && (
             <> · <b className="is-bad">{data.written_off_total}</b> written off</>
           )}
         </div>
@@ -79,7 +91,17 @@ export default function Usage({ productId }: { productId: number }) {
         </div>
       </div>
 
-      {!everything ? (
+      {!data ? (
+        <ol className="usage-bars" aria-busy="true">
+          {Array.from({ length: months }).map((_, i) => (
+            <li key={i}>
+              <span className="usage-when"><Block w="5ch" h="1em" className="sk-val" /></span>
+              <span className="usage-track"><Block w="55%" h={10} /></span>
+              <span className="usage-n"><Block w="3ch" h="1em" className="sk-val" /></span>
+            </li>
+          ))}
+        </ol>
+      ) : !everything ? (
         <div className="empty">
           <b>Nothing has moved in this window</b>
           <p>
@@ -120,7 +142,7 @@ export default function Usage({ productId }: { productId: number }) {
       <p className="muted small usage-key">
         <span className="usage-swatch is-out" /> went out
         <span className="usage-swatch is-in" /> came in
-        {data.written_off_total > 0 && (
+        {data && data.written_off_total > 0 && (
           <> · write-offs are counted out and named in the tooltip, because a
              month that fell because of breakages is not a month demand fell.</>
         )}

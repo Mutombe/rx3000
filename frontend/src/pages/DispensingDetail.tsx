@@ -165,31 +165,45 @@ export default function DispensingDetail() {
           )}
         </div>
       )}
-      facts={d ? [
-        { label: "Dispensed", value: d.quantity,
-          hint: d.product?.form || undefined },
+      facts={[
+        /* Quantity, collection and the state of the record are asked of every
+           dispensing, so those three labels stand from the first frame and only
+           their answers pulse. Charged and Repeat are not: a dispensing that
+           was never sold has no charge and one off a single script has no
+           repeat, and inventing a label for a figure that will never come is
+           worse than the strip growing by one. */
+        { label: "Dispensed",
+          value: <Figure ready={!!d} w="4ch">{d?.quantity}</Figure>,
+          hint: d?.product?.form || undefined },
         { label: "Collected",
-          value: d.collected_at ? fmtDate(d.collected_at) : "Not yet",
-          hint: d.collected_at ? (d.collected_name || undefined)
-            : d.days_waiting !== null ? `${d.days_waiting} days on the shelf`
-            : undefined,
-          tone: d.collected_at ? undefined
+          value: <Figure ready={!!d} w="11ch">
+            {d && (d.collected_at ? fmtDate(d.collected_at) : "Not yet")}
+          </Figure>,
+          hint: <Figure ready={!!d} w="16ch">
+            {d && (d.collected_at ? (d.collected_name || "Taker not recorded")
+              : d.days_waiting !== null ? `${d.days_waiting} days on the shelf`
+              : "still on the shelf")}
+          </Figure>,
+          tone: !d ? undefined
+            : d.collected_at ? undefined
             : (d.days_waiting ?? 0) > 14 ? "bad" : "warn" },
-        ...(d.sale ? [{
+        ...(d?.sale ? [{
           label: "Charged",
           value: money(d.sale.line_value || d.sale.total),
           hint: d.sale.line_value ? "this line" : "the whole sale",
         }] : []),
-        ...(d.repeat ? [{
+        ...(d?.repeat ? [{
           label: "Repeat",
           value: `${d.repeat.used} of ${d.repeat.allowed}`,
           hint: d.repeat.left > 0 ? `${d.repeat.left} left` : "the last one",
         }] : []),
         { label: "Record",
-          value: incomplete ? "incomplete" : controlled ? "complete" : "kept",
-          hint: controlled ? `schedule ${d.schedule}` : undefined,
+          value: <Figure ready={!!d} w="11ch">
+            {d && (incomplete ? "incomplete" : controlled ? "complete" : "kept")}
+          </Figure>,
+          hint: controlled ? `schedule ${d!.schedule}` : undefined,
           tone: incomplete ? "bad" : undefined },
-      ] : undefined}
+      ]}
     >
       {/* The gate that stood here withheld both card headings, the nine
           labels under them, the wording of every compliance check and the

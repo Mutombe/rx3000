@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAsk } from "../components/Confirm";
 import { printView } from "../printView";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import RecordPage from "../components/RecordPage";
 import { EntityLink } from "../components/Filters";
@@ -44,8 +44,15 @@ export default function DealDetail() {
    *  naming an owner is an ordinary question and does not need an
    *  administrator to answer it. */
   const [staff, setStaff] = useState<{ id: number; full_name: string }[]>([]);
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  /* Nothing, not an empty list. "No quotes issued yet" and "No activity yet"
+   * are both findings about an opportunity somebody is being chased on, and
+   * an empty array said them before either request had come back. The two
+   * flags beside them carry the third answer: the read failed, which is not
+   * the same as there being none. */
+  const [quotes, setQuotes] = useState<Quote[] | null>(null);
+  const [quotesLost, setQuotesLost] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineEntry[] | null>(null);
+  const [timelineLost, setTimelineLost] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [productQ, setProductQ] = useState("");
   const [line, setLine] = useState({ product_id: 0, description: "", quantity: 1, unit_price: 0, discount_percent: 0 });
@@ -66,23 +73,23 @@ export default function DealDetail() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "lines", label: "Line items", count: deal?.items.length ?? null },
-    { key: "quotes", label: "Quotations", count: quotes.length },
-    { key: "activity", label: "Activity", count: timeline.length },
+    { key: "quotes", label: "Quotations", count: quotes?.length ?? null },
+    { key: "activity", label: "Activity", count: timeline?.length ?? null },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "lines");
 
   function load() {
     api.get<Deal>(`/api/crm/deals/${id}`).then(setDeal).catch((e) => toast.error(errorText(e)));
     api.get<Quote[]>(`/api/crm/deals/${id}/quotes`)
-      .then(setQuotes)
-      .catch(() => toast.error(
+      .then((q) => { setQuotes(q); setQuotesLost(false); })
+      .catch(() => { setQuotesLost(true); toast.error(
         "The quotations on this opportunity could not be read, so none are "
-        + "shown. That is not the same as none existing."));
+        + "shown. That is not the same as none existing."); });
     api.get<TimelineEntry[]>(`/api/crm/timeline?deal_id=${id}`)
-      .then(setTimeline)
-      .catch(() => toast.error(
+      .then((t) => { setTimeline(t); setTimelineLost(false); })
+      .catch(() => { setTimelineLost(true); toast.error(
         "The history of this opportunity could not be read. An empty "
-        + "timeline here does not mean nothing has happened."));
+        + "timeline here does not mean nothing has happened."); });
   }
   useEffect(load, [id]);
 
@@ -234,21 +241,23 @@ export default function DealDetail() {
       { reader: true, width: 800, height: 900 });
   }
 
-  if (!deal) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Pipeline", to: "/pipeline" }, { label: "Loading" }]}
-        eyebrow="Opportunity"
-        tabs={["Line items", "Quotations", "Activity"]}
-        cards={3}
-        table={5}
-      />;
+  /* A `DetailSkeleton` used to stand here and take the opportunity away while
+   * it loaded. What went with it was the trail, the word Opportunity, the
+   * Account, Contact and Owner labels, the five chevrons from New to Closed
+   * won, the five figure labels, the three tab names, the Line items and
+   * Quotations headings, the two activity forms and the column heads of both
+   * tables. Every one of those is written below and is the same on every
+   * opportunity in the pipeline, so the frame is drawn at once and only the
+   * deal's own figures pulse. */
 
   return (
     <RecordPage
+      loading={!deal}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Pipeline", to: "/pipeline" },
-              { label: deal.title }]}
+              { label: deal ? deal.title : "Opening the opportunity" }]}
       eyebrow="Opportunity"
-      title={deal.title}
+      title={deal ? deal.title : null}
       /* A DEAL COULD BE DRAGGED AND NEVER CORRECTED.
        *
        * `PUT /api/crm/deals/{id}` has existed since deals were written and had
@@ -264,7 +273,8 @@ export default function DealDetail() {
        * quietly missing every deal somebody had captured in a hurry.
        */
       actions={
-        <button className="btn secondary" onClick={() => {
+        <button className="btn secondary" disabled={!deal} onClick={() => {
+          if (!deal) return;
           setForm({
             title: deal.title, value: String(deal.value),
             expected_close_date: deal.expected_close_date ?? "",
@@ -276,24 +286,30 @@ export default function DealDetail() {
           <PencilSimpleLine size={15} /> Correct it
         </button>
       }
+      /* The Contact label stays up while the deal is on its way. Whether this
+         opportunity names a person is an answer; that an opportunity is the
+         sort of thing that can name one is not. */
       meta={[
         { label: "Account",
-          value: deal.company
+          value: !deal ? ""
+            : deal.company
             ? <EntityLink to={`/accounts/${deal.company.id}`}>
                 {deal.company.name}
               </EntityLink>
             : <span className="muted">None</span> },
-        ...(deal.contact
+        ...(!deal || deal.contact
           ? [{ label: "Contact",
-               value: `${deal.contact.first_name} ${deal.contact.last_name}` }]
+               value: deal?.contact
+                 ? `${deal.contact.first_name} ${deal.contact.last_name}` : "" }]
           : []),
         { label: "Owner",
-          value: deal.owner?.full_name
-            ?? <span className="muted">Unassigned</span> },
+          value: !deal ? ""
+            : deal.owner?.full_name
+              ?? <span className="muted">Unassigned</span> },
       ]}
     >
 
-      {editing && (
+      {editing && deal && (
         <div className="modal-backdrop" onClick={() => setEditing(false)}>
           <form className="modal" onClick={(e) => e.stopPropagation()}
                 onSubmit={saveDeal}>
@@ -352,16 +368,33 @@ export default function DealDetail() {
       )}
 
       <div className="card record-hero">
-        <Path stages={PATH_STAGES} current={deal.stage} lostKey="lost" onPick={moveStage} />
+        {/* New through to Closed won is the shape of every opportunity, not a
+            fact about this one, so the chevrons are there from the first frame
+            with nothing lit yet. */}
+        <Path stages={PATH_STAGES} current={deal?.stage ?? ""} lostKey="lost"
+              onPick={deal ? moveStage : undefined} />
+        {/* The quote count comes from its own request, so that tile waits on
+            the quotes and the other four wait on the deal. */}
         <Highlights items={[
-          { label: "Deal value", value: money(deal.value), hint: `${deal.items.length} line item(s)` },
-          { label: "Weighted", value: money(deal.value * deal.probability / 100), hint: `${deal.probability}% probability` },
-          { label: "Expected close", value: deal.expected_close_date ? fmtDate(deal.expected_close_date) : "Not set",
-            hint: deal.source ? `source: ${deal.source}` : "No source" },
-          { label: "Quotes", value: String(quotes.length), hint: quotes[0]?.status ?? "None issued" },
-          { label: "Stage", value: deal.stage, hint: deal.lost_reason || "none" },
+          { label: "Deal value",
+            value: <Figure ready={!!deal} w="9ch">{deal && money(deal.value)}</Figure>,
+            hint: deal ? `${deal.items.length} line item(s)` : undefined },
+          { label: "Weighted",
+            value: <Figure ready={!!deal} w="9ch">
+              {deal && money(deal.value * deal.probability / 100)}</Figure>,
+            hint: deal ? `${deal.probability}% probability` : undefined },
+          { label: "Expected close",
+            value: <Figure ready={!!deal} w="11ch">
+              {deal && (deal.expected_close_date ? fmtDate(deal.expected_close_date) : "Not set")}</Figure>,
+            hint: !deal ? undefined : deal.source ? `source: ${deal.source}` : "No source" },
+          { label: "Quotes",
+            value: <Figure ready={!!quotes} w="3ch">{quotes && String(quotes.length)}</Figure>,
+            hint: quotes ? quotes[0]?.status ?? "None issued" : undefined },
+          { label: "Stage",
+            value: <Figure ready={!!deal} w="11ch">{deal?.stage}</Figure>,
+            hint: deal ? deal.lost_reason || "none" : undefined },
         ]} />
-        {deal.stage !== "lost" && (
+        {deal && deal.stage !== "lost" && (
           <div className="record-exit">
             <BusyButton className="secondary small" onClick={() => moveStage("lost")}>Mark closed lost</BusyButton>
             <span className="muted">Closing lost asks for a reason and logs it to the timeline</span>
@@ -376,6 +409,7 @@ export default function DealDetail() {
             <h3>Line items</h3>
             <table>
               <thead><tr><Th>Description</Th><Th className="num">Qty</Th><Th className="num">Unit</Th><Th className="num">Disc.</Th><Th className="num">Total</Th><th className="actions" /></tr></thead>
+              {!deal ? <GhostRows cols={6} rows={3} /> : (
               <tbody>
                 {deal.items.map((i) => (
                   <tr key={i.id}>
@@ -388,8 +422,9 @@ export default function DealDetail() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
-            {deal.items.length === 0 && <div className="empty">No line items. The deal value is entered manually</div>}
+            {deal?.items.length === 0 && <div className="empty">No line items. The deal value is entered manually</div>}
 
             <form onSubmit={addLine} style={{ marginTop: 14, borderTop: "1px solid rgba(28,29,27,0.08)", paddingTop: 14 }}>
               <div className="field">
@@ -428,13 +463,15 @@ export default function DealDetail() {
           <div className="card">
             <h3>Quotations</h3>
             <div className="toolbar">
-              <button onClick={createQuote} disabled={deal.items.length === 0}>
-                + Generate quote v{quotes.length + 1}
+              <button onClick={createQuote}
+                      disabled={!deal || !quotes || deal.items.length === 0}>
+                + Generate quote v{(quotes?.length ?? 0) + 1}
               </button>
-              {deal.items.length === 0 && <span className="muted">Add line items first</span>}
+              {deal?.items.length === 0 && <span className="muted">Add line items first</span>}
             </div>
             <table>
               <thead><tr><Th>Quote</Th><Th>Version</Th><Th className="num">Total</Th><Th>Valid until</Th><Th>Status</Th><th className="actions" /></tr></thead>
+              {!quotes ? (quotesLost ? null : <GhostRows cols={6} rows={3} />) : (
               <tbody>
                 {quotes.map((qt) => (
                   <tr key={qt.id}>
@@ -460,8 +497,16 @@ export default function DealDetail() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
-            {quotes.length === 0 && <div className="empty">No quotes issued yet</div>}
+            {quotesLost ? (
+              <div className="empty">
+                The quotations could not be read. That is not the same as none
+                having been issued.
+              </div>
+            ) : quotes?.length === 0 && (
+              <div className="empty">No quotes issued yet</div>
+            )}
           </div>
       )}
 
@@ -490,6 +535,7 @@ export default function DealDetail() {
           <div className="card">
             <h3>Timeline</h3>
             <table>
+              {!timeline ? (timelineLost ? null : <GhostRows cols={2} rows={3} widths={["30%", "80%"]} />) : (
               <tbody>
                 {timeline.map((t) => (
                   <tr key={t.id}>
@@ -511,8 +557,16 @@ export default function DealDetail() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
-            {timeline.length === 0 && <div className="empty">No activity yet</div>}
+            {timelineLost ? (
+              <div className="empty">
+                The history could not be read, so nothing is shown. It is not a
+                statement that nothing has happened.
+              </div>
+            ) : timeline?.length === 0 && (
+              <div className="empty">No activity yet</div>
+            )}
           </div>
         </>
       )}

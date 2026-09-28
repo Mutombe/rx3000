@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate , sentence, money } from "../api";
 import { useConfirm } from "../components/Confirm";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Product } from "../types";
@@ -86,7 +86,10 @@ interface Asked {
 export default function Branches() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [transit, setTransit] = useState<Transit[]>([]);
+  /* Null until the answer is in. An empty array is "nothing is on a bus",
+     which is a statement about this group's stock, and it is not one the page
+     may make before it has asked. */
+  const [transit, setTransit] = useState<Transit[] | null>(null);
   const [asked, setAsked] = useState<Asked[]>([]);
   const [busy, setBusy] = useState("");
 
@@ -140,7 +143,14 @@ export default function Branches() {
             + "read, so any that exist are not shown."));
       });
     api.get<Transit[]>("/api/branches/transfers/in-transit")
-      .then(setTransit).catch(() => undefined);
+      .then(setTransit)
+      /* Said out loud, for the same reason the queue above says it: a box on
+         a bus that the page cannot read about is not a box that arrived. */
+      .catch((e) => {
+        setTransit([]);
+        toast.error(errorText(e, "Stock in transit could not be read, so any "
+            + "that is out is not shown."));
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -354,7 +364,7 @@ export default function Branches() {
       <PageHead
         title="Branches"
         sub="Each branch, who is accountable for it, what is on its shelves, and stock moving between them"
-        count={branches?.length ? `${branches.length} branches` : undefined}
+        count={<><Figure ready={!list.loading} w="3ch">{!list.loading && branches.length}</Figure>{" "}branches</>}
         // Who is accountable for which premises, which is what a group is
         // asked for and what it cannot produce from a screen.
         take={<ExportButton dataset="branches" />}
@@ -442,12 +452,20 @@ export default function Branches() {
         </div>
       )}
 
-      {transit.length > 0 && (
-        <div className="card">
-          <h3>In transit</h3>
-          <p className="muted">
-            Sent and not yet confirmed as arrived. Stock here is on neither shelf.
-          </p>
+      {/* THE CARD IS NOT A LOADING STATE EITHER.
+          This whole panel hung on the array having something in it, so the
+          heading, the sentence under it and seven column heads — none of which
+          are fetched — were absent on arrival and appeared together once the
+          transfers landed. The frame stands from the first frame now, the
+          rows pulse, and "nothing is out" waits for the answer that says so. */}
+      <div className="card">
+        <h3>In transit</h3>
+        <p className="muted">
+          Sent and not yet confirmed as arrived. Stock here is on neither shelf.
+        </p>
+        {transit !== null && transit.length === 0 ? (
+          <div className="empty">Nothing is out between branches.</div>
+        ) : (
           <div className="cu-scroll">
           <table>
             <thead>
@@ -457,6 +475,11 @@ export default function Branches() {
                 <Th className="num">Days out</Th><th className="actions" />
               </tr>
             </thead>
+            {!transit ? (
+              <GhostRows cols={8} rows={3}
+                         widths={["10ch", "20ch", "4ch", "12ch", "12ch", "10ch",
+                                  "4ch", "12ch"]} />
+            ) : (
             <tbody>
               {transit.map((t) => (
                 <tr key={t.id} className={t.days_in_transit >= 7 ? "is-off" : ""}>
@@ -486,14 +509,23 @@ export default function Branches() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="card">
         <h3>Branches</h3>
-        {!branches ? <TableSkeleton cols={5} rows={4} /> : (
+        {/* `branches` is the hook's array and is never absent, so `!branches`
+            meant this skeleton had never once been drawn and an empty table
+            stood in for a list still being fetched. It waits on the load now,
+            at the seven columns the table below actually has. */}
+        {list.loading && !branches.length ? (
+          <TableSkeleton cols={7} rows={4}
+            headers={["Code", "Branch", "City", "Responsible pharmacist",
+                      "Registration", "Licences", ""]} />
+        ) : (
           <div className="cu-scroll">
             <table>
               <thead>
@@ -594,7 +626,10 @@ export default function Branches() {
               Analytics for the whole branch.
             </p>
           )}
-          {!stock ? <TableSkeleton cols={4} rows={5} /> : stock.lines.length === 0 ? (
+          {!stock ? (
+            <TableSkeleton cols={4} rows={5}
+              headers={["Product", "Here", "Group total", "Reorder at"]} />
+          ) : stock.lines.length === 0 ? (
             <div className="empty">Nothing on this branch's shelves.</div>
           ) : (
             <div className="cu-scroll">

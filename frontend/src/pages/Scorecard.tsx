@@ -17,7 +17,7 @@ import { ArrowClockwise, Info, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
-import { Block, Figure } from "../components/Skeleton";
+import { Block, Figure, GhostRows } from "../components/Skeleton";
 import { rateTone } from "../tone";
 import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
@@ -191,14 +191,18 @@ export default function Scorecard() {
             the findings are all fetched, so there are no words here to keep.
             Three cards of the right shape hold the grid open instead, and the
             "no branches on file" answer below waits until the answer is
-            actually in hand. */}
+            actually in hand. The name keeps its own heading while it waits,
+            so the card is the same shape loaded or not and the grid does not
+            re-flow around a heading that appears late. */}
         {!data
           ? Array.from({ length: 3 }).map((_, i) => (
               <article key={i} className="card bp-card" aria-busy="true">
                 <header className="bp-head">
-                  <div style={{ display: "grid", gap: "var(--s2)" }}>
-                    <Block w="14ch" h={17} />
-                    <Block w="10ch" h={11} />
+                  <div>
+                    <h3><Figure ready={false} w="14ch">{null}</Figure></h3>
+                    <div className="muted small">
+                      <Figure ready={false} w="10ch">{null}</Figure>
+                    </div>
                   </div>
                 </header>
                 <div className="bp-headline">
@@ -310,8 +314,13 @@ export default function Scorecard() {
         </div>
       )}
 
-      {/* Said in words rather than shown as nought. */}
-      {data && data.not_measured.length > 0 && (
+      {/* Said in words rather than shown as nought.
+          WHICH measures are unmeasured is the answer; that this page has a
+          section admitting to some is written here, so the heading and the
+          paragraph under it are on screen from the first frame and only the
+          list of gaps pulses. The card goes away once the answer says there
+          are no gaps, which is a thing that can only be known afterwards. */}
+      {(!data || data.not_measured.length > 0) && (
             <div className="card">
               <h3><Info size={15} /> What this screen does not measure</h3>
               <p className="muted">
@@ -321,14 +330,18 @@ export default function Scorecard() {
                 are listed so the gap is a decision rather than a surprise.
               </p>
               <table className="dt">
-                <tbody>
-                  {data.not_measured.map((m) => (
-                    <tr key={m.metric}>
-                      <td style={{ width: "16rem" }}><b>{m.metric}</b></td>
-                      <td className="wrap muted">{m.why}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                {!data ? (
+                  <GhostRows cols={2} rows={3} widths={["12ch", "70%"]} />
+                ) : (
+                  <tbody>
+                    {data.not_measured.map((m) => (
+                      <tr key={m.metric}>
+                        <td style={{ width: "16rem" }}><b>{m.metric}</b></td>
+                        <td className="wrap muted">{m.why}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
               </table>
             </div>
           )}

@@ -149,19 +149,35 @@ export default function ComplianceDocument() {
     }
   }
 
-  const facts: Fact[] = doc ? [
-    { label: "Standing", value: SAYS[doc.state] ?? doc.state,
-      tone: TONE[doc.state],
-      hint: doc.days_left === null ? undefined
-        : doc.days_left < 0 ? `${Math.abs(doc.days_left)} days ago`
-          : `${doc.days_left} days left` },
-    { label: "Expires", value: doc.expires_on ? fmtDate(doc.expires_on) : "No date",
-      hint: doc.renewal_months
+  /* Standing, expiry, reference, renewal: a permit is read for those four
+     things whether or not this one has come back yet, so the words stand and
+     only the answers pulse. The tone waits with the answer, because a licence
+     nobody has read yet is neither in order nor overdue. */
+  const facts: Fact[] = [
+    { label: "Standing",
+      value: <Figure ready={!!doc} w="12ch">{doc && (SAYS[doc.state] ?? doc.state)}</Figure>,
+      tone: doc ? TONE[doc.state] : undefined,
+      hint: <Figure ready={!!doc} w="13ch">
+        {doc && (doc.days_left === null ? "No expiry recorded"
+          : doc.days_left < 0 ? `${Math.abs(doc.days_left)} days ago`
+            : `${doc.days_left} days left`)}
+      </Figure> },
+    { label: "Expires",
+      value: <Figure ready={!!doc} w="11ch">
+        {doc && (doc.expires_on ? fmtDate(doc.expires_on) : "No date")}
+      </Figure>,
+      hint: doc && doc.renewal_months
         ? `renewed every ${doc.renewal_months} months` : undefined },
-    { label: "Reference", value: doc.reference || "none" },
-    { label: "Renewal", value: doc.renewal_cost ? money(doc.renewal_cost) : "none",
-      hint: doc.renewal_cost ? "what it costs to renew" : "No cost recorded" },
-  ] : [];
+    { label: "Reference",
+      value: <Figure ready={!!doc} w="12ch">{doc && (doc.reference || "none")}</Figure> },
+    { label: "Renewal",
+      value: <Figure ready={!!doc} w="9ch">
+        {doc && (doc.renewal_cost ? money(doc.renewal_cost) : "none")}
+      </Figure>,
+      hint: <Figure ready={!!doc} w="16ch">
+        {doc && (doc.renewal_cost ? "what it costs to renew" : "No cost recorded")}
+      </Figure> },
+  ];
 
   return (
     <RecordPage

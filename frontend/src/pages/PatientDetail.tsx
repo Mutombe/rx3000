@@ -432,63 +432,23 @@ export default function PatientDetail() {
               The prescriptions could not be read. This is not a statement that
               they have none on file.
             </div>
-          ) : !scripts ? (
-            <table style={{ marginTop: 6 }}>
-              <thead><tr>
-                <Th>Medication</Th>
-                <Th className="wrap">Dosage</Th>
-                <Th className="num rx-qty">Qty</Th>
-                <Th className="rx-repeats">Repeats</Th>
-                <Th className="num">Worth</Th>
-                <Th className="rx-next">Next repeat</Th>
-                <Th className="rx-refill">Auto-refill</Th>
-              </tr></thead>
-              <GhostRows cols={7} rows={3} />
-            </table>
-          ) : scripts.length === 0 && (
-            <div className="empty">No prescriptions on file</div>
-          )}
-          {(scripts ?? []).map((rx) => (
-            <div key={rx.id} style={{ marginBottom: 18 }}>
-              {/* The number was plain text on the one screen where somebody is
-                  looking at a patient's scripts and wants to open one. Every
-                  other screen in the product links an Rx number; this did not.
-                  An N-Repeat carries a draft reference instead of an Rx number,
-                  and rendered blank here, so a half-captured script showed as
-                  a date and a doctor with nothing to identify it. */}
-              <EntityLink kind="prescription" id={rx.id}>
-                <b className="script-id">
-                  {rx.rx_number || rx.draft_ref || `#${rx.id}`}
-                </b>
-              </EntityLink>
-              {!rx.rx_number && (
-                <span className="badge warn" style={{ marginLeft: 6 }}>
-                  {DRAFT_SCRIPT}
-                </span>
-              )}
-              {" · "}{fmtDate(rx.date_prescribed)} · {rx.doctor?.name}
-              <button className="ghost small" onClick={() =>
-                api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`)
-                  .then((labels) => {
-                    // Held-back labels are named rather than silently missing
-                    // from the sheet: somebody is standing there with the box.
-                    const { refused } = printLabels(labels);
-                    if (refused.length) toast.warn(refusedSummary(refused));
-                  })
-                  // Pressing Labels and having nothing happen is the whole
-                  // complaint this button exists to answer.
-                  .catch(() => toast.error(
-                    "The labels for this prescription could not be built, so "
-                    + "nothing was sent to the printer."))}>
-                🖨 Labels
-              </button>
+          ) : (
+            <>
+              {/* ONE HEAD, HOWEVER MANY SCRIPTS.
+                  Every script used to carry its own table and its own copy of
+                  these seven headings, which tied the column names to a number
+                  only the server knows: how many scripts there are. So the one
+                  part of this tab that is written down here could not be drawn
+                  until the answer landed. Each script is a `<tbody>` under a
+                  single head now, so the names are on screen from the first
+                  frame and the columns line up down the whole record instead
+                  of being measured afresh under every Rx number. */}
               <table style={{ marginTop: 6 }}>
-                {/* What each line is worth per collection, and what the rest
-                    of the script is worth behind it. A patient record that
-                    lists four repeats and no money cannot answer the one
-                    question a shop asks about a patient. What they are worth
-                    if they keep coming back, and what walks out with them if
-                    they do not. */}
+                {/* What each line is worth per collection, and what the rest of
+                    the script is worth behind it. A patient record that lists
+                    four repeats and no money cannot answer the one question a
+                    shop asks about a patient. What they are worth if they keep
+                    coming back, and what walks out with them if they do not. */}
                 <thead><tr>{/* The count, the repeats, the date and the refill setting know their
                       size. The medicine and its directions do not, and the
                       directions are the longest text on this screen. */}
@@ -500,31 +460,74 @@ export default function PatientDetail() {
                   <Th className="rx-next">Next repeat</Th>
                   <Th className="rx-refill">Auto-refill</Th>
                 </tr></thead>
-                <tbody>
-                  {rx.items.map((i) => (
-                    <tr key={i.id}>
-                      <td><EntityLink kind="product" id={i.product_id}>{i.product?.name} {i.product?.strength}</EntityLink></td>
-                      {/* Directions are a sentence, not a value. Truncated to
-                          fit a column they lose the half that says when and
-                          how, so this one wraps — the opt-out the table system
-                          keeps for exactly this. */}
-                      <td className="wrap">{i.dosage_instructions || "none"}</td>
-                      <td className="num">{i.quantity}</td>
-                      <td>{i.repeats_used}/{i.repeats_allowed}</td>
-                      <td className="num">
-                        <RepeatValue
-                          value={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)}
-                          remaining={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)
-                            * Math.max(0, (i.repeats_allowed ?? 0) - (i.repeats_used ?? 0))} />
+                {!scripts ? <GhostRows cols={7} rows={3} /> : scripts.map((rx) => (
+                  <tbody key={rx.id}>
+                    {/* The number was plain text on the one screen where
+                        somebody is looking at a patient's scripts and wants to
+                        open one. Every other screen in the product links an Rx
+                        number; this did not. An N-Repeat carries a draft
+                        reference instead of an Rx number, and rendered blank
+                        here, so a half-captured script showed as a date and a
+                        doctor with nothing to identify it. */}
+                    <tr className="rx-script">
+                      <td colSpan={7}>
+                        <EntityLink kind="prescription" id={rx.id}>
+                          <b className="script-id">
+                            {rx.rx_number || rx.draft_ref || `#${rx.id}`}
+                          </b>
+                        </EntityLink>
+                        {!rx.rx_number && (
+                          <span className="badge warn" style={{ marginLeft: 6 }}>
+                            {DRAFT_SCRIPT}
+                          </span>
+                        )}
+                        {" · "}{fmtDate(rx.date_prescribed)} · {rx.doctor?.name}
+                        <button className="ghost small" onClick={() =>
+                          api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`)
+                            .then((labels) => {
+                              // Held-back labels are named rather than silently
+                              // missing from the sheet: somebody is standing
+                              // there with the box.
+                              const { refused } = printLabels(labels);
+                              if (refused.length) toast.warn(refusedSummary(refused));
+                            })
+                            // Pressing Labels and having nothing happen is the
+                            // whole complaint this button exists to answer.
+                            .catch(() => toast.error(
+                              "The labels for this prescription could not be built, so "
+                              + "nothing was sent to the printer."))}>
+                          🖨 Labels
+                        </button>
                       </td>
-                      <td>{fmtDate(i.next_repeat_date)}</td>
-                      <td>{i.auto_refill ? <span className="badge ok">Yes</span> : "none"}</td>
                     </tr>
-                  ))}
-                </tbody>
+                    {rx.items.map((i) => (
+                      <tr key={i.id}>
+                        <td><EntityLink kind="product" id={i.product_id}>{i.product?.name} {i.product?.strength}</EntityLink></td>
+                        {/* Directions are a sentence, not a value. Truncated to
+                            fit a column they lose the half that says when and
+                            how, so this one wraps — the opt-out the table system
+                            keeps for exactly this. */}
+                        <td className="wrap">{i.dosage_instructions || "none"}</td>
+                        <td className="num">{i.quantity}</td>
+                        <td>{i.repeats_used}/{i.repeats_allowed}</td>
+                        <td className="num">
+                          <RepeatValue
+                            value={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)}
+                            remaining={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)
+                              * Math.max(0, (i.repeats_allowed ?? 0) - (i.repeats_used ?? 0))} />
+                        </td>
+                        <td>{fmtDate(i.next_repeat_date)}</td>
+                        <td>{i.auto_refill ? <span className="badge ok">Yes</span> : "none"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
               </table>
-            </div>
-          ))}
+              {scripts && scripts.length === 0 && (
+                <div className="empty">No prescriptions on file</div>
+              )}
+            </>
+          )}
         </div>
       )}
 

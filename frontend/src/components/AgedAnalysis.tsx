@@ -22,7 +22,7 @@ import { Printer } from "@phosphor-icons/react";
 import { api, fmtDate, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
-import { TableSkeleton } from "./Skeleton";
+import { Block, Figure, GhostRows } from "./Skeleton";
 import Th from "./Th";
 
 interface Party {
@@ -34,6 +34,11 @@ interface Ageing {
   parties: Party[]; totals: Record<string, number>;
   total: number; overdue: number; overdue_percent: number;
 }
+
+/** How many bands to hold open before the server has named them. Four is what
+ *  both subledgers return; a band more or less only changes the width of the
+ *  ghost, never a heading the reader could misread. */
+const BUCKET_PLACEHOLDERS = [0, 1, 2, 3];
 
 const LEDGERS: { key: string; label: string; blurb: string }[] = [
   { key: "debtors", label: "Owed to us",
@@ -127,29 +132,50 @@ export default function AgedAnalysis() {
         </button>
       </div>
 
+      {/* SCOPED LOADING.
+       *
+       * The whole report used to be replaced by a grey table while the server
+       * added it up, which withheld three things that were never in doubt: the
+       * three summary labels, the Account and Total column heads, and the search
+       * box over the list. None of those are fetched. Only the money is, so only
+       * the money pulses.
+       *
+       * The bucket heads are the exception and stay ghosted: the bands are the
+       * server's to name, and inventing "30 days" here would be a heading that
+       * might not match the figures under it, which is the worst kind of wrong a
+       * financial document can be. */}
       {error ? (
         <div className="empty">{error}</div>
-      ) : !data ? (
-        <TableSkeleton cols={6} rows={6} />
       ) : (
         <>
           <div className="age-summary">
             <div className="age-stat">
               <span className="age-stat-label">Total outstanding</span>
-              <span className="age-stat-value mono">{money(data.total)}</span>
+              <span className="age-stat-value mono">
+                <Figure ready={!!data} w="9ch">{data && money(data.total)}</Figure>
+              </span>
             </div>
-            <div className={`age-stat${data.overdue > 0 ? " is-warn" : ""}`}>
+            <div className={`age-stat${data && data.overdue > 0 ? " is-warn" : ""}`}>
               <span className="age-stat-label">Past due</span>
-              <span className="age-stat-value mono">{money(data.overdue)}</span>
-              <span className="age-stat-hint">{data.overdue_percent}% of the book</span>
+              <span className="age-stat-value mono">
+                <Figure ready={!!data} w="9ch">{data && money(data.overdue)}</Figure>
+              </span>
+              <span className="age-stat-hint">
+                <Figure ready={!!data} w="3ch">{data?.overdue_percent}</Figure>% of the book
+              </span>
             </div>
             <div className="age-stat">
               <span className="age-stat-label">Accounts</span>
-              <span className="age-stat-value mono">{data.parties.length}</span>
+              <span className="age-stat-value mono">
+                <Figure ready={!!data} w="3ch">{data?.parties.length}</Figure>
+              </span>
             </div>
           </div>
 
-          {data.parties.length === 0 ? (
+          {/* The order of these arms matters: "every account is settled" is
+              reachable only once the server has actually answered. A screen
+              that has been told nothing must not report that there is nothing. */}
+          {data && data.parties.length === 0 ? (
             <div className="empty">
               Nothing outstanding at {data.as_at}. Every account is settled.
             </div>
@@ -157,23 +183,32 @@ export default function AgedAnalysis() {
             <>
             <TableSearch value={q} onChange={setQ}
                          placeholder="Find an account…"
-                         shown={shown.length} total={data.parties.length} />
+                         ready={!!data}
+                         shown={shown.length} total={data?.parties.length ?? 0} />
             <div className="age-scroll">
               <table className="age-table">
                 <thead>
                   <tr>
                     <Th>Account</Th>
-                    {data.buckets.map((b) => (
-                      <th
-                        key={b}
-                        className={`st-amount${b === "90 days" || b === "120+ days" ? " is-old" : ""}`}
-                      >
-                        {b}
-                      </th>
-                    ))}
+                    {data
+                      ? data.buckets.map((b) => (
+                          <th
+                            key={b}
+                            className={`st-amount${b === "90 days" || b === "120+ days" ? " is-old" : ""}`}
+                          >
+                            {b}
+                          </th>
+                        ))
+                      : BUCKET_PLACEHOLDERS.map((i) => (
+                          <th key={i} className="st-amount"><Block w="7ch" h={12} /></th>
+                        ))}
                     <Th className="st-amount">Total</Th>
                   </tr>
                 </thead>
+                {!data ? (
+                  <GhostRows cols={2 + BUCKET_PLACEHOLDERS.length} rows={6}
+                             widths={["70%", "60%", "60%", "60%", "60%", "70%"]} />
+                ) : (
                 <tbody>
                   {shown.map((p) => (
                     <tr key={`${p.party_type}-${p.party_id}`}>
@@ -193,8 +228,8 @@ export default function AgedAnalysis() {
                               value ? "" : " is-nil"
                             }`}
                           >
-                            {/* An em dash, not 0.00. A column of zeros is
-                                visual noise that hides the figures that matter. */}
+                            {/* The word, not 0.00. A column of zeros is visual
+                                noise that hides the figures that matter. */}
                             {value ? money(value) : "none"}
                           </td>
                         );
@@ -203,20 +238,29 @@ export default function AgedAnalysis() {
                     </tr>
                   ))}
                 </tbody>
+                )}
                 <tfoot>
                   <tr>
                     <td>Total</td>
-                    {data.buckets.map((b) => (
-                      <td
-                        key={b}
-                        className={`mono st-amount${
-                          (b === "90 days" || b === "120+ days") && data.totals[b] ? " is-old" : ""
-                        }`}
-                      >
-                        {data.totals[b] ? money(data.totals[b]) : "none"}
-                      </td>
-                    ))}
-                    <td className="mono st-amount">{money(data.total)}</td>
+                    {data
+                      ? data.buckets.map((b) => (
+                          <td
+                            key={b}
+                            className={`mono st-amount${
+                              (b === "90 days" || b === "120+ days") && data.totals[b] ? " is-old" : ""
+                            }`}
+                          >
+                            {data.totals[b] ? money(data.totals[b]) : "none"}
+                          </td>
+                        ))
+                      : BUCKET_PLACEHOLDERS.map((i) => (
+                          <td key={i} className="mono st-amount">
+                            <Block w="7ch" h="1em" className="sk-val" />
+                          </td>
+                        ))}
+                    <td className="mono st-amount">
+                      <Figure ready={!!data} w="8ch">{data && money(data.total)}</Figure>
+                    </td>
                   </tr>
                 </tfoot>
               </table>

@@ -21,7 +21,7 @@ import { Link } from "react-router-dom";
 import { ArrowClockwise, ClipboardText, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import { EntityLink, FilterToggle } from "./Filters";
-import { Refreshable, TableSkeleton } from "./Skeleton";
+import { Figure, GhostRows } from "./Skeleton";
 import { useToast } from "./Toast";
 import Th from "./Th";
 
@@ -98,9 +98,19 @@ export default function StockReconcile() {
         </div>
       </div>
 
-      <Refreshable loading={spinning || !data} hasData={!!data}
-                   skeleton={<TableSkeleton cols={6} rows={8} />}>
-        {data && (
+      {/* SCOPED LOADING.
+       *
+       * Everything below used to be held behind one skeleton table, so the first
+       * paint was eight grey rows: the three band captions, the search box, the
+       * "Counted below nothing" toggle and seven column heads all arrived later
+       * even though every one of them is written in this file. The reader could
+       * not even start typing the product name they were holding.
+       *
+       * Now the frame stands from the first frame and only the counts pulse. Note
+       * where the "every product agrees" notice sits: after the test for `data`,
+       * never before it. A screen that has not been told anything must not
+       * announce that the shelves reconcile. */}
+      <div className={`refreshable${spinning || !data ? " is-refreshing" : ""}`}>
           <>
             {/* TWO OF THESE ARE CONTROLS AND TWO ARE READINGS.
                 All four were divs carrying .wl-stat, which sets a pointer
@@ -114,31 +124,37 @@ export default function StockReconcile() {
                       className={`wl-stat rc-pick${filtering ? "" : " is-on"}`}
                       aria-pressed={!filtering}
                       onClick={() => { setNegOnly(false); setQ(""); }}>
-                <b className={data.reconciled ? "tone-ok" : "tone-danger"}>
-                  {data.disagreeing}
+                <b className={!data ? undefined : data.reconciled ? "tone-ok" : "tone-danger"}>
+                  <Figure ready={!!data} w="3ch">{data?.disagreeing}</Figure>
                 </b>
                 <span>
-                  of {data.products} products disagree
+                  of <Figure ready={!!data} w="4ch">{data?.products}</Figure> products disagree
                   <em className="rc-pick-do">
                     {filtering ? "show all of them" : "showing all of them"}
                   </em>
                 </span>
               </button>
               <div className="wl-stat">
-                <b>{Math.round(data.agree_rate * 100)}%</b>
+                <b>
+                  <Figure ready={!!data} w="4ch">
+                    {data && Math.round(data.agree_rate * 100)}
+                  </Figure>%
+                </b>
                 <span>Agree with their batches</span>
               </div>
-              <div className={`wl-stat${data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
-                <b className={data.value_at_risk > 0.005 ? "neg" : undefined}>
-                  {money(data.value_at_risk)}
+              <div className={`wl-stat${data && data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
+                <b className={data && data.value_at_risk > 0.005 ? "neg" : undefined}>
+                  <Figure ready={!!data} w="9ch">{data && money(data.value_at_risk)}</Figure>
                 </b>
                 <span>At cost, on the difference</span>
               </div>
               {/* Pressable, because it is the worst thing on the screen and
                   was the one figure nobody could act on. Stock cannot be
                   less than none, so these are not counting errors of the
-                  ordinary kind: more has gone out than was ever booked in. */}
-              {data.negative > 0 && (
+                  ordinary kind: more has gone out than was ever booked in.
+                  Held back until the count is in hand, because a tile that
+                  says nothing has gone below nothing would be a claim. */}
+              {data && data.negative > 0 && (
                 <button type="button"
                         className={`wl-stat wc-abandoned rc-pick${negOnly ? " is-on" : ""}`}
                         aria-pressed={negOnly}
@@ -154,9 +170,12 @@ export default function StockReconcile() {
               )}
             </div>
 
-            <p className={`alert ${data.reconciled ? "ok" : "warn"}`}>
-              {!data.reconciled && <Warning size={16} weight="fill" />}
-              <span>{data.message}</span>
+            {/* The verdict is the server's sentence, so it really is fetched.
+                The strip keeps its height while it is on its way rather than
+                appearing and shoving the table down. */}
+            <p className={`alert ${!data ? "" : data.reconciled ? "ok" : "warn"}`}>
+              {data && !data.reconciled && <Warning size={16} weight="fill" />}
+              <span><Figure ready={!!data} w="48ch">{data?.message}</Figure></span>
             </p>
 
             {/* The cost half. Not repaired for the same reason the count is
@@ -164,7 +183,7 @@ export default function StockReconcile() {
                 delivery or a pack price in a unit column, and rewriting a real
                 price to tidy a column destroys the only record of what was
                 paid. */}
-            {data.cost_drift && data.cost_drift.length > 0 && (
+            {data && data.cost_drift && data.cost_drift.length > 0 && (
               <section className="rc-costs">
                 <h4>
                   {data.cost_drift_total} batch
@@ -194,7 +213,7 @@ export default function StockReconcile() {
               </section>
             )}
 
-            {data.lines.length === 0 ? (
+            {data && data.lines.length === 0 ? (
               <div className="empty">
                 <b>Every product agrees with its batches</b>
                 <p>
@@ -221,7 +240,9 @@ export default function StockReconcile() {
                     </button>
                   )}
                   <span className="dt-count muted">
-                    {shown.length} of {data.lines.length}
+                    <Figure ready={!!data} w="7ch">
+                      {data && <>{shown.length} of {data.lines.length}</>}
+                    </Figure>
                   </span>
                 </div>
 
@@ -242,6 +263,10 @@ export default function StockReconcile() {
                         <th className="actions" />
                       </tr>
                     </thead>
+                    {!data ? (
+                      <GhostRows cols={7} rows={8}
+                                 widths={["70%", "40%", "40%", "40%", "40%", "60%", "60%"]} />
+                    ) : (
                     <tbody>
                       {shown.map((l) => (
                         <tr key={l.product_id}
@@ -282,9 +307,10 @@ export default function StockReconcile() {
                         </tr>
                       ))}
                     </tbody>
+                    )}
                   </table>
                 </div>
-                {shown.length === 0 && (
+                {data && shown.length === 0 && (
                   <div className="empty">
                     <b>No disagreement matches that</b>
                     <p>
@@ -294,7 +320,7 @@ export default function StockReconcile() {
                     </p>
                   </div>
                 )}
-                {data.truncated && (
+                {data?.truncated && (
                   <p className="muted small">
                     The largest differences by value are shown. A stock take is
                     what settles them. This only says where to look.
@@ -303,8 +329,7 @@ export default function StockReconcile() {
               </>
             )}
           </>
-        )}
-      </Refreshable>
+      </div>
     </div>
   );
 }

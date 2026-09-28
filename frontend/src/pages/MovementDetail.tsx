@@ -135,18 +135,41 @@ export default function MovementDetail() {
           ) : null}
         </>
       }
-      facts={row ? [
-        { label: "Moved", value: <Delta n={row.quantity_delta} />,
-          hint: row.pack_size ? `pack of ${row.pack_size}` : "units" },
-        { label: "Balance after", value: row.balance_after ?? "Not recorded",
-          hint: row.balance_agrees ? "agrees with the movement before"
-                                   : "does not agree",
-          tone: row.balance_agrees ? undefined : "bad" },
-        { label: "Why", value: row.reason || row.movement_type,
-          hint: row.reason ? "chosen from the list" : "implied by the type" },
-        { label: "Who", value: row.user || "Not recorded",
-          hint: row.user_role || (row.user ? "" : "written by the system") },
-      ] : []}
+      facts={[
+        /* What moved, what was left, why and who: the four questions asked of
+           every movement, so the words are on the screen before the movement
+           is. The accusation in the second tile waits for its figures, because
+           nothing can be said not to agree until there is something to agree
+           with. */
+        { label: "Moved",
+          value: <Figure ready={!!row} w="5ch">
+            {row && <Delta n={row.quantity_delta} />}
+          </Figure>,
+          hint: <Figure ready={!!row} w="12ch">
+            {row && (row.pack_size ? `pack of ${row.pack_size}` : "units")}
+          </Figure> },
+        { label: "Balance after",
+          value: <Figure ready={!!row} w="6ch">
+            {row && (row.balance_after ?? "Not recorded")}
+          </Figure>,
+          hint: <Figure ready={!!row} w="22ch">
+            {row && (row.balance_agrees ? "agrees with the movement before"
+                                        : "does not agree")}
+          </Figure>,
+          tone: row && !row.balance_agrees ? "bad" : undefined },
+        { label: "Why",
+          value: <Figure ready={!!row} w="14ch">
+            {row && (row.reason || row.movement_type)}
+          </Figure>,
+          hint: <Figure ready={!!row} w="18ch">
+            {row && (row.reason ? "chosen from the list" : "implied by the type")}
+          </Figure> },
+        { label: "Who",
+          value: <Figure ready={!!row} w="14ch">{row && (row.user || "Not recorded")}</Figure>,
+          hint: <Figure ready={!!row} w="12ch">
+            {row && (row.user_role || (row.user ? "" : "written by the system"))}
+          </Figure> },
+      ]}
     >
       {/* THE ARITHMETIC, SAID OUT LOUD.
           A stored balance can disagree with the movement that produced

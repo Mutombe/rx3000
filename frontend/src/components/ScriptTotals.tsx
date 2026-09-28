@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { CaretDown, CaretRight, Warning } from "@phosphor-icons/react";
 import { api, money } from "../api";
 import { TERMS, patientOwes } from "../terms";
+import { Figure, GhostRows } from "./Skeleton";
 import Th from "./Th";
 import { EmptyRow } from "./Empty";
 
@@ -90,52 +91,74 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
   const fetched = useScriptPricing(given === undefined ? items : [], medicalAidId);
   const data = given === undefined ? fetched : given;
 
-  if (!data) return null;
-  const t = data.totals;
+  /* SCOPED LOADING.
+   *
+   * `if (!data) return null` meant the whole strip did not exist until the
+   * server had priced the basket, so every keystroke on a script made a row of
+   * eight figures appear from nothing and shove the table it belongs under. The
+   * labels are not priced by anybody: Gross, VAT, Cost and Margin say the same
+   * words on every script in the country, and the two that vary are read off
+   * TERMS and the scheme's own name.
+   *
+   * So the strip stands as soon as there is a basket to total, and the amounts
+   * alone pulse. An EMPTY basket is a different thing from an unpriced one, and
+   * that is the one case where nothing is drawn: there is genuinely nothing to
+   * put a figure against. */
+  if (!items.length) return null;
+  const ready = !!data;
+  const t = data?.totals;
 
   // The sums of the table, drawn as the table's last row. A total is a fact
   // about the columns above it, and a total in a card of its own under the
   // table reads as a separate thing to go and look at.
   if (variant === "footer") {
     return (
-      <div className={`st-foot${data.warning ? " st-loss" : ""}`}
+      <div className={`st-foot${data?.warning ? " st-loss" : ""}`}
            role="group" aria-label="Script totals">
-        {data.warning && (
+        {data?.warning && (
           <span className="st-foot-warn" title={data.warning}>
             <Warning size={13} weight="fill" /> {data.warning}
           </span>
         )}
-        <span className="st-foot-cell"><span>Gross</span><b>{money(t.gross)}</b></span>
-        {t.claim > 0.005 && (
+        <span className="st-foot-cell">
+          <span>Gross</span><b><Figure ready={ready} w="8ch">{t && money(t.gross)}</Figure></b>
+        </span>
+        {t && t.claim > 0.005 && (
           <span className="st-foot-cell">
-            <span>{data.scheme || "Scheme"} pays</span><b>{money(t.claim)}</b>
+            <span>{data?.scheme || "Scheme"} pays</span><b>{money(t.claim)}</b>
           </span>
         )}
         <span className="st-foot-cell st-lead">
-          <span>{patientOwes(!!data.scheme)}</span><b>{money(t.patient_pays)}</b>
+          <span>{patientOwes(!!data?.scheme)}</span>
+          <b><Figure ready={ready} w="8ch">{t && money(t.patient_pays)}</Figure></b>
         </span>
-        {t.levy > 0.005 && (
+        {t && t.levy > 0.005 && (
           <span className="st-foot-cell"><span>{TERMS.levy}</span><b>{money(t.levy)}</b></span>
         )}
-        {t.surcharge > 0.005 && (
+        {t && t.surcharge > 0.005 && (
           <span className="st-foot-cell">
             <span>{TERMS.aboveRate}</span><b>{money(t.surcharge)}</b>
           </span>
         )}
-        <span className="st-foot-cell"><span>VAT</span><b>{money(t.vat)}</b></span>
-        <span className="st-foot-cell"><span>Cost</span><b>{money(t.cost)}</b></span>
-        <span className={`st-foot-cell${t.profit < 0 ? " is-bad" : ""}`}>
-          <span>Margin</span><b>{money(t.profit)} · {t.profit_percent}%</b>
+        <span className="st-foot-cell">
+          <span>VAT</span><b><Figure ready={ready} w="7ch">{t && money(t.vat)}</Figure></b>
+        </span>
+        <span className="st-foot-cell">
+          <span>Cost</span><b><Figure ready={ready} w="8ch">{t && money(t.cost)}</Figure></b>
+        </span>
+        <span className={`st-foot-cell${t && t.profit < 0 ? " is-bad" : ""}`}>
+          <span>Margin</span>
+          <b><Figure ready={ready} w="12ch">{t && <>{money(t.profit)} · {t.profit_percent}%</>}</Figure></b>
         </span>
       </div>
     );
   }
 
   return (
-    <div className={`st-bar${data.warning ? " st-loss" : ""}`}>
+    <div className={`st-bar${data?.warning ? " st-loss" : ""}`}>
       {/* Selling below cost is not a rounding question, and should not be left
           for somebody to spot in a column of ten numbers. */}
-      {data.warning && (
+      {data?.warning && (
         <p className="st-warning">
           <Warning size={15} weight="fill" />
           <span>{data.warning}</span>
@@ -143,38 +166,40 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
       )}
 
       <div className="st-figures">
-        <div><span>Gross</span><b>{money(t.gross)}</b></div>
-        {t.claim > 0.005 && (
-          <div><span>{data.scheme || "Scheme"} pays</span><b>{money(t.claim)}</b></div>
+        <div><span>Gross</span><b><Figure ready={ready} w="8ch">{t && money(t.gross)}</Figure></b></div>
+        {t && t.claim > 0.005 && (
+          <div><span>{data?.scheme || "Scheme"} pays</span><b>{money(t.claim)}</b></div>
         )}
         {/* A shortfall only exists where a scheme was billed and did not
             cover it all. A private patient paying cash is paying the price,
             not a shortfall, and calling it one would be wrong on every cash
             sale, which is most of them. */}
         <div className="st-lead">
-          <span>{patientOwes(!!data.scheme)}</span><b>{money(t.patient_pays)}</b>
+          <span>{patientOwes(!!data?.scheme)}</span>
+          <b><Figure ready={ready} w="8ch">{t && money(t.patient_pays)}</Figure></b>
         </div>
         {/* The two halves of it, kept apart because a patient querying the
             amount is querying one and not the other: the levy is a term of
             their cover, the excess is a consequence of what was dispensed. */}
-        {t.levy > 0.005 && (
+        {t && t.levy > 0.005 && (
           <div><span>{TERMS.levy}</span><b>{money(t.levy)}</b></div>
         )}
-        {t.surcharge > 0.005 && (
+        {t && t.surcharge > 0.005 && (
           <div><span>{TERMS.aboveRate}</span><b>{money(t.surcharge)}</b></div>
         )}
-        <div><span>VAT</span><b>{money(t.vat)}</b></div>
-        <div><span>Cost</span><b>{money(t.cost)}</b></div>
-        <div className={t.profit < 0 ? "is-bad" : ""}>
+        <div><span>VAT</span><b><Figure ready={ready} w="7ch">{t && money(t.vat)}</Figure></b></div>
+        <div><span>Cost</span><b><Figure ready={ready} w="8ch">{t && money(t.cost)}</Figure></b></div>
+        <div className={t && t.profit < 0 ? "is-bad" : ""}>
           <span>Margin</span>
-          <b>{money(t.profit)} · {t.profit_percent}%</b>
+          <b><Figure ready={ready} w="12ch">{t && <>{money(t.profit)} · {t.profit_percent}%</>}</Figure></b>
         </div>
       </div>
 
       <button type="button" className="btn ghost small st-toggle"
               onClick={() => setOpen((o) => !o)}>
         {open ? <CaretDown size={12} /> : <CaretRight size={12} />}
-        {open ? "Hide the lines" : `Line by line (${data.lines.length})`}
+        {open ? "Hide the lines" : <>Line by line (
+          <Figure ready={ready} w="2ch">{data?.lines.length}</Figure>)</>}
       </button>
 
       {open && (
@@ -186,6 +211,10 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
               <Th className="num">Claimed</Th><Th className="num">Margin</Th>
             </tr>
           </thead>
+          {!data ? (
+            <GhostRows cols={6} rows={3} secondLine={[0]}
+                       widths={["70%", "30%", "50%", "50%", "50%", "40%"]} />
+          ) : (
           <tbody>
             {data.lines.map((l) => (
               <tr key={l.product_id} className={l.margin_percent < 0 ? "row-flag" : ""}>
@@ -209,6 +238,7 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
                 </EmptyRow>
               )}
             </tbody>
+          )}
         </table>
       )}
     </div>

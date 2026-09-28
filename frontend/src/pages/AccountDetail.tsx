@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure } from "../components/Skeleton";
 import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money } from "../api";
@@ -40,13 +40,13 @@ export default function AccountDetail() {
         </p>
       </div>
     );
-  if (!data) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "Loading" }]}
-        eyebrow="Account"
-        tabs={["Contacts", "Opportunities", "Cases"]}
-        cards={1}
-      />;
-  const c = data.company;
+  /* A `DetailSkeleton` used to take the whole account away while its overview
+   * loaded, including the three tab names, the Type and Owner labels, the five
+   * figure labels, the Phone, Email and Address terms and the column heads of
+   * all three tables. None of that is an answer about this account: it is the
+   * shape every account page has. Drawn at once now, with the values alone
+   * waiting. */
+  const c = data?.company;
 
   const contactCols: Column<Row<"contacts">>[] = [
     { key: "name", header: "Contact", sortable: true,
@@ -83,20 +83,29 @@ export default function AccountDetail() {
 
   return (
     <RecordPage
+      loading={!data}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Accounts", to: "/accounts" },
-              { label: c.name }]}
+              { label: c ? c.name : "Opening the account" }]}
       eyebrow="Account"
-      title={c.name}
+      title={c ? c.name : null}
       meta={[
-        { label: "Type", value: c.account_type.replace(/_/g, " ") },
+        { label: "Type", value: c ? c.account_type.replace(/_/g, " ") : "" },
         { label: "Owner",
-          value: c.owner ?? <span className="muted">Unassigned</span> },
+          value: !c ? "" : c.owner ?? <span className="muted">Unassigned</span> },
       ]}
     >
 
       <div className="card record-hero">
-        <Highlights items={[
+        {/* Five labels written here in the source, so they are on the screen
+            before the request is answered and only the money waits. */}
+        <Highlights items={!data || !c ? [
+          { label: "Open pipeline", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "Won revenue", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "Open cases", value: <Figure ready={false} w="3ch">{null}</Figure> },
+          { label: "Contacts", value: <Figure ready={false} w="3ch">{null}</Figure> },
+          { label: "Credit terms", value: <Figure ready={false} w="7ch">{null}</Figure> },
+        ] : [
           { label: "Open pipeline", value: money(data.totals.open_pipeline), hint: `${data.deals.length} opportunit(ies)` },
           { label: "Won revenue", value: money(data.totals.won_value), hint: "closed won to date" },
           { label: "Open cases", value: String(data.totals.open_tickets), hint: `${data.tickets.length} raised in total` },
@@ -105,26 +114,30 @@ export default function AccountDetail() {
             hint: <span className={`badge ${c.status === "active" ? "ok" : "muted"}`}>{c.status}</span> },
         ]} />
         <dl className="detail-fields" style={{ marginTop: 14 }}>
-          <div><dt>Phone</dt><dd>{c.phone || "none"}</dd></div>
-          <div><dt>Email</dt><dd>{c.email || "none"}</dd></div>
-          <div><dt>Address</dt><dd>{c.address || "none"}</dd></div>
+          <div><dt>Phone</dt><dd><Figure ready={!!c} w="14ch">{c && (c.phone || "none")}</Figure></dd></div>
+          <div><dt>Email</dt><dd><Figure ready={!!c} w="20ch">{c && (c.email || "none")}</Figure></dd></div>
+          <div><dt>Address</dt><dd><Figure ready={!!c} w="28ch">{c && (c.address || "none")}</Figure></dd></div>
         </dl>
-        {c.notes && <p className="muted" style={{ marginTop: 12, fontSize: 12.5 }}>{c.notes}</p>}
+        {c?.notes && <p className="muted" style={{ marginTop: 12, fontSize: 12.5 }}>{c.notes}</p>}
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
+      {/* `loading` holds each empty state back until the overview has actually
+          come in. Telling a salesperson their biggest account has no
+          opportunities on it, because a request is still in flight, is the one
+          sentence this screen must never say by accident. */}
       {tab === "contacts" && (
-        <DataTable columns={contactCols} rows={data.contacts} rowKey={(r) => r.id}
+        <DataTable columns={contactCols} loading={!data} rows={data?.contacts ?? []} rowKey={(r) => r.id}
           rowHref={(r) => `/contacts/${r.id}`} empty="No contacts on this account yet" />
       )}
       {tab === "deals" && (
-        <DataTable columns={dealCols} rows={data.deals} rowKey={(d) => d.id} totals
+        <DataTable columns={dealCols} loading={!data} rows={data?.deals ?? []} rowKey={(d) => d.id} totals
           rowHref={(d) => `/deals/${d.id}`} initialSort={{ key: "value", dir: "desc" }}
           empty="No opportunities raised against this account" />
       )}
       {tab === "cases" && (
-        <DataTable columns={caseCols} rows={data.tickets} rowKey={(t) => t.id}
+        <DataTable columns={caseCols} loading={!data} rows={data?.tickets ?? []} rowKey={(t) => t.id}
           rowHref={(t) => `/cases/${t.id}`} initialSort={{ key: "created_at", dir: "desc" }}
           empty="No cases logged for this account" />
       )}

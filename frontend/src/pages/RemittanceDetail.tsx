@@ -112,15 +112,25 @@ export default function RemittanceDetail() {
       subtitle={advice?.funder_id}
       loading={!advice && !error}
       error={error}
-      facts={advice ? [
-        { label: "Claimed", value: money(advice.total_claimed) },
-        { label: "Paid", value: money(advice.total_paid),
-          hint: advice.payment_date ? `on ${fmtDate(advice.payment_date)}` : undefined },
-        { label: "Short", value: advice.shortfall > 0.005 ? money(advice.shortfall) : "nothing" },
-        { label: "Still to settle", value: advice.outstanding > 0.005
-            ? money(advice.outstanding) : "nothing",
-          hint: open.length ? `${open.length} lines` : undefined },
-      ] : undefined}
+      facts={[
+        /* Claimed, paid, short, still to settle: the four columns every advice
+           is read down, written here rather than fetched. Only the money
+           waits. */
+        { label: "Claimed",
+          value: <Figure ready={!!advice} w="9ch">{advice && money(advice.total_claimed)}</Figure> },
+        { label: "Paid",
+          value: <Figure ready={!!advice} w="9ch">{advice && money(advice.total_paid)}</Figure>,
+          hint: advice?.payment_date ? `on ${fmtDate(advice.payment_date)}` : undefined },
+        { label: "Short",
+          value: <Figure ready={!!advice} w="9ch">
+            {advice && (advice.shortfall > 0.005 ? money(advice.shortfall) : "nothing")}
+          </Figure> },
+        { label: "Still to settle",
+          value: <Figure ready={!!advice} w="9ch">
+            {advice && (advice.outstanding > 0.005 ? money(advice.outstanding) : "nothing")}
+          </Figure>,
+          hint: advice && open.length ? `${open.length} lines` : undefined },
+      ]}
     >
       {/* The accusation waits for the figures, because a page that has not
           heard back cannot say anybody paid for something we never sent. */}

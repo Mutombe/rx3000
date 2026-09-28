@@ -113,17 +113,27 @@ export default function BatchDetail() {
           </Link>
         </div>
       )}
-      facts={d ? [
-        { label: "On the shelf", value: d.quantity_remaining,
-          hint: `of ${d.quantity_received} received` },
-        { label: "Value on hand", value: money(d.value_on_hand) },
+      facts={[
+        /* Every batch is read for the same four things, so the four labels are
+           on screen before the trace is. Only the counts, the money and the
+           date wait. */
+        { label: "On the shelf",
+          value: <Figure ready={!!d} w="4ch">{d?.quantity_remaining}</Figure>,
+          hint: <>of <Figure ready={!!d} w="4ch">{d?.quantity_received}</Figure> received</> },
+        { label: "Value on hand",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.value_on_hand)}</Figure> },
         { label: "Expires",
-          value: d.expiry_date ? fmtDate(d.expiry_date) : "Not recorded",
-          hint: expiry === null || expiry === undefined ? undefined
-            : expiry < 0 ? `${Math.abs(expiry)} days ago`
-            : `in ${expiry} days` },
-        { label: "Unit cost", value: money(d.unit_cost) },
-      ] : undefined}
+          value: <Figure ready={!!d} w="11ch">
+            {d && (d.expiry_date ? fmtDate(d.expiry_date) : "Not recorded")}
+          </Figure>,
+          hint: <Figure ready={!!d} w="12ch">
+            {d && (expiry === null || expiry === undefined ? "No expiry recorded"
+              : expiry < 0 ? `${Math.abs(expiry)} days ago`
+              : `in ${expiry} days`)}
+          </Figure> },
+        { label: "Unit cost",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.unit_cost)}</Figure> },
+      ]}
     >
       {/* The gate that stood here kept all three card headings, the ten labels
           under them and the head of the recipients table off the screen until

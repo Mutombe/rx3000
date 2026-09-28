@@ -8,7 +8,7 @@ import { DuplicateWarning, Lead, LeadScoreExplanation, User } from "../types";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Block, Figure, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 
@@ -239,7 +239,10 @@ export default function Leads() {
       <PageHead
         title="Leads"
         sub="Scored and routed on capture, qualify, then convert into an account, contact and opportunity"
-        count={stats.open ? `${stats.open} open` : undefined}
+        /* Drawn from the first frame with only the figure waiting. The chip
+           used to be absent until the leads arrived and then shoved the title
+           along, which is the one thing a placeholder exists to prevent. */
+        count={<><Figure ready={!loading} w="3ch">{!loading && stats.open}</Figure>{" "}open</>}
         take={<ExportButton dataset="leads" />}
         primary={
           <button className="btn primary" onClick={() => setShowForm(true)}>
@@ -249,24 +252,29 @@ export default function Leads() {
       />
 
       <div className="grid cols-4">
+        {/* Every one of these figures is worked out from leads that have not
+            arrived yet, so before the answer they are all nought: a screen
+            that says there are no hot leads and no intake value, in the
+            confident voice it uses when that is true. The labels and the
+            hints stay; the four figures wait. */}
         <div className="card stat hero">
           <div className="label">Open intake value</div>
-          <div className="value">{money(stats.value)}</div>
-          <div className="hint">{stats.open} open leads</div>
+          <div className="value"><Figure ready={!loading} w="9ch">{!loading && money(stats.value)}</Figure></div>
+          <div className="hint"><Figure ready={!loading} w="3ch">{!loading && stats.open}</Figure>{" "}open leads</div>
         </div>
         <div className="card stat">
           <div className="label">Hot leads</div>
-          <div className="value">{stats.hot}</div>
+          <div className="value"><Figure ready={!loading} w="3ch">{!loading && stats.hot}</Figure></div>
           <div className="hint">scoring 60 and above</div>
         </div>
         <div className="card stat">
           <div className="label">Average score</div>
-          <div className="value">{stats.avgScore}</div>
+          <div className="value"><Figure ready={!loading} w="3ch">{!loading && stats.avgScore}</Figure></div>
           <div className="hint">across open leads</div>
         </div>
         <div className="card stat">
           <div className="label">Conversion rate</div>
-          <div className="value">{stats.rate}%</div>
+          <div className="value"><Figure ready={!loading} w="5ch">{!loading && `${stats.rate}%`}</Figure></div>
           <div className="hint">of leads worked to a close</div>
         </div>
       </div>
@@ -387,7 +395,33 @@ export default function Leads() {
         </section>
 
         <aside className="console-detail">
-          {!selected ? (
+          {loading && !selected ? (
+            /* WHAT A LEAD RECORD HOLDS IS NOT ITSELF ONE OF THE ANSWERS.
+               This pane used to be a single sentence saying the leads were
+               still coming, so the reader learned that a lead carries an
+               enquiry and a scoring breakdown only once one had arrived.
+               Which lead is shown, and whose name is on it, is fetched.
+               Everything around it is written here. */
+            <>
+              <div className="detail-head">
+                <Block w={46} h={46} round="pill" />
+                <div>
+                  <h3><Figure ready={false} w="18ch">{null}</Figure></h3>
+                  <div className="muted">
+                    <Figure ready={false} w="22ch">{null}</Figure>
+                  </div>
+                </div>
+              </div>
+              <div className="detail-block">
+                <h4>Enquiry</h4>
+                <p className="muted"><Figure ready={false} w="30ch">{null}</Figure></p>
+              </div>
+              <div className="detail-block">
+                <h4>Why this score</h4>
+                <p className="muted">Working it out…</p>
+              </div>
+            </>
+          ) : !selected ? (
             <div className="empty">Select a lead to see the full record</div>
           ) : (
             <>

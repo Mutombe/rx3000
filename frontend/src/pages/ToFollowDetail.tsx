@@ -89,17 +89,28 @@ export default function ToFollowDetail() {
       )}
       loading={!owed && !error}
       error={error}
-      facts={owed ? [
-        { label: "Still owed", value: owed.quantity_outstanding,
-          hint: `of ${owed.quantity_owed}` },
-        { label: "In stock now", value: owed.quantity_on_hand,
-          hint: owed.can_settle_now ? "enough to finish it"
-                : owed.can_settle_partially ? "enough for some of it"
-                : "Not enough" },
-        { label: "Promised", value: owed.promised_for ? fmtDate(owed.promised_for) : "No date",
-          hint: owed.overdue ? "past the date" : undefined },
-        { label: "Status", value: owed.status },
-      ] : undefined}
+      facts={[
+        /* What is owed, what is on the shelf, when it was promised and where it
+           stands: true of every to-follow before this one is read, so the words
+           go up at once and only the counts and the date pulse. */
+        { label: "Still owed",
+          value: <Figure ready={!!owed} w="4ch">{owed?.quantity_outstanding}</Figure>,
+          hint: <>of <Figure ready={!!owed} w="4ch">{owed?.quantity_owed}</Figure></> },
+        { label: "In stock now",
+          value: <Figure ready={!!owed} w="5ch">{owed?.quantity_on_hand}</Figure>,
+          hint: <Figure ready={!!owed} w="18ch">
+            {owed && (owed.can_settle_now ? "enough to finish it"
+              : owed.can_settle_partially ? "enough for some of it"
+              : "Not enough")}
+          </Figure> },
+        { label: "Promised",
+          value: <Figure ready={!!owed} w="11ch">
+            {owed && (owed.promised_for ? fmtDate(owed.promised_for) : "No date")}
+          </Figure>,
+          hint: owed?.overdue ? "past the date" : undefined },
+        { label: "Status",
+          value: <Figure ready={!!owed} w="12ch">{owed?.status}</Figure> },
+      ]}
     >
       {/* The two panel headings and the seven field labels say what a to-follow
           is, which is the same before the answer comes back as after it. They

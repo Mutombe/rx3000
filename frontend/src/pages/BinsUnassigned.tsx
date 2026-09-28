@@ -29,7 +29,7 @@ import { api, errorText, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Th from "../components/Th";
 
@@ -119,13 +119,24 @@ export default function BinsUnassigned() {
           <ArrowLeft size={13} weight="bold" /> Bins
         </Link>
       }
-      facts={rows ? [
-        { label: "Lines", value: rows.length, hint: "with stock and no shelf",
-          tone: rows.length ? "warn" : "ok" },
-        { label: "Units", value: rows.reduce((s, r) => s + r.on_hand, 0).toLocaleString(),
+      facts={[
+        /* The three labels and their hints say what this page counts, and that
+           is true before the count arrives. Only the numbers wait, and the
+           warning colour waits with them: an unread figure is neither a
+           problem nor a clean sheet. */
+        { label: "Lines",
+          value: <Figure ready={!!rows} w="3ch">{rows?.length}</Figure>,
+          hint: "with stock and no shelf",
+          tone: rows ? (rows.length ? "warn" : "ok") : undefined },
+        { label: "Units",
+          value: <Figure ready={!!rows} w="6ch">
+            {rows && rows.reduce((s, r) => s + r.on_hand, 0).toLocaleString()}
+          </Figure>,
           hint: "sitting somewhere" },
-        { label: "Worth", value: money(worth), hint: "at cost" },
-      ] : []}
+        { label: "Worth",
+          value: <Figure ready={!!rows} w="9ch">{rows && money(worth)}</Figure>,
+          hint: "at cost" },
+      ]}
     >
       {rows && rows.length === 0 && (
         <div className="alert ok">

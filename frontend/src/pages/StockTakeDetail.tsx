@@ -83,19 +83,29 @@ export default function StockTakeDetail() {
           <ArrowLeft size={13} weight="bold" /> Stock take
         </Link>
       }
-      facts={row ? [
-        { label: "Lines counted", value: row.counted_lines, hint: scope },
+      facts={[
+        /* Lines, over, short, worth: what a count is read for, whatever it
+           found. The words go up with the page and the figures follow, and
+           nothing is called a problem until a figure has arrived to be one. */
+        { label: "Lines counted",
+          value: <Figure ready={!!row} w="4ch">{row?.counted_lines}</Figure>,
+          hint: <Figure ready={!!row} w="16ch">{scope}</Figure> },
         // Separately, on purpose. See the note at the top of the file.
-        { label: "Over", value: row.over_units,
+        { label: "Over",
+          value: <Figure ready={!!row} w="5ch">{row?.over_units}</Figure>,
           hint: "more on the shelf than expected",
-          tone: row.over_units ? "warn" : undefined },
-        { label: "Short", value: row.short_units,
+          tone: row?.over_units ? "warn" : undefined },
+        { label: "Short",
+          value: <Figure ready={!!row} w="5ch">{row?.short_units}</Figure>,
           hint: "missing from the shelf",
-          tone: row.short_units ? "bad" : undefined },
-        { label: "Worth", value: money(row.variance_value),
-          hint: row.variance_value < 0 ? "written off" : "found",
-          tone: row.variance_value < 0 ? "bad" : undefined },
-      ] : []}
+          tone: row?.short_units ? "bad" : undefined },
+        { label: "Worth",
+          value: <Figure ready={!!row} w="9ch">{row && money(row.variance_value)}</Figure>,
+          hint: <Figure ready={!!row} w="10ch">
+            {row && (row.variance_value < 0 ? "written off" : "found")}
+          </Figure>,
+          tone: row && row.variance_value < 0 ? "bad" : undefined },
+      ]}
     >
       {/* Both panel headings, the four field labels and the six column heads
           belong to the shape of a stock take rather than to any one count, so

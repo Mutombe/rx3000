@@ -20,7 +20,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Question, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Block, Figure } from "../components/Skeleton";
 import SectionNav from "../components/SectionNav";
 import { useToast } from "../components/Toast";
 import { RECON_TABS } from "../reconTabs";
@@ -64,83 +64,113 @@ export default function Reconciliation() {
           ordinary page. Navigation is not an action. */}
       <SectionNav tabs={RECON_TABS} end="/reconciliation" />
 
-      <Refreshable loading={loading} hasData={!!data}
-        skeleton={<TableSkeleton cols={4} rows={5} />}>
-        {data && (
-          <>
-            <div className="wc-bands">
-              <div className={`wl-stat${data.at_stake ? " wc-abandoned" : ""}`}>
-                <b className={data.at_stake ? "tone-danger" : undefined}>
-                  {money(data.at_stake)}
-                </b>
-                <span>Two records disagree about this much</span>
-              </div>
-              <div className="wl-stat">
-                <b>{data.unchecked}</b>
-                <span>Closed without being checked</span>
-              </div>
-              <div className={`wl-stat${data.not_run.length ? " wc-stale" : ""}`}>
-                <b>{data.not_run.length}</b>
-                <span>Not run at all this period</span>
-              </div>
-              <div className="wl-stat">
-                <b>{data.days}</b><span>Days covered</span>
-              </div>
+      {/* SCOPED LOADING.
+          The whole body used to sit behind a four column grey table, so the
+          four band labels — which are written here, and say the same thing on
+          every visit — were withheld and then arrived as though they had been
+          fetched. They had not. Only the figures and the areas themselves come
+          from the server, so only those pulse; and the warning tones wait for
+          the figure behind them, because a band cannot be flagged on the
+          strength of a nought nobody has counted yet. */}
+      {!loading && !data ? (
+        <p className="alert error">
+          <Warning size={16} weight="fill" />
+          <span>
+            None of the reconciliations could be read. That is not the same as
+            them agreeing: nothing has been compared, so nothing is known.
+            Reload the page.
+          </span>
+        </p>
+      ) : (
+        <>
+          <div className="wc-bands">
+            <div className={`wl-stat${data?.at_stake ? " wc-abandoned" : ""}`}>
+              <b className={data?.at_stake ? "tone-danger" : undefined}>
+                <Figure ready={!!data} w="9ch">
+                  {data && money(data.at_stake)}
+                </Figure>
+              </b>
+              <span>Two records disagree about this much</span>
             </div>
+            <div className="wl-stat">
+              <b><Figure ready={!!data} w="3ch">{data?.unchecked}</Figure></b>
+              <span>Closed without being checked</span>
+            </div>
+            <div className={`wl-stat${data?.not_run.length ? " wc-stale" : ""}`}>
+              <b><Figure ready={!!data} w="3ch">{data?.not_run.length}</Figure></b>
+              <span>Not run at all this period</span>
+            </div>
+            <div className="wl-stat">
+              <b><Figure ready={!!data} w="3ch">{data?.days}</Figure></b>
+              <span>Days covered</span>
+            </div>
+          </div>
 
-            <div className="recon-grid">
-              {data.areas.map((a) => {
-                const unrun = a.differences === null;
-                const off = !unrun && (a.differences! > 0 || a.not_reconciled > 0);
-                return (
-                  <Link key={a.key} to={a.href}
-                    className={`recon-card ${
-                      unrun ? "is-unrun" : off ? "is-off" : "is-clean"}`}>
-                    <h4>{a.label}</h4>
-                    <div className="recon-value">
-                      {unrun ? (
-                        <span className="muted">
-                          <Question size={18} weight="bold" /> not run
-                        </span>
-                      ) : a.value ? (
-                        money(a.value)
-                      ) : (
-                        <span className="tone-ok">agrees</span>
-                      )}
-                    </div>
-                    <div className="recon-says">{a.says}</div>
-                    {/* The worst single one, where there is a worst. A total
-                        of 153 across three tills is a different problem from
-                        150 on one of them, and only this says which. */}
-                    {!unrun && a.worst_where && Math.abs(a.worst) >= 0.01 && (
-                      <div className="recon-says">
-                        Worst single: {money(a.worst)} on {a.worst_where}.
-                      </div>
+          <div className="recon-grid">
+            {!data && Array.from({ length: 6 }).map((_, i) => (
+              // An area card is nothing but its area: the name, the figure
+              // and the sentence are all fetched, so there are no words here
+              // to keep. Cards of the right shape hold the grid open, and
+              // there are six of them, not the five this used to draw: a
+              // sixth card appearing under the fifth is the jump a skeleton
+              // exists to prevent.
+              <div key={i} className="recon-card" aria-busy="true">
+                <Block w="14ch" h={15} />
+                <Block w="9ch" h={22} />
+                <Block w="24ch" h={12} />
+              </div>
+            ))}
+            {data?.areas.map((a) => {
+              const unrun = a.differences === null;
+              const off = !unrun && (a.differences! > 0 || a.not_reconciled > 0);
+              return (
+                <Link key={a.key} to={a.href}
+                  className={`recon-card ${
+                    unrun ? "is-unrun" : off ? "is-off" : "is-clean"}`}>
+                  <h4>{a.label}</h4>
+                  <div className="recon-value">
+                    {unrun ? (
+                      <span className="muted">
+                        <Question size={18} weight="bold" /> not run
+                      </span>
+                    ) : a.value ? (
+                      money(a.value)
+                    ) : (
+                      <span className="tone-ok">agrees</span>
                     )}
+                  </div>
+                  <div className="recon-says">{a.says}</div>
+                  {/* The worst single one, where there is a worst. A total
+                      of 153 across three tills is a different problem from
+                      150 on one of them, and only this says which. */}
+                  {!unrun && a.worst_where && Math.abs(a.worst) >= 0.01 && (
                     <div className="recon-says">
-                      Open <ArrowRight size={12} weight="bold" />
+                      Worst single: {money(a.worst)} on {a.worst_where}.
                     </div>
-                  </Link>
-                );
-              })}
-            </div>
+                  )}
+                  <div className="recon-says">
+                    Open <ArrowRight size={12} weight="bold" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
 
-            {data.not_run.length > 0 && (
-              <p className="alert warn">
-                <Warning size={16} weight="fill" />
-                <span>
-                  <b>{data.not_run.join(" and ")}</b>{" "}
-                  {data.not_run.length === 1 ? "has" : "have"} not been run this
-                  period. That is not the same as agreeing. Nothing has been
-                  compared, so nothing is known. Both need a file from outside
-                  the pharmacy, which is exactly why they are the two that get
-                  skipped.
-                </span>
-              </p>
-            )}
-          </>
-        )}
-      </Refreshable>
+          {data && data.not_run.length > 0 && (
+            <p className="alert warn">
+              <Warning size={16} weight="fill" />
+              <span>
+                <b>{data.not_run.join(" and ")}</b>{" "}
+                {data.not_run.length === 1 ? "has" : "have"} not been run this
+                period. That is not the same as agreeing. Nothing has been
+                compared, so nothing is known. Both need a file from outside
+                the pharmacy, which is exactly why they are the two that get
+                skipped.
+              </span>
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }

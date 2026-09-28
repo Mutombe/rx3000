@@ -16,6 +16,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
 import { TableSearch, useSearch } from "./Filters";
+import { Figure, GhostRows } from "./Skeleton";
 import Th from "./Th";
 
 /** What comes back from `/api/ledger/bank-reconciliation`.
@@ -42,6 +43,15 @@ export interface BankRecon {
 export default function BankReconcile() {
   const [statement, setStatement] = useState("");
   const [bank, setBank] = useState<BankRecon | null>(null);
+  /** Whether a statement has been handed over at all.
+   *
+   *  Not the same question as whether the answer is back, and the difference is
+   *  the whole of the loading behaviour here. Before anybody pastes anything
+   *  there is genuinely nothing to show and no frame to draw. From the moment
+   *  the file goes up the shape of the answer is known: two lists and four
+   *  readings, with their captions and column heads already written below. So
+   *  this raises the frame and `bank` fills the figures in. */
+  const [asked, setAsked] = useState(false);
   /* The statement lines nothing in the ledger accounts for. This is the list
      somebody works down with the bank statement beside them, looking up one
      description or one amount at a time. */
@@ -50,11 +60,17 @@ export default function BankReconcile() {
   const toast = useToast();
 
   async function reconcileBank() {
+    setAsked(true);
+    setBank(null);
     try {
       setBank(await api.post<BankRecon>("/api/ledger/bank-reconciliation", {
         account_code: "1010", content: statement,
       }));
     } catch (e) {
+      // The frame comes back down: a reconciliation that failed has no lists to
+      // hold open, and leaving them pulsing would promise an answer that is not
+      // coming.
+      setAsked(false);
       toast.error(errorText(e, "That statement could not be read."));
     }
   }
@@ -103,23 +119,34 @@ export default function BankReconcile() {
         </div>
       </div>
 
-      {bank && (
+      {asked && (
         <>
-          <div className={`alert ${bank.reconciled ? "ok" : "warn"}`}>
-            {bank.message}
+          <div className={`alert ${!bank ? "" : bank.reconciled ? "ok" : "warn"}`}>
+            <Figure ready={!!bank} w="46ch">{bank?.message}</Figure>
           </div>
+          {/* The four captions are written here and are the same for every
+              statement anybody ever pastes, so they are drawn the moment the
+              file goes up. Only the money waits. */}
           <div className="wc-bands">
             <div className="wl-stat">
-              <b>{money(bank.statement_total)}</b><span>On the statement</span>
+              <b><Figure ready={!!bank} w="9ch">{bank && money(bank.statement_total)}</Figure></b>
+              <span>On the statement</span>
             </div>
             <div className="wl-stat">
-              <b>{money(bank.ledger_balance)}</b><span>In the ledger</span>
+              <b><Figure ready={!!bank} w="9ch">{bank && money(bank.ledger_balance)}</Figure></b>
+              <span>In the ledger</span>
             </div>
             <div className="wl-stat">
-              <b>{bank.matched_count}/{bank.statement_lines}</b><span>Lines tied up</span>
+              <b>
+                <Figure ready={!!bank} w="7ch">
+                  {bank && <>{bank.matched_count}/{bank.statement_lines}</>}
+                </Figure>
+              </b>
+              <span>Lines tied up</span>
             </div>
-            <div className={`wl-stat${Math.abs(bank.unreconciled_difference) > 0.005 ? " wc-stale" : ""}`}>
-              <b>{money(bank.unreconciled_difference)}</b><span>Unreconciled</span>
+            <div className={`wl-stat${bank && Math.abs(bank.unreconciled_difference) > 0.005 ? " wc-stale" : ""}`}>
+              <b><Figure ready={!!bank} w="9ch">{bank && money(bank.unreconciled_difference)}</Figure></b>
+              <span>Unreconciled</span>
             </div>
           </div>
 
@@ -131,10 +158,13 @@ export default function BankReconcile() {
             <div className="card-head">
               <h3>On the statement, not in the ledger</h3>
               <span className="muted small">
-                {bank.on_statement_only.length} to account for
+                <Figure ready={!!bank} w="3ch">{bank?.on_statement_only.length}</Figure>
+                {" to account for"}
               </span>
             </div>
-            {bank.on_statement_only.length === 0 ? (
+            {/* "Every line is accounted for" is a finding, not a placeholder, so
+                it sits after the test for an answer rather than before it. */}
+            {bank && bank.on_statement_only.length === 0 ? (
               <div className="empty">
                 Every line on the statement is accounted for.
               </div>
@@ -142,7 +172,8 @@ export default function BankReconcile() {
               <>
               <TableSearch value={q} onChange={setQ}
                            placeholder="Find a description or a reference…"
-                           shown={shown.length} total={bank.on_statement_only.length} />
+                           ready={!!bank}
+                           shown={shown.length} total={bank?.on_statement_only.length ?? 0} />
               <table className="dt">
                 <thead>
                   <tr>
@@ -150,6 +181,10 @@ export default function BankReconcile() {
                     <Th className="num">Amount</Th><Th>Likely</Th>
                   </tr>
                 </thead>
+                {!bank ? (
+                  <GhostRows cols={4} rows={5} secondLine={[1]}
+                             widths={["60%", "80%", "50%", "70%"]} />
+                ) : (
                 <tbody>
                   {shown.map((l) => (
                     <tr key={l.line_number}>
@@ -165,6 +200,7 @@ export default function BankReconcile() {
                     </tr>
                   ))}
                 </tbody>
+                )}
               </table>
               </>
             )}
@@ -174,10 +210,11 @@ export default function BankReconcile() {
             <div className="card-head">
               <h3>In the ledger, not on the statement</h3>
               <span className="muted small">
-                {bank.in_ledger_only.length} not cleared
+                <Figure ready={!!bank} w="3ch">{bank?.in_ledger_only.length}</Figure>
+                {" not cleared"}
               </span>
             </div>
-            {bank.in_ledger_only.length === 0 ? (
+            {bank && bank.in_ledger_only.length === 0 ? (
               <div className="empty">Nothing is outstanding.</div>
             ) : (
               <table className="dt">
@@ -187,6 +224,10 @@ export default function BankReconcile() {
                     <Th className="num">Amount</Th>
                   </tr>
                 </thead>
+                {!bank ? (
+                  <GhostRows cols={4} rows={4}
+                             widths={["60%", "60%", "80%", "50%"]} />
+                ) : (
                 <tbody>
                   {bank.in_ledger_only.map((l) => (
                     <tr key={l.entry_id}>
@@ -197,11 +238,12 @@ export default function BankReconcile() {
                     </tr>
                   ))}
                 </tbody>
+                )}
               </table>
             )}
           </div>
 
-          {bank.matched_count > 0 && (
+          {(!bank || bank.matched_count > 0) && (
             <div className="card">
               <h3>Tied up</h3>
               <table className="dt">
@@ -211,6 +253,10 @@ export default function BankReconcile() {
                     <Th>Entry</Th><Th>Matched on</Th>
                   </tr>
                 </thead>
+                {!bank ? (
+                  <GhostRows cols={5} rows={4}
+                             widths={["60%", "80%", "50%", "60%", "50%"]} />
+                ) : (
                 <tbody>
                   {bank.matched.map((m) => (
                     <tr key={m.line_number}>
@@ -231,6 +277,7 @@ export default function BankReconcile() {
                     </tr>
                   ))}
                 </tbody>
+                )}
               </table>
             </div>
           )}

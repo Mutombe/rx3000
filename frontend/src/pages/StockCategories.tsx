@@ -21,7 +21,7 @@ import BusyButton from "../components/BusyButton";
 import Checkbox from "../components/Checkbox";
 import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import TagProducts from "../components/TagProducts";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
@@ -37,7 +37,10 @@ interface Category {
 }
 
 export default function StockCategories() {
-  const [untagged, setUntagged] = useState(0);
+  /* Null until the catalogue has answered. Nought is "every line is filed",
+     which is a finding, and starting there meant the screen quietly said so
+     on every visit before it had asked. */
+  const [untagged, setUntagged] = useState<number | null>(null);
   const [spinning, setSpinning] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", code: "", target_margin: "" });
@@ -90,13 +93,19 @@ export default function StockCategories() {
   const totalLines = rows.reduce((n, r) => n + r.products, 0);
   const totalValue = rows.reduce((n, r) => n + r.at_cost, 0);
   const totalStocked = rows.reduce((n, r) => n + r.in_stock, 0);
+  /* True once the departments are in hand, and still true through a refresh:
+     a band that goes back to a grey bar because somebody pressed Refresh
+     reads as the page breaking. */
+  const known = !list.loading || rows.length > 0;
 
   return (
     <>
       <PageHead
         title="Stock departments"
         sub="How this pharmacy groups what it sells"
-        count={list.items?.length ? `${list.items.length} departments` : undefined}
+        /* The chip keeps its place from the first frame and only the number in
+           it waits, so the title does not move when the departments land. */
+        count={<><Figure ready={!list.loading} w="3ch">{!list.loading && rows.length}</Figure>{" "}departments</>}
         also={
           <button className="btn secondary" onClick={refresh}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
@@ -111,14 +120,30 @@ export default function StockCategories() {
 
       {list.error && <div className="alert error">{list.error}</div>}
 
+      {/* The four words are written here and the four figures are not, so the
+          words stand and the figures pulse. They used to read nought, nought,
+          nought and nothing at cost until the departments landed, which is a
+          statement about this pharmacy rather than about the wait. */}
       <div className="wc-bands">
-        <div className="wl-stat"><b>{rows.length}</b><span>Departments</span></div>
-        <div className="wl-stat"><b>{totalLines.toLocaleString()}</b><span>Lines catalogued</span></div>
-        <div className="wl-stat"><b>{totalStocked.toLocaleString()}</b><span>With stock on hand</span></div>
-        <div className="wl-stat"><b>{money(totalValue)}</b><span>On the shelf, at cost</span></div>
+        <div className="wl-stat">
+          <b><Figure ready={known} w="3ch">{rows.length}</Figure></b>
+          <span>Departments</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={known} w="6ch">{totalLines.toLocaleString()}</Figure></b>
+          <span>Lines catalogued</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={known} w="6ch">{totalStocked.toLocaleString()}</Figure></b>
+          <span>With stock on hand</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={known} w="9ch">{money(totalValue)}</Figure></b>
+          <span>On the shelf, at cost</span>
+        </div>
       </div>
 
-      {untagged > 0 && (
+      {untagged !== null && untagged > 0 && (
         <div className="alert warn">
           <Warning size={16} weight="fill" />
           <span>
@@ -135,7 +160,7 @@ export default function StockCategories() {
 
       {/* Ten thousand untagged lines is not a list anybody works through by
           hand, and it is not a problem MISC solves either. */}
-      {untagged > 0 && <TagProducts onDone={() => list.reload()} />}
+      {untagged !== null && untagged > 0 && <TagProducts onDone={() => list.reload()} />}
 
       <div className="card">
         <Refreshable

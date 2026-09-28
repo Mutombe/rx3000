@@ -63,6 +63,20 @@ SHAPES = [
     re.compile(r'>\s*[‐-―]\s*<'),           # >—<
     re.compile(r'\{\s*"[' + DASHES + r']"\s*\}'),     # {"—"}
     re.compile(r'["\'>]\s*N/?A\s*["\'<]', re.I),
+    # AND THE SHAPE THAT WAS ON SCREEN WHILE THIS GUARD SAID IT WAS NOT.
+    #
+    # `if (!s) return "—";` is the early-return form, and it was sitting in
+    # the three date formatters in `api.ts` — `fmtDate`, `fmtWhen` and
+    # `fmtDateTime` — which between them print nearly every date in the
+    # product. This reported "no screen stands in for a missing value with a
+    # dash" while every table with an unrecorded date showed one.
+    #
+    # The same lesson as the last time this guard was widened: it looked for
+    # the shapes somebody remembered writing, rather than for the character
+    # arriving on a screen.
+    re.compile(r'\breturn\s+"[' + DASHES + r']"'),    # return "—"
+    re.compile(r'=\s*"[' + DASHES + r']"'),           # const blank = "—"
+    re.compile(r'placeholder="[' + DASHES + r']"'),   # placeholder="—"
 ]
 
 #: Files where a dash is a drawing rather than a value.

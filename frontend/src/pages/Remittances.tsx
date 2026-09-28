@@ -250,6 +250,8 @@ export default function Remittances() {
         <div className="card">
           <h3>Shortfalls not yet settled</h3>
           {!open ? <TableSkeleton cols={7} rows={8} rowHeight={64}
+            headers={["Claim", "Service", "Claimed", "Paid", "Short",
+                      "Scheme's reason", ""]}
             widths={["12ch","16ch","11ch","14ch","5ch","9ch","9ch"]} /> : open.outstanding_count === 0 ? (
             <p className="st-note is-ok">
               Every shortfall has been billed or written off. Nothing is in the air.
@@ -354,7 +356,16 @@ export default function Remittances() {
             onChange={(e) => setAdviceSearch(e.target.value)}
             placeholder="Search advice number or payment reference"
           />
-          {advices.length === 0 ? (
+          {/* `advices` starts as an empty array, so it cannot tell an advice
+              list of none from one nobody has asked for yet. The envelope can:
+              it is null until the server has answered. */}
+          {!adviceMeta ? (
+            <TableSkeleton cols={9} rows={6}
+              headers={["Advice", "Funder", "Paid on", "Reference", "Lines",
+                        "Claimed", "Paid", "Short", "Unmatched"]}
+              widths={["14ch", "10ch", "11ch", "14ch", "6ch", "10ch", "10ch",
+                       "10ch", "10ch"]} />
+          ) : advices.length === 0 ? (
             <div className="empty">No remittance advices yet.</div>
           ) : (
             <div className="cu-scroll">

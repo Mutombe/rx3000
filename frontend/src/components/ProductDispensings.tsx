@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api, errorText, fmtDateTime, money } from "../api";
-import { Refreshable, TableSkeleton } from "./Skeleton";
+import { GhostRows } from "./Skeleton";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 import Person from "./Person";
@@ -46,11 +46,17 @@ const PER_PAGE = 25;
 
 export default function ProductDispensings({ productId }: { productId: number }) {
   const toast = useToast();
-  const [rows, setRows] = useState<Row[]>([]);
+  /* Null until the server answers, not an empty list.
+   *
+   * "This medicine has never been dispensed" is said off an empty array, and a
+   * recall is exactly the moment somebody must not read that sentence before
+   * the list has been fetched. Null keeps "we have not been told" and "there
+   * are none" apart. */
+  const [rows, setRows] = useState<Row[] | null>(null);
   /* Every time this medicine was handed over. It is read in a recall, in a
      dispute about a repeat, and whenever a prescriber rings about a patient
      — all three are a question about ONE name in a list that only grows. */
-  const { q, setQ, shown } = useSearch(rows, (r) =>
+  const { q, setQ, shown } = useSearch(rows ?? [], (r) =>
     [r.patient, r.rx_number, r.prescriber, r.dispensed_by]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -76,22 +82,21 @@ export default function ProductDispensings({ productId }: { productId: number })
         the dispensing history screen shows, asked about one line.
       </p>
 
-      <Refreshable
-        loading={loading}
-        hasData={rows.length > 0}
-        skeleton={<TableSkeleton cols={6} rows={6}
-                                 headers={["When", "Patient", "Script", "Units",
-                                           "Dispensed by", "Paid"]}
-                                 widths={["16ch", "22ch", "14ch", "8ch", "18ch", "10ch"]} />}
-      >
-        {!loading && rows.length === 0 ? (
+      {/* SCOPED LOADING.
+          The old skeleton carried the right headings but stood in place of the
+          real table, so the search box went with it and somebody with a
+          patient's name in front of them could not begin typing it. The head
+          and the box are written here; only the hand-overs are fetched. */}
+      <div className={`refreshable${loading ? " is-refreshing" : ""}`}>
+        {rows && rows.length === 0 ? (
           <p className="muted">This medicine has never been dispensed.</p>
         ) : (
           <>
             <div className="dt-scroll">
               <TableSearch value={q} onChange={setQ}
                            placeholder="Find a patient, a script or a prescriber…"
-                           shown={shown.length} total={rows.length} />
+                           ready={!!rows}
+                           shown={shown.length} total={rows?.length ?? 0} />
               <table className="dt">
                 <thead>
                   <tr>
@@ -103,6 +108,10 @@ export default function ProductDispensings({ productId }: { productId: number })
                     <Th>Paid</Th>
                   </tr>
                 </thead>
+                {!rows ? (
+                  <GhostRows cols={6} rows={6} secondLine={[1, 2]}
+                             widths={["16ch", "22ch", "14ch", "8ch", "18ch", "10ch"]} />
+                ) : (
                 <tbody>
                   {shown.map((r) => (
                     <tr key={r.id}>
@@ -154,6 +163,7 @@ export default function ProductDispensings({ productId }: { productId: number })
                 </EmptyRow>
               )}
             </tbody>
+                )}
               </table>
             </div>
 
@@ -175,7 +185,7 @@ export default function ProductDispensings({ productId }: { productId: number })
             )}
           </>
         )}
-      </Refreshable>
+      </div>
     </>
   );
 }

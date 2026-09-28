@@ -22,7 +22,7 @@ import { EntityLink } from "../components/Filters";
 import RowLink from "../components/RowLink";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { DRAFT_SCRIPT, DRAFT_SCRIPT_PLURAL } from "../terms";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
@@ -144,7 +144,7 @@ export default function Scripts() {
       <PageHead
         title="Scripts"
         sub="Every script on file, by its number. What is on it, what has gone out, and what has been altered since capture"
-        count={data ? `${data.total.toLocaleString()} on file` : undefined}
+        count={<><Figure ready={!!data} w="6ch">{data && data.total.toLocaleString()}</Figure>{" "}on file</>}
         /* WHAT A SCHEME OR AN INSPECTOR ASKS FOR.
            Never "show me your screen": a list of scripts over a period, with
            the prescriber and what was on each one. */
@@ -215,6 +215,10 @@ export default function Scripts() {
             loading={loading}
             hasData={!!data?.items?.length}
             skeleton={<TableSkeleton cols={7} rows={10} rowHeight={49}
+              // The same seven headings the table declares below: waiting on
+              // the answer should not mean waiting to learn the question.
+              headers={["Script", "State", "Patient", "Prescriber", "Items",
+                        "Dispensed", "Written"]}
               widths={["14ch", "10ch", "20ch", "18ch", "5ch", "8ch", "10ch"]}
               // The script number carries a badge under it, and Dispensed a
               // second line.

@@ -124,14 +124,25 @@ export default function WillCallBag() {
       )}
       loading={!bag && !error}
       error={error}
-      facts={bag ? [
-        { label: "Waiting", value: `${bag.days_waiting} day${bag.days_waiting === 1 ? "" : "s"}`,
-          hint: bag.band },
-        { label: "Quantity", value: bag.quantity },
-        { label: "To pay", value: owed > 0.005 ? money(owed) : "nothing",
-          hint: owed > 0.005 ? "collect at the till" : undefined },
-        { label: "Dispensed", value: fmtDateTime(bag.dispensed_at) },
-      ] : undefined}
+      facts={[
+        /* How long it has waited, how much is in it, what is still to pay and
+           when it was made up: the same four things for every bag on the shelf,
+           so the words stand and only the figures wait. */
+        { label: "Waiting",
+          value: <Figure ready={!!bag} w="7ch">
+            {bag && `${bag.days_waiting} day${bag.days_waiting === 1 ? "" : "s"}`}
+          </Figure>,
+          hint: <Figure ready={!!bag} w="12ch">{bag?.band}</Figure> },
+        { label: "Quantity",
+          value: <Figure ready={!!bag} w="4ch">{bag?.quantity}</Figure> },
+        { label: "To pay",
+          value: <Figure ready={!!bag} w="9ch">
+            {bag && (owed > 0.005 ? money(owed) : "nothing")}
+          </Figure>,
+          hint: bag && owed > 0.005 ? "collect at the till" : undefined },
+        { label: "Dispensed",
+          value: <Figure ready={!!bag} w="16ch">{bag && fmtDateTime(bag.dispensed_at)}</Figure> },
+      ]}
       actions={bag && !bag.collected_at
         ? <button className="btn secondary" onClick={() => setLabels(true)}>
             <Printer size={15} /> Labels

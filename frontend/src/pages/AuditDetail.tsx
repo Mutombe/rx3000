@@ -96,17 +96,31 @@ export default function AuditDetail() {
           <ArrowLeft size={13} weight="bold" /> Audit log
         </Link>
       }
-      facts={row ? [
-        { label: "Signed in as", value: row.username || "Not recorded" },
-        { label: "Really", value: row.acted_as || row.username || "none",
-          hint: row.acted_as ? "head office acting as somebody" : "themselves",
-          tone: row.acted_as ? "warn" : undefined },
-        { label: "Answer", value: row.status_code || "none",
-          hint: row.status_code >= 400 ? "the server refused it" : "accepted",
-          tone: row.status_code >= 400 ? "bad" : undefined },
-        { label: "When", value: fmtDateTime(row.created_at),
-          hint: row.ip_address || "" },
-      ] : []}
+      facts={[
+        /* Every audit entry is judged on the same four things, so the four
+           labels are written here and stand from the first frame. Only the
+           answers beside them wait, and nothing is coloured warn or bad until
+           there is something to have gone wrong. */
+        { label: "Signed in as",
+          value: <Figure ready={!!row} w="14ch">{row && (row.username || "Not recorded")}</Figure> },
+        { label: "Really",
+          value: <Figure ready={!!row} w="14ch">{row && (row.acted_as || row.username || "none")}</Figure>,
+          hint: <Figure ready={!!row} w="18ch">
+            {row && (row.acted_as ? "head office acting as somebody" : "themselves")}
+          </Figure>,
+          tone: row?.acted_as ? "warn" : undefined },
+        { label: "Answer",
+          value: <Figure ready={!!row} w="3ch">{row && (row.status_code || "none")}</Figure>,
+          hint: <Figure ready={!!row} w="16ch">
+            {row && (row.status_code >= 400 ? "the server refused it" : "accepted")}
+          </Figure>,
+          tone: row && row.status_code >= 400 ? "bad" : undefined },
+        { label: "When",
+          value: <Figure ready={!!row} w="16ch">{row && fmtDateTime(row.created_at)}</Figure>,
+          hint: <Figure ready={!!row} w="12ch">
+            {row && (row.ip_address || "Address not recorded")}
+          </Figure> },
+      ]}
     >
       {/* The gate that stood here held back both panel headings, the six
           labels under "What was asked" and the whole head of the table beneath

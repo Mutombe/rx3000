@@ -19,7 +19,7 @@ import { api, errorText, fmtDate } from "../api";
 import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 
@@ -174,7 +174,7 @@ export default function Pharmacies() {
       <PageHead
         title="Pharmacies"
         sub="Every business on this deployment, and who belongs to which"
-        count={rows.length ? `${rows.length} on this deployment` : undefined}
+        count={<><Figure ready={!list.loading} w="3ch">{!list.loading && rows.length}</Figure>{" "}on this deployment</>}
         also={
           <button className="btn secondary" onClick={load}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh

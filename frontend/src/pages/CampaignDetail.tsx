@@ -95,13 +95,19 @@ export default function CampaignDetail() {
           )}
         </div>
       )}
-      facts={d ? [
-        { label: "Messages", value: d.sent_count },
-        { label: "Delivered", value: d.by_status.sent ?? 0 },
-        { label: "Failed", value: failed,
-          hint: failed ? "did not reach anybody" : undefined },
-        { label: "Status", value: d.status },
-      ] : undefined}
+      facts={[
+        /* The same four words describe every campaign, so they are on the
+           screen before the campaign is. Only the tallies wait. */
+        { label: "Messages",
+          value: <Figure ready={!!d} w="4ch">{d?.sent_count}</Figure> },
+        { label: "Delivered",
+          value: <Figure ready={!!d} w="4ch">{d && (d.by_status.sent ?? 0)}</Figure> },
+        { label: "Failed",
+          value: <Figure ready={!!d} w="4ch">{d && failed}</Figure>,
+          hint: d && failed ? "did not reach anybody" : undefined },
+        { label: "Status",
+          value: <Figure ready={!!d} w="10ch">{d?.status}</Figure> },
+      ]}
     >
       {/* The gate that stood here held back both card headings, the four
           labels under the first and the whole head of the recipients table.

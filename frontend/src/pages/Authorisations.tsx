@@ -336,8 +336,14 @@ export default function Authorisations() {
             placeholder="Search reference, number or item"
           />
         </div>
+        {/* Seven columns, not six: the actions cell counts, and a skeleton a
+            column short shifts the table sideways the moment the funders
+            answer. The names are the ones declared a few lines below. */}
         {list.loading && rows.length === 0
-          ? <TableSkeleton cols={6} rows={6} /> : rows.length === 0 ? (
+          ? <TableSkeleton cols={7} rows={6}
+              headers={["Reference", "Funder", "For", "Status", "Valid to",
+                        "Left", ""]} />
+          : rows.length === 0 ? (
           <div className="empty">No authorisations yet.</div>
         ) : (
           <div className="cu-scroll">

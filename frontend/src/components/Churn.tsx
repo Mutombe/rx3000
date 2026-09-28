@@ -23,7 +23,7 @@ import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
 import Select from "./Select";
-import { Refreshable, TableSkeleton } from "./Skeleton";
+import { Figure, GhostRows } from "./Skeleton";
 import { useToast } from "./Toast";
 import Person from "./Person";
 import Th from "./Th";
@@ -135,31 +135,45 @@ export default function Churn() {
         </div>
       </div>
 
-      <Refreshable loading={loading} hasData={!!data}
-                   skeleton={<TableSkeleton rows={8} cols={6} />}>
-        {data && therapies && !data.measurable && (
+      {/* SCOPED LOADING.
+       *
+       * This whole screen used to sit behind one skeleton table, so arriving on
+       * it showed eight grey rows and nothing else: the four band labels, the
+       * two section headings and their descriptions, both table heads and the
+       * search over the call list were all withheld, and then landed at once
+       * about half a page taller. None of them are fetched.
+       *
+       * So the frame is drawn from the first paint and only the figures pulse.
+       * The two "nothing to report" notices are the careful part: a pharmacy
+       * being told nobody has stopped coming is being told something, and it
+       * must not be told it before the server has answered. Both sit AFTER the
+       * `data` test, never before it. */}
+      <div className={`refreshable${loading ? " is-refreshing" : ""}`}>
+        {data && therapies && !data.measurable ? (
           // Nought regulars is not nought churn. Showing 0% here would tell a
           // pharmacy three months old that its retention is perfect.
           <div className="empty">
             <b>Not enough history to measure churn yet</b>
             <p>{data.why_not}</p>
           </div>
-        )}
-
-        {data && therapies && data.measurable && (
+        ) : (
           <>
             <div className="wc-bands">
               <div className="wc-band">
                 <span className="wc-band-label">Churn</span>
-                <b className={`tone-${data.tone}`}>{data.rate}%</b>
+                <b className={data ? `tone-${data.tone}` : undefined}>
+                  <Figure ready={!!data} w="4ch">{data?.rate}%</Figure>
+                </b>
                 <span className="muted small">
-                  {data.churned} of {data.regulars} regulars stopped coming
+                  <Figure ready={!!data} w="2ch">{data?.churned}</Figure> of{" "}
+                  <Figure ready={!!data} w="3ch">{data?.regulars}</Figure> regulars
+                  stopped coming
                 </span>
               </div>
               <div className="wc-band">
                 <span className="wc-band-label">Worth per month</span>
-                <b className={data.lost_monthly > 0 ? "neg" : undefined}>
-                  {money(data.lost_monthly)}
+                <b className={data && data.lost_monthly > 0 ? "neg" : undefined}>
+                  <Figure ready={!!data} w="8ch">{data && money(data.lost_monthly)}</Figure>
                 </b>
                 <span className="muted small">
                   what they were spending while they came
@@ -167,34 +181,39 @@ export default function Churn() {
               </div>
               <div className="wc-band">
                 <span className="wc-band-label">A point of churn</span>
-                <b>{money(data.point_value)}</b>
+                <b><Figure ready={!!data} w="8ch">{data && money(data.point_value)}</Figure></b>
                 <span className="muted small">
                   per month, so one point back is worth that much
                 </span>
               </div>
               <div className="wc-band">
                 <span className="wc-band-label">Kept</span>
-                <b>{data.retained}</b>
+                <b><Figure ready={!!data} w="3ch">{data?.retained}</Figure></b>
                 <span className="muted small">
-                  {money(data.kept_monthly)} a month · {data.new_patients} new since
+                  <Figure ready={!!data} w="8ch">{data && money(data.kept_monthly)}</Figure>
+                  {" a month · "}
+                  <Figure ready={!!data} w="2ch">{data?.new_patients}</Figure> new since
                 </span>
               </div>
             </div>
 
             <p className="muted small" style={{ maxWidth: "62ch" }}>
-              {data.caveat}
+              {/* The caveat is written by the server against the window chosen,
+                  so it is one of the few sentences here that really is fetched. */}
+              <Figure ready={!!data} w="56ch">{data?.caveat}</Figure>
             </p>
 
             <div className="card-head" style={{ marginTop: 18 }}>
               <div>
                 <h4>Worth a telephone call</h4>
                 <span className="muted small">
-                  Most valuable first. A patient seen {data.regular_visits} times
+                  Most valuable first. A patient seen{" "}
+                  <Figure ready={!!data} w="2ch">{data?.regular_visits}</Figure> times
                   or more before, and not since.
                 </span>
               </div>
             </div>
-            {data.leaving.length === 0 ? (
+            {data && data.leaving.length === 0 ? (
               <div className="empty">
                 <b>Nobody has stopped coming</b>
                 <p>
@@ -204,9 +223,13 @@ export default function Churn() {
               </div>
             ) : (
               <>
+              {/* Hoisted out of the old skeleton: the box and its Clear button
+                  are the same on every visit and can be typed into before a
+                  single row lands. Only the count waits. */}
               <TableSearch value={q} onChange={setQ}
                            placeholder="Find a patient or a telephone number…"
-                           shown={shown.length} total={data.leaving.length} />
+                           ready={!!data}
+                           shown={shown.length} total={data?.leaving.length ?? 0} />
               <div className="dt-scroll">
                 <table className="dt">
                   <thead>
@@ -219,6 +242,10 @@ export default function Churn() {
                       <Th className="num">Per month</Th>
                     </tr>
                   </thead>
+                  {!data ? (
+                    <GhostRows cols={6} rows={6}
+                               widths={["70%", "70%", "60%", "40%", "40%", "60%"]} />
+                  ) : (
                   <tbody>
                     {shown.map((l) => (
                       <tr key={l.patient_id}>
@@ -241,6 +268,7 @@ export default function Churn() {
                       </tr>
                     ))}
                   </tbody>
+                  )}
                 </table>
               </div>
               </>
@@ -253,62 +281,64 @@ export default function Churn() {
             may have plenty of dispensing history and few sales tied to a named
             patient, and a stopped treatment is the more urgent of the two
             findings anyway. */}
-        {data && therapies && (
-          <>
-            <div className="card-head" style={{ marginTop: 22 }}>
-              <div>
-                <h4>Treatments that stopped</h4>
-                <span className="muted small">
-                  Medicines somebody was established on. At least{" "}
-                  {therapies.minimum_fills} fills, and has not come back for.
-                  {therapies.value_at_risk > 0 &&
-                    <> {money(therapies.value_at_risk)} of dispensing at risk.</>}
-                </span>
-              </div>
-            </div>
-            {therapies.lines.length === 0 ? (
-              <div className="empty">
-                <b>No therapy has visibly stopped</b>
-                <p>
-                  Either everybody established on a repeat is still collecting
-                  it, or there is not yet enough history in this window to tell.
-                </p>
-              </div>
-            ) : (
-              <div className="dt-scroll">
-                <table className="dt">
-                  <thead>
-                    <tr>
-                      <Th>Medicine</Th>
-                      <Th className="num">Established on it</Th>
-                      <Th className="num">Stopped</Th>
-                      <Th className="num">Rate</Th>
-                      <Th className="num">Dispensing at risk</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {therapies.lines.map((l) => (
-                      <tr key={l.product_id} className={`row-${l.tone}`}>
-                        <td>
-                          <EntityLink kind="product" id={l.product_id}>
-                            {l.product}
-                          </EntityLink>
-                        </td>
-                        <td className="num">{l.established}</td>
-                        <td className="num">{l.stopped}</td>
-                        <td className="num">
-                          <span className={`badge ${l.tone}`}>{l.rate}%</span>
-                        </td>
-                        <td className="num">{money(l.value_at_risk)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
+        <div className="card-head" style={{ marginTop: 22 }}>
+          <div>
+            <h4>Treatments that stopped</h4>
+            <span className="muted small">
+              Medicines somebody was established on. At least{" "}
+              <Figure ready={!!therapies} w="1ch">{therapies?.minimum_fills}</Figure>{" "}
+              fills, and has not come back for.
+              {therapies && therapies.value_at_risk > 0 &&
+                <> {money(therapies.value_at_risk)} of dispensing at risk.</>}
+            </span>
+          </div>
+        </div>
+        {therapies && therapies.lines.length === 0 ? (
+          <div className="empty">
+            <b>No therapy has visibly stopped</b>
+            <p>
+              Either everybody established on a repeat is still collecting
+              it, or there is not yet enough history in this window to tell.
+            </p>
+          </div>
+        ) : (
+          <div className="dt-scroll">
+            <table className="dt">
+              <thead>
+                <tr>
+                  <Th>Medicine</Th>
+                  <Th className="num">Established on it</Th>
+                  <Th className="num">Stopped</Th>
+                  <Th className="num">Rate</Th>
+                  <Th className="num">Dispensing at risk</Th>
+                </tr>
+              </thead>
+              {!therapies ? (
+                <GhostRows cols={5} rows={5}
+                           widths={["70%", "40%", "40%", "40%", "60%"]} />
+              ) : (
+              <tbody>
+                {therapies.lines.map((l) => (
+                  <tr key={l.product_id} className={`row-${l.tone}`}>
+                    <td>
+                      <EntityLink kind="product" id={l.product_id}>
+                        {l.product}
+                      </EntityLink>
+                    </td>
+                    <td className="num">{l.established}</td>
+                    <td className="num">{l.stopped}</td>
+                    <td className="num">
+                      <span className={`badge ${l.tone}`}>{l.rate}%</span>
+                    </td>
+                    <td className="num">{money(l.value_at_risk)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              )}
+            </table>
+          </div>
         )}
-      </Refreshable>
+      </div>
     </>
   );
 }

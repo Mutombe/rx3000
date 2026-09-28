@@ -31,7 +31,7 @@ import { CloudArrowUp, FileText, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money , sentence} from "../api";
 import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { useConfirm } from "../components/Confirm";
@@ -209,9 +209,16 @@ export default function Compliance() {
         title="Licences and compliance"
         sub={overview?.headline
           ?? "What each branch must hold to trade, and when it expires."}
-        count={overview && (overview.expired || overview.missing)
-          ? `${overview.expired + overview.missing} need attention`
-          : undefined}
+        /* The chip keeps its place from the first frame and "need attention"
+           stands outside the ghost, because that is what this chip counts
+           whatever the answer is. Only the tally waits, and once it is in the
+           chip says so either way: an absent chip is indistinguishable from a
+           page that has not asked yet. */
+        count={<><Figure ready={!!overview} w="6ch">
+          {overview && (overview.expired || overview.missing
+            ? overview.expired + overview.missing
+            : "None")}
+        </Figure>{" "}need attention</>}
         /* WHAT AN INSPECTION ACTUALLY ASKS FOR.
            Not a screen: a list of what each branch holds, its reference, who
            issued it and when it runs out. It is also what an insurer wants
@@ -227,7 +234,10 @@ export default function Compliance() {
       <SectionNav tabs={BRANCH_TABS} end="/compliance" />
 
       <Refreshable loading={loading} hasData={!!overview}
-        skeleton={<TableSkeleton cols={5} rows={4} />}>
+        skeleton={<TableSkeleton cols={6} rows={4}
+          headers={["Branch", "Standing", "Expired", "Not on file",
+                    "Next renewal", "Renewals a year"]}
+          widths={["20ch", "12ch", "8ch", "10ch", "16ch", "12ch"]} />}>
         {overview && (
           <>
             {overview.cannot_trade.length > 0 && (
@@ -370,7 +380,11 @@ export default function Compliance() {
             </div>
           </div>
 
-          {!register ? <TableSkeleton cols={5} rows={6} /> : (
+          {!register ? (
+            <TableSkeleton cols={6} rows={6}
+              headers={["Document", "Standing", "Reference", "Expires", "Scan", ""]}
+              widths={["22ch", "12ch", "14ch", "11ch", "12ch", "14ch"]} />
+          ) : (
             <div className="dt-scroll">
               <table className="dt dt-wide">
                 <thead>

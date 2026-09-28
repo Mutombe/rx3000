@@ -80,6 +80,17 @@ const MOVE: Record<string, string> = {
   fast: "ok", steady: "muted", slow: "warn", dead: "bad", none: "muted",
 };
 
+/** The headings of each tab's table, which are written down here and are the
+ *  same on every visit — so they are drawn while the rows are still coming
+ *  rather than ghosted, and per tab, because arriving on "Not moving" and
+ *  being shown the earnings columns would be a confident wrong answer. */
+const HEADS: Record<Tab, string[]> = {
+  lines: ["Line", "Out", "A month", "On hand", "Cover", "Taken", "GP", "GMROI"],
+  dead: ["Line", "Department", "On hand", "Tied up", ""],
+  branches: ["Branch", "Taken", "GP", "Margin", "GMROI", "Not moving",
+             "Its best lines"],
+};
+
 export default function StockPerformance() {
   const [report, setReport] = useState<Report | null>(null);
   /* Every line that moved in the window, up to two hundred of them, read to
@@ -131,7 +142,8 @@ export default function StockPerformance() {
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
       <Refreshable loading={loading} hasData={!!report}
-        skeleton={<TableSkeleton cols={8} rows={8} />}>
+        skeleton={<TableSkeleton cols={HEADS[tab].length} rows={8}
+                                 headers={HEADS[tab]} />}>
 
         {report && report.unpriced_note && (
           // Said out loud rather than left to be inferred from a small revenue

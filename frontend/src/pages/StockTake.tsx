@@ -36,7 +36,7 @@ interface PastTake {
   short_units: number;
 }
 import { EntityLink } from "../components/Filters";
-import { TableSkeleton } from "../components/Skeleton";
+import { Block, Figure, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
@@ -414,8 +414,13 @@ export default function StockTake() {
         /* How far the count has got, not what it is called. The reference is
            on the card below with the rest of the count's own facts; a chip
            beside the title that reads ST260800003 answers a question nobody
-           standing on a ladder is asking. */
-        count={take ? `${take.counted_lines} counted` : undefined}
+           standing on a ladder is asking. The chip is drawn from the first
+           frame and only the figure in it waits, because one that arrives
+           late shoves the title sideways; and once the answer is in, "no
+           count open" is an answer rather than a blank. */
+        count={<Figure ready={!loading} w="12ch">
+          {!loading && (take ? `${take.counted_lines} counted` : "No count open")}
+        </Figure>}
         /* THE COUNT SHEET, BECAUSE SOMEBODY IS UP A LADDER.
            Every pharmacy that has ever done a stock take has counted it on
            paper first, and this screen offered no way to get one. The sheet
@@ -428,16 +433,15 @@ export default function StockTake() {
       {/* THREE STATES, AND "WE HAVE NOT LOOKED YET" IS ONE OF THEM.
           Before this, `!take` meant "no count is open" and was also what a
           page that had not asked yet looked like, so for a moment the screen
-          offered to start a count that was already running. The wait has its
-          own arm now, with the count table's real headings on it, because
-          those are written down either way. */}
-      {loading ? (
-        <div className="card">
-          <TableSkeleton cols={6} rows={5}
-            headers={["Product", "Counted", "System", "Variance", "At cost", "Note"]}
-            widths={["22ch", "10ch", "10ch", "10ch", "12ch", "14ch"]} />
-        </div>
-      ) : !take ? (
+          offered to start a count that was already running.
+
+          The wait now draws the count's own frame rather than one grey table:
+          "Still to count", "Count a product", "Counted so far" and every stat
+          label under them are written here and were being withheld until the
+          server said whether a count was open, then appearing all at once. The
+          offer to start one stays behind the answer, because it is the
+          sentence that asserts an absence. */}
+      {!loading && !take ? (
         <div className="card">
           <h3>Start a count</h3>
           <p className="muted">
@@ -482,15 +486,25 @@ export default function StockTake() {
       ) : (
         <>
           <div className="card">
+            {/* The reference and the scope are the count's own facts and are
+                left ghosted rather than guessed at: this card is named by
+                whatever the server opened. */}
             <div className="cu-head">
-              <h3 style={{ margin: 0 }}>{take.reference}</h3>
-              <span className="badge ok">{sentence(take.status)}</span>
+              <h3 style={{ margin: 0 }}>
+                <Figure ready={!!take} w="12ch">{take?.reference}</Figure>
+              </h3>
+              {take && <span className="badge ok">{sentence(take.status)}</span>}
             </div>
             <p className="muted">
-              Opened {take.opened_at ? fmtDateTime(take.opened_at) : "No date"}
-              {take.scope.category || take.scope.bin
-                ? ` · counting ${[take.scope.category, take.scope.bin].filter(Boolean).join(" / ")}`
-                : " · counting everything"}
+              Opened{" "}
+              <Figure ready={!!take} w="16ch">
+                {take && (take.opened_at ? fmtDateTime(take.opened_at) : "No date")}
+              </Figure>
+              <Figure ready={!!take} w="20ch">
+                {take && (take.scope.category || take.scope.bin
+                  ? ` · counting ${[take.scope.category, take.scope.bin].filter(Boolean).join(" / ")}`
+                  : " · counting everything")}
+              </Figure>
             </p>
 
             {/* HOW FAR THROUGH THIS IS, AS A SHAPE.
@@ -514,40 +528,56 @@ export default function StockTake() {
               <div className="stat">
                 <span className="stat-label">Lines counted</span>
                 <span className="stat-value">
-                  {take.counted_lines}
+                  <Figure ready={!!take} w="3ch">{take?.counted_lines}</Figure>
                   {/* Out of how many. A count that shows only what has been
                       done cannot tell anybody it is unfinished, which is how
                       one line out of a thousand used to close and post. */}
                   {sheet && <span className="muted"> of {sheet.expected_lines}</span>}
                 </span>
               </div>
-              {sheet && sheet.outstanding > 0 && (
-                <div className="stat">
-                  <span className="stat-label">Still to count</span>
-                  <span className="stat-value tone-danger">{sheet.outstanding}</span>
-                </div>
-              )}
+              {/* The tile stands whatever the answer, so the row does not
+                  reflow when it lands, and the alarm colour waits for a
+                  figure somebody has actually read. */}
+              <div className="stat">
+                <span className="stat-label">Still to count</span>
+                <span className={`stat-value${
+                  sheet && sheet.outstanding > 0 ? " tone-danger" : ""}`}>
+                  <Figure ready={!!sheet} w="3ch">
+                    {sheet && (sheet.outstanding || "none")}
+                  </Figure>
+                </span>
+              </div>
               {/* Over and short separately, never netted. A count 40 over and 40
                   short is not a clean count, it is two errors. */}
               <div className="stat">
                 <span className="stat-label">Units over</span>
-                <span className="stat-value">{take.over_units}</span>
+                <span className="stat-value">
+                  <Figure ready={!!take} w="3ch">{take?.over_units}</Figure>
+                </span>
               </div>
               <div className="stat">
                 <span className="stat-label">Units short</span>
-                <span className="stat-value">{take.short_units}</span>
+                <span className="stat-value">
+                  <Figure ready={!!take} w="3ch">{take?.short_units}</Figure>
+                </span>
               </div>
               <div className="stat">
                 <span className="stat-label">Value at cost</span>
-                <span className="stat-value">{money(take.variance_value)}</span>
+                <span className="stat-value">
+                  <Figure ready={!!take} w="9ch">
+                    {take && money(take.variance_value)}
+                  </Figure>
+                </span>
               </div>
             </div>
 
             <div className="cu-actions">
-              <button className="btn ghost small" disabled={busy === "abandon"} onClick={abandon}>
+              <button className="btn ghost small"
+                      disabled={!take || busy === "abandon"} onClick={abandon}>
                 {busy === "abandon" ? "Abandoning…" : "Abandon"}
               </button>
-              <button className="btn primary" disabled={busy === "close"} onClick={close}>
+              <button className="btn primary"
+                      disabled={!take || busy === "close"} onClick={close}>
                 {busy === "close" ? "Closing…" : "Close and adjust stock"}
               </button>
             </div>
@@ -559,15 +589,36 @@ export default function StockTake() {
               remembering the shop. This is the walk: the fullest shelf first,
               every uncounted line on it, and a tap to start counting one.
               Nothing here shows a quantity, because the count is blind. */}
-          {shelves.length > 0 && (
-            <div className="card">
-              <div className="card-head">
-                <h3>Still to count</h3>
-                <span className="muted small">
-                  {sheet?.outstanding} line{sheet?.outstanding === 1 ? "" : "s"} across{" "}
-                  {shelves.length === 1 ? "one shelf" : `${shelves.length} shelves`}
-                </span>
+          <div className="card">
+            <div className="card-head">
+              <h3>Still to count</h3>
+              <span className="muted small">
+                <Figure ready={!!sheet} w="3ch">{sheet?.outstanding}</Figure>
+                {" "}line{sheet?.outstanding === 1 ? "" : "s"} across{" "}
+                <Figure ready={!!sheet} w="9ch">
+                  {sheet && (shelves.length === 1
+                    ? "one shelf" : `${shelves.length} shelves`)}
+                </Figure>
+              </span>
+            </div>
+            {!sheet ? (
+              // The walk itself: three shelf heads at the height the real ones
+              // stand, so the card does not lift when the sheet lands.
+              <div className="st-shelves" aria-busy="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="st-shelf">
+                    <div className="st-shelf-head">
+                      <Block w="10ch" h={14} />
+                      <Block w="8ch" h={11} />
+                    </div>
+                  </div>
+                ))}
               </div>
+            ) : shelves.length === 0 ? (
+              <div className="empty">
+                Every line this count covers has been counted.
+              </div>
+            ) : (
               <div className="st-shelves">
                 {shelves.map((shelf) => (
                   <div key={shelf.bin} className="st-shelf">
@@ -617,8 +668,8 @@ export default function StockTake() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="card">
             <h3>Count a product</h3>
@@ -657,7 +708,9 @@ export default function StockTake() {
                   </div>
                 </div>
                 <div className="cu-actions">
-                  <button className="btn primary" type="submit" disabled={busy === "count"}>
+                  {/* Nothing to record against until the count is in hand. */}
+                  <button className="btn primary" type="submit"
+                          disabled={!take || busy === "count"}>
                     {busy === "count" ? "Recording…" : "Record the count"}
                   </button>
                 </div>
@@ -722,7 +775,11 @@ export default function StockTake() {
 
           <div className="card">
             <h3>Counted so far</h3>
-            {!detail || detail.lines.length === 0 ? (
+            {!detail ? (
+              <TableSkeleton cols={6} rows={3}
+                headers={["Product", "Counted", "System", "Variance", "At cost", "Note"]}
+                widths={["22ch", "10ch", "10ch", "10ch", "12ch", "14ch"]} />
+            ) : detail.lines.length === 0 ? (
               <div className="empty">Nothing counted yet.</div>
             ) : (
               <div className="cu-scroll">
@@ -776,7 +833,9 @@ export default function StockTake() {
           </div>
         </div>
         {past === null ? (
-          <TableSkeleton cols={5} rows={3} />
+          <TableSkeleton cols={7} rows={3}
+            headers={["Reference", "Status", "Closed", "Lines", "Over", "Short", "Worth"]}
+            widths={["14ch", "10ch", "18ch", "6ch", "6ch", "6ch", "10ch"]} />
         ) : past.length === 0 ? (
           <div className="empty">
             <b>No counts have been closed yet.</b>

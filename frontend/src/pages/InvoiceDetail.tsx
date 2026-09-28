@@ -12,7 +12,7 @@ import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { GhostRows } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Th from "../components/Th";
@@ -95,13 +95,23 @@ export default function InvoiceDetail() {
       subtitle={d && <EntityLink kind="supplier" id={d.supplier_id}>{d.supplier}</EntityLink>}
       loading={!d && !error}
       error={error}
-      facts={d ? [
-        { label: "Billed", value: money(d.total) },
+      facts={[
+        /* Billed, outstanding, due, status: an invoice is read for the same
+           four things whoever sent it, so the words are here and only the
+           money and the date wait. */
+        { label: "Billed",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.total)}</Figure> },
         { label: "Outstanding",
-          value: d.outstanding > 0.005 ? money(d.outstanding) : "settled" },
-        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "No date" },
-        { label: "Status", value: d.status },
-      ] : undefined}
+          value: <Figure ready={!!d} w="9ch">
+            {d && (d.outstanding > 0.005 ? money(d.outstanding) : "settled")}
+          </Figure> },
+        { label: "Due",
+          value: <Figure ready={!!d} w="11ch">
+            {d && (d.due_date ? fmtDate(d.due_date) : "No date")}
+          </Figure> },
+        { label: "Status",
+          value: <Figure ready={!!d} w="10ch">{d?.status}</Figure> },
+      ]}
       actions={d && !d.posted_reference
         ? <BusyButton onClick={approve}>Approve for payment</BusyButton>
         : undefined}

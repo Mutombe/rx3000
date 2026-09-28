@@ -17,6 +17,7 @@ import { Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useCan } from "../session";
@@ -190,134 +191,176 @@ export default function SupplierReturnDetail() {
           ) : null}
         </>
       }
-      facts={row ? [
-        { label: "Value", value: money(row.total),
+      facts={[
+        /* What went back, whether it was credited, why and where it stands: the
+           same four questions for every return, so the words come up with the
+           page. The colour on the credit tile waits for the answer, because an
+           unread return is neither settled nor owed. */
+        { label: "Value",
+          value: <Figure ready={!!row} w="9ch">{row && money(row.total)}</Figure>,
           hint: "at what it cost" },
-        { label: "Credit", value: credited ? row.credit_note : "Not received",
-          hint: credited
-            ? (row.credited_at ? fmtDate(row.credited_at) : "on file")
-            : "the pharmacy is out of pocket",
-          tone: credited ? "ok" : "warn" },
-        { label: "Why", value: row.why || row.reason_code || "Not given" },
-        { label: "Status", value: row.status },
-      ] : []}
+        { label: "Credit",
+          value: <Figure ready={!!row} w="12ch">
+            {row && (credited ? row.credit_note : "Not received")}
+          </Figure>,
+          hint: <Figure ready={!!row} w="20ch">
+            {row && (credited
+              ? (row.credited_at ? fmtDate(row.credited_at) : "on file")
+              : "the pharmacy is out of pocket")}
+          </Figure>,
+          tone: row ? (credited ? "ok" : "warn") : undefined },
+        { label: "Why",
+          value: <Figure ready={!!row} w="14ch">
+            {row && (row.why || row.reason_code || "Not given")}
+          </Figure> },
+        { label: "Status",
+          value: <Figure ready={!!row} w="10ch">{row?.status}</Figure> },
+      ]}
     >
-      {row && (
-        <>
-          {/* THE WHOLE POINT OF THE SCREEN.
-              Goods have gone back and nothing has come for them, so the
-              pharmacy has paid for stock it does not have. That is money
-              somebody has to chase, and it was not said anywhere. */}
-          {!credited && (
-            <div className="alert warn">
-              <Warning size={15} weight="fill" /> No credit note against this
-              return yet. {money(row.total)} of goods have gone back to{" "}
-              {row.supplier || "the supplier"} and nothing has come for them.
-            </div>
-          )}
+      {/* THE WHOLE POINT OF THE SCREEN.
+          Goods have gone back and nothing has come for them, so the
+          pharmacy has paid for stock it does not have. That is money
+          somebody has to chase, and it was not said anywhere.
 
-          <Panel title="The claim">
-            <dl className="kv">
-              <dt>Supplier</dt>
-              <dd>
-                {row.supplier_id
-                  ? <EntityLink to={`/suppliers/${row.supplier_id}`}>{row.supplier}</EntityLink>
-                  : <span className="muted">Not recorded</span>}
-              </dd>
-
-              <dt>Reason</dt>
-              <dd>
-                {row.why
-                  ? <span className="badge">{row.why}</span>
-                  : <span className="muted">None given</span>}
-              </dd>
-
-              <dt>Raised</dt>
-              <dd>
-                {row.created_at ? fmtDateTime(row.created_at)
-                                : <span className="muted">Not recorded</span>}
-                {row.raised_by && <span className="muted"> by {row.raised_by}</span>}
-              </dd>
-
-              <dt>Approved</dt>
-              <dd>
-                {row.approved_by
-                  ? <>{row.approved_by}
-                      {row.approved_at && <span className="muted"> · {fmtDateTime(row.approved_at)}</span>}</>
-                  : <span className="muted">Not approved yet</span>}
-              </dd>
-
-              <dt>Credit note</dt>
-              <dd className="mono">
-                {row.credit_note || <span className="muted">None received</span>}
-              </dd>
-
-              <dt>Note</dt>
-              <dd>{row.notes || <span className="muted">None</span>}</dd>
-            </dl>
-          </Panel>
-
-          <Panel
-            title="What went back"
-            count={row.lines.length}
-            empty="Nothing is on this return."
-          >
-            <div className="table-wrap">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
-                    {/* The delivery it came off, which is what makes the
-                        claim one a wholesaler settles rather than argues. */}
-                    <Th>Came off</Th>
-                    <Th className="num">Packs</Th>
-                    <Th className="num">Unit cost</Th>
-                    <Th className="num">Value</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {row.lines.map((l, n) => (
-                    <tr key={`${l.product_id}-${l.batch}-${n}`}>
-                      <td>
-                        <EntityLink to={`/products/${l.product_id}`}>
-                          {l.product || "none"}
-                        </EntityLink>
-                      </td>
-                      <td className="mono small">
-                        {l.batch || <span className="muted">None</span>}
-                      </td>
-                      <td className="small">
-                        {l.expiry ? fmtDate(l.expiry) : <span className="muted">No expiry</span>}
-                      </td>
-                      <td className="mono small">
-                        {/* An absent delivery arrives as an empty object, not
-                            as null, so a plain truth test passed and the link
-                            rendered as /deliveries/undefined. It is the id
-                            that decides whether there is one. */}
-                        {l.grv?.id
-                          ? <>
-                              <EntityLink to={`/deliveries/${l.grv.id}`}>
-                                {l.grv.grv_number}
-                              </EntityLink>
-                              {l.grv.delivery_note && (
-                                <div className="muted">
-                                  note {l.grv.delivery_note}
-                                </div>
-                              )}
-                            </>
-                          : <span className="muted">Not linked</span>}
-                      </td>
-                      <td className="num">{l.quantity}</td>
-                      <td className="num">{money(l.unit_cost)}</td>
-                      <td className="num">{money(l.line_total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
+          It stays behind the fetch, because a page that has not been told
+          anything cannot accuse a wholesaler of owing money. */}
+      {row && !credited && (
+        <div className="alert warn">
+          <Warning size={15} weight="fill" /> No credit note against this
+          return yet. {money(row.total)} of goods have gone back to{" "}
+          {row.supplier || "the supplier"} and nothing has come for them.
+        </div>
       )}
+
+      {/* The two headings, the six labels of the claim and the seven column
+          heads say what a credit claim is made of, which does not change from
+          one return to the next. Gated, the page showed a reference and then
+          nothing until the whole return arrived; now the claim form stands
+          still and its answers fill in. */}
+      <Panel title="The claim">
+        <dl className="kv">
+          <dt>Supplier</dt>
+          <dd>
+            <Figure ready={!!row} w="20ch">
+              {row && (row.supplier_id
+                ? <EntityLink to={`/suppliers/${row.supplier_id}`}>{row.supplier}</EntityLink>
+                : <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Reason</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && (row.why
+                ? <span className="badge">{row.why}</span>
+                : <span className="muted">None given</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Raised</dt>
+          <dd>
+            <Figure ready={!!row} w="22ch">
+              {row && (
+                <>
+                  {row.created_at ? fmtDateTime(row.created_at)
+                                  : <span className="muted">Not recorded</span>}
+                  {row.raised_by && <span className="muted"> by {row.raised_by}</span>}
+                </>
+              )}
+            </Figure>
+          </dd>
+
+          <dt>Approved</dt>
+          <dd>
+            <Figure ready={!!row} w="22ch">
+              {row && (row.approved_by
+                ? <>{row.approved_by}
+                    {row.approved_at && <span className="muted"> · {fmtDateTime(row.approved_at)}</span>}</>
+                : <span className="muted">Not approved yet</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Credit note</dt>
+          <dd className="mono">
+            <Figure ready={!!row} w="14ch">
+              {row && (row.credit_note || <span className="muted">None received</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Note</dt>
+          <dd>
+            <Figure ready={!!row} w="30ch">
+              {row && (row.notes || <span className="muted">None</span>)}
+            </Figure>
+          </dd>
+        </dl>
+      </Panel>
+
+      <Panel
+        title="What went back"
+        count={row?.lines.length}
+        /* Only sayable once the lines have been counted. */
+        empty={row ? "Nothing is on this return." : undefined}
+      >
+        <div className="table-wrap">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
+                {/* The delivery it came off, which is what makes the
+                    claim one a wholesaler settles rather than argues. */}
+                <Th>Came off</Th>
+                <Th className="num">Packs</Th>
+                <Th className="num">Unit cost</Th>
+                <Th className="num">Value</Th>
+              </tr>
+            </thead>
+            {!row ? (
+              <GhostRows cols={7} rows={3} secondLine={[3]}
+                         widths={["80%", "55%", "50%", "60%", "30%", "40%", "40%"]} />
+            ) : (
+              <tbody>
+                {row.lines.map((l, n) => (
+                  <tr key={`${l.product_id}-${l.batch}-${n}`}>
+                    <td>
+                      <EntityLink to={`/products/${l.product_id}`}>
+                        {l.product || "none"}
+                      </EntityLink>
+                    </td>
+                    <td className="mono small">
+                      {l.batch || <span className="muted">None</span>}
+                    </td>
+                    <td className="small">
+                      {l.expiry ? fmtDate(l.expiry) : <span className="muted">No expiry</span>}
+                    </td>
+                    <td className="mono small">
+                      {/* An absent delivery arrives as an empty object, not
+                          as null, so a plain truth test passed and the link
+                          rendered as /deliveries/undefined. It is the id
+                          that decides whether there is one. */}
+                      {l.grv?.id
+                        ? <>
+                            <EntityLink to={`/deliveries/${l.grv.id}`}>
+                              {l.grv.grv_number}
+                            </EntityLink>
+                            {l.grv.delivery_note && (
+                              <div className="muted">
+                                note {l.grv.delivery_note}
+                              </div>
+                            )}
+                          </>
+                        : <span className="muted">Not linked</span>}
+                    </td>
+                    <td className="num">{l.quantity}</td>
+                    <td className="num">{money(l.unit_cost)}</td>
+                    <td className="num">{money(l.line_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

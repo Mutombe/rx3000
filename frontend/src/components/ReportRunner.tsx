@@ -58,8 +58,26 @@ function moneyKind(columns: { kind: string }[]): string {
   return columns.some((c) => c.kind === "money") ? "money" : "number";
 }
 
+/** What an empty cell says, in the terms of the column it sits in.
+ *
+ *  A report prints columns the server names, so there is no field-specific
+ *  wording to reach for here. There is the KIND, though, and that is enough to
+ *  stop one word standing for every kind of absence: an unrecorded amount and
+ *  an unmeasured rate are not the same fact and should not read the same. The
+ *  dash this replaced made them identical, and identical to "not applicable"
+ *  as well, which on a printed report reads as a redaction.
+ */
+const ABSENT: Record<string, string> = {
+  money: "not recorded",
+  percent: "not measured",
+  number: "not counted",
+  date: "no date",
+};
+
 function render(value: any, kind: string) {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") {
+    return ABSENT[kind] ?? "none";
+  }
   switch (kind) {
     case "money": return money(Number(value));
     case "percent": return `${Number(value).toFixed(1)}%`;
@@ -297,6 +315,32 @@ export default function ReportRunner({
         </div>
       )}
 
+      {/* SCOPED LOADING.
+          The two-way switch is not a result. It is written here, it reads the
+          same for every report in the catalogue, and it used to be inside the
+          `result` arm, so it vanished on every parameter change and came back a
+          moment later, moving the table under the cursor each time. It is out
+          here now, and it can be set before the first run lands.
+
+          The column heads stay ghosted below, and that is deliberate: a report
+          describes its own columns, so this file genuinely does not know them
+          until the server answers, and inventing names would be worse than a
+          grey bar. */}
+      <div className="view-switch" role="tablist" aria-label="How to read this report">
+        {(["table", "chart"] as const).map((v) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={view === v}
+            className={view === v ? "on" : ""}
+            onClick={() => setView(v)}
+          >
+            {v === "table" ? <Table size={14} weight="bold" /> : <ChartBar size={14} weight="bold" />}
+            {v === "table" ? "Table" : "Chart"}
+          </button>
+        ))}
+      </div>
+
       {!result ? (
         <TableSkeleton cols={report.params.length ? 6 : 5} rows={8} />
       ) : result.total === 0 ? (
@@ -305,24 +349,6 @@ export default function ReportRunner({
         </div>
       ) : (
         <>
-          {/* Same rows, two readings. The table answers "what exactly", the
-              chart answers "what shape", and a report that can only be read one
-              way makes somebody export it to find out the other. */}
-          <div className="view-switch" role="tablist" aria-label="How to read this report">
-            {(["table", "chart"] as const).map((v) => (
-              <button
-                key={v}
-                role="tab"
-                aria-selected={view === v}
-                className={view === v ? "on" : ""}
-                onClick={() => setView(v)}
-              >
-                {v === "table" ? <Table size={14} weight="bold" /> : <ChartBar size={14} weight="bold" />}
-                {v === "table" ? "Table" : "Chart"}
-              </button>
-            ))}
-          </div>
-
           {view === "chart" && (
             <ReportChart
               columns={result.columns}

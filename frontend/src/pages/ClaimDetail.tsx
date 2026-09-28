@@ -59,15 +59,23 @@ export default function ClaimDetail() {
       subtitle={d && <>{d.scheme.name} · <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink></>}
       loading={!d && !error}
       error={error}
-      facts={d ? [
-        { label: "Claimed", value: money(d.amount_claimed) },
-        { label: "Allowed", value: money(d.amount_approved),
-          hint: d.shortfall > 0.005 ? `${money(d.shortfall)} short` : undefined },
-        { label: "Settled", value: money(d.settled_amount),
-          hint: d.settled_at ? fmtDateTime(d.settled_at) : "Not yet paid" },
-        { label: "Patient owes", value: money(d.patient_liable),
+      facts={[
+        /* Every claim is priced the same four ways, so the four words are the
+           form and are drawn at once. Only the amounts beside them pulse. */
+        { label: "Claimed",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.amount_claimed)}</Figure> },
+        { label: "Allowed",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.amount_approved)}</Figure>,
+          hint: d && d.shortfall > 0.005 ? `${money(d.shortfall)} short` : undefined },
+        { label: "Settled",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.settled_amount)}</Figure>,
+          hint: <Figure ready={!!d} w="16ch">
+            {d && (d.settled_at ? fmtDateTime(d.settled_at) : "Not yet paid")}
+          </Figure> },
+        { label: "Patient owes",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.patient_liable)}</Figure>,
           hint: "levy and any shortfall" },
-      ] : undefined}
+      ]}
     >
       {/* The gate that stood here withheld all three card headings, the
           fourteen labels under the first two and the head of the lines table

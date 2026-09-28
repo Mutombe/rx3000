@@ -18,6 +18,7 @@ import { Check, Prohibit } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime } from "../api";
 import BusyButton from "../components/BusyButton";
 import Select from "./Select";
+import { Block, Figure } from "./Skeleton";
 import { useToast } from "./Toast";
 
 interface ChannelState {
@@ -93,24 +94,39 @@ export default function ConsentPanel({
   }
 
   if (failed) return <div className="alert error">{failed}</div>;
-  if (!state) return <p className="muted">Reading the consent record…</p>;
 
+  /* SCOPED LOADING.
+   *
+   * "Reading the consent record…" replaced the whole panel, which withheld five
+   * channel names and a four-field form that are written in this file and are
+   * the same for every patient in the pharmacy. Somebody taking consent at the
+   * counter could not even pick the channel while the record arrived.
+   *
+   * The tick and the cross wait with the evidence, and that is the important
+   * part: a crossed-out SMS means we hold no consent, and a panel that has not
+   * been answered must not say that about anybody. */
   return (
     <div className="consent">
       <div className="consent-grid">
         {CHANNELS.map((c) => {
-          const s = state.channels[c];
+          const s = state?.channels[c];
           return (
-            <div key={c} className={`consent-cell${s?.allowed ? " is-on" : ""}`}>
+            <div key={c} className={`consent-cell${state && s?.allowed ? " is-on" : ""}`}>
               <b>
-                {s?.allowed ? <Check size={13} weight="bold" /> : <Prohibit size={13} />}
+                {!state
+                  ? <Block w={13} h={13} />
+                  : s?.allowed ? <Check size={13} weight="bold" /> : <Prohibit size={13} />}
                 {CHANNEL_LABEL[c]}
               </b>
               {/* The provenance in words, beside the answer. A signed form and an
                   imported flag are not the same evidence and must not read the
                   same. */}
-              <span className="muted">{s?.evidence ?? "no record"}</span>
-              {s?.since && <span className="muted">{fmtDateTime(s.since)}</span>}
+              <span className="muted">
+                <Figure ready={!!state} w="14ch">{s?.evidence ?? "no record"}</Figure>
+              </span>
+              {!state
+                ? <span className="muted"><Block w="12ch" h="1em" className="sk-val" /></span>
+                : s?.since && <span className="muted">{fmtDateTime(s.since)}</span>}
             </div>
           );
         })}
@@ -142,7 +158,7 @@ export default function ConsentPanel({
         </div>
       </div>
 
-      {state.events.length > 0 && (
+      {state && state.events.length > 0 && (
         <details className="consent-history">
           <summary>{state.events.length} entr{state.events.length === 1 ? "y" : "ies"} on file</summary>
           <ul>

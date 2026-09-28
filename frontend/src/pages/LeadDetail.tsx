@@ -135,13 +135,20 @@ export default function LeadDetail() {
           )}
         </div>
       )}
-      facts={d ? [
-        { label: "Status", value: d.status,
-          hint: d.converted_at ? "converted" : undefined },
-        { label: "Rating", value: d.rating || "none", hint: `score ${d.score}` },
-        { label: "Worth", value: money(d.estimated_value) },
-        { label: "Source", value: d.source || "none" },
-      ] : undefined}
+      facts={[
+        /* The four words above the strip are the same for every lead, so they
+           are drawn at once and only the answers wait. */
+        { label: "Status",
+          value: <Figure ready={!!d} w="12ch">{d?.status}</Figure>,
+          hint: d?.converted_at ? "converted" : undefined },
+        { label: "Rating",
+          value: <Figure ready={!!d} w="8ch">{d && (d.rating || "none")}</Figure>,
+          hint: <>score <Figure ready={!!d} w="3ch">{d?.score}</Figure></> },
+        { label: "Worth",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.estimated_value)}</Figure> },
+        { label: "Source",
+          value: <Figure ready={!!d} w="14ch">{d && (d.source || "none")}</Figure> },
+      ]}
     >
       {/* The gate that stood here withheld both card headings and the eleven
           labels under them until the lead came back. Every lead is asked the

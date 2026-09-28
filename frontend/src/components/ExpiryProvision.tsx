@@ -18,6 +18,7 @@ import { useConfirm } from "./Confirm";
 import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
+import { Figure, GhostRows } from "./Skeleton";
 import Th from "./Th";
 
 interface Item {
@@ -88,40 +89,68 @@ export default function ExpiryProvision() {
   }
 
   if (failed) return <div className="alert error">{failed}</div>;
-  if (!state) return <p className="muted">Working out the exposure…</p>;
 
-  const nothingToDo = Math.abs(state.movement) < 0.01;
+  const nothingToDo = !!state && Math.abs(state.movement) < 0.01;
 
+  /* SCOPED LOADING.
+   *
+   * "Working out the exposure…" stood in for the entire routine, so three of the
+   * four band captions, the band table's whole head and the button that posts
+   * the movement were all withheld, and then the screen arrived at its real
+   * height in one jump. Every one of those is written here.
+   *
+   * The sentence under the bands and the fourth caption do wait, because they
+   * are the verdict: "the provision already matches the stock on hand" and "to
+   * release" are findings, and a screen that has been told nothing has found
+   * nothing. So is the band table's "nothing is close to expiry" row, which is
+   * why it sits inside the arm that has an answer. */
   return (
     <div className="prov">
       <div className="wc-bands">
         <div className="wl-stat">
-          <b>{money(state.stock_at_risk)}</b><span>Stock within 90 days of expiry</span>
+          <b><Figure ready={!!state} w="9ch">{state && money(state.stock_at_risk)}</Figure></b>
+          <span>Stock within 90 days of expiry</span>
         </div>
         <div className="wl-stat">
-          <b>{money(state.required)}</b><span>Provision required</span>
+          <b><Figure ready={!!state} w="9ch">{state && money(state.required)}</Figure></b>
+          <span>Provision required</span>
         </div>
         <div className="wl-stat">
-          <b>{money(state.carried)}</b><span>Already provided</span>
+          <b><Figure ready={!!state} w="9ch">{state && money(state.carried)}</Figure></b>
+          <span>Already provided</span>
         </div>
-        <div className={`wl-stat${nothingToDo ? "" : " wc-stale"}`}>
-          <b>{state.movement >= 0 ? money(state.movement) : `(${money(Math.abs(state.movement))})`}</b>
-          <span>{state.movement >= 0 ? "to charge" : "to release"}</span>
+        <div className={`wl-stat${!state || nothingToDo ? "" : " wc-stale"}`}>
+          <b>
+            <Figure ready={!!state} w="9ch">
+              {state && (state.movement >= 0
+                ? money(state.movement)
+                : `(${money(Math.abs(state.movement))})`)}
+            </Figure>
+          </b>
+          <span>
+            <Figure ready={!!state} w="9ch">
+              {state && (state.movement >= 0 ? "to charge" : "to release")}
+            </Figure>
+          </span>
         </div>
       </div>
 
       {/* Said in a sentence, because a row of four figures does not tell an owner
           what happens next. */}
       <p className="prov-said">
-        {nothingToDo
-          ? "The provision already matches the stock on hand. Nothing to post."
-          : state.movement > 0
-            ? `Charging ${money(state.movement)} writes this stock down to what it is likely to fetch. Until it is posted the balance sheet carries it at full cost.`
-            : `Stock at risk has fallen. ${money(Math.abs(state.movement))} comes back to profit.`}
+        <Figure ready={!!state} w="60ch">
+          {state && (nothingToDo
+            ? "The provision already matches the stock on hand. Nothing to post."
+            : state.movement > 0
+              ? `Charging ${money(state.movement)} writes this stock down to what it is likely to fetch. Until it is posted the balance sheet carries it at full cost.`
+              : `Stock at risk has fallen. ${money(Math.abs(state.movement))} comes back to profit.`)}
+        </Figure>
       </p>
 
-      <BusyButton onClick={postIt} disabled={nothingToDo}>
-        {state.movement >= 0 ? "Post the charge" : "Post the release"}
+      <BusyButton onClick={postIt} disabled={!state || nothingToDo}>
+        <Figure ready={!!state} w="14ch">
+          {state && (state.movement >= 0 ? "Post the charge" : "Post the release")}
+        </Figure>
       </BusyButton>
 
       <table className="dt" style={{ marginTop: 18 }}>
@@ -131,6 +160,10 @@ export default function ExpiryProvision() {
             <Th className="num">Rate</Th><Th className="num">Provision</Th>
           </tr>
         </thead>
+        {!state ? (
+          <GhostRows cols={5} rows={4} secondLine={[0]}
+                     widths={["60%", "30%", "50%", "30%", "50%"]} />
+        ) : (
         <tbody>
           {/* Nothing short-dated is the best answer this table can give, and a
               blank one reads as the worst. */}
@@ -156,9 +189,10 @@ export default function ExpiryProvision() {
             </tr>
           ))}
         </tbody>
+        )}
       </table>
 
-      {state.items.length > 0 && (
+      {state && state.items.length > 0 && (
         <details className="prov-detail">
           <summary>{state.items.length} batch{state.items.length === 1 ? "" : "es"} behind this figure</summary>
           <div className="dt-scroll">
@@ -204,7 +238,7 @@ export default function ExpiryProvision() {
         </details>
       )}
 
-      {state.history.length > 0 && (
+      {state && state.history.length > 0 && (
         <details className="prov-detail">
           <summary>{state.history.length} posting{state.history.length === 1 ? "" : "s"} on file</summary>
           <table className="dt sub">

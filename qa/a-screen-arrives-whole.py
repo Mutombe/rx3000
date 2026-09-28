@@ -118,11 +118,65 @@ def record_routes() -> list[str]:
             continue
     return out
 
-#: Chrome that genuinely only exists once the data says so, with the reason.
-#: A line here is a claim that the text below it is NOT a fixed part of the
-#: screen, and it should be short enough to check.
-ALLOWED = {
-    # A record page names the record, which is fetched.
+#: Chrome that genuinely arrives with the answer, per screen, with the reason.
+#:
+#: EVERY LINE HERE IS A CLAIM, AND A WRONG ONE HIDES A REAL FAULT FOREVER.
+#: So it is keyed by route rather than global: "When" and "Category" are
+#: ordinary column names that must keep being checked everywhere else, and a
+#: flat list would have excused them on all fifty screens.
+#:
+#: Three things belong here and nothing else. A value the SERVER names, where
+#: writing it into the front end would be a second copy of a back end rule that
+#: can silently disagree with it. A panel whose very existence is the answer.
+#: And a phrase whose wording is decided by the figure inside it.
+ALLOWED: dict[str, set[str]] = {
+    "/claiming": {
+        # "No batch open" against "3 batches open": the negation and the
+        # plural are both the answer, so the chip cannot be written in advance.
+        "ClaimingNo batch open",
+    },
+    "/payables": {
+        # The ageing columns are named by AGE_BANDS in
+        # backend/app/services/payables.py. A pharmacy that changes its bands
+        # changes these, and a copy here would go stale without saying so.
+        "Not due", "# to #", "Over #",
+    },
+    "/shifts": {
+        # The chip is the answer to "is a till open".
+        "Cash OfficeA shift is open",
+        # The pharmacy's own base currency, out of its settings.
+        "In USD",
+        # The whole cash-up panel exists only while a shift is open, which is
+        # a fetched fact. Drawing its frame would promise a drawer to count on
+        # a day nobody opened one.
+        "Count the drawer", "Notes and coins", "Other tenders",
+        "When", "Category", "What for", "Amount", "Receipt", "By",
+    },
+    "/stock-take": {
+        # The open count's own reference.
+        "ST#",
+        # "1 line across one shelf" against "9 lines across 3 shelves": both
+        # nouns are pluralised by the figures beside them, so the words are
+        # part of the figures rather than part of the frame.
+        "Still to count# lines across # shelves",
+    },
+    "/reconciliation": {
+        # The six areas are named by backend/app/services/recon_overview.py.
+        # A pharmacy that does not take cards has no card line, so even the
+        # number of them is the answer.
+        "Cash. Tills", "Claims. Remittances", "Deliveries. Cash with drivers",
+        "Stock. Count against batches", "Card. Acquirer settlement",
+        "Bank. Statement against ledger",
+    },
+    "/system": {
+        # The verdict badge beside the heading. The heading itself is drawn.
+        "What is connectedNot ready to trade",
+    },
+    "/stock-categories": {
+        # The panel offering to file untagged lines exists only when there are
+        # untagged lines, which is a finding rather than a fixture.
+        "File the untagged lines",
+    },
 }
 
 CHROME = r"""
@@ -145,6 +199,22 @@ CHROME = r"""
     const copy = el.cloneNode(true);
     for (const ghost of copy.querySelectorAll(".sk-val")) {
       ghost.replaceWith(document.createTextNode("#"));
+    }
+    // A CHIP HOLDING NOTHING BUT A NUMBER IS A FIGURE, NOT WORDING.
+    //
+    // A panel titled "What they supply" wears a badge saying how many, and a
+    // page title wears one saying how many are on file. Those counts are
+    // fetched, so they arrive late by definition and this rule was never
+    // about them: it is about the words around them. Read by text alone they
+    // made every such heading look withheld.
+    //
+    // Recognised by content rather than by class, so it holds for a chip
+    // nobody has named yet: an element whose whole text is digits and
+    // separators. A badge that says a WORD ("Overdue", "Held") is wording and
+    // stays, which is the distinction that matters.
+    for (const el2 of copy.querySelectorAll("span, b, em, small")) {
+      const said = (el2.textContent || "").trim();
+      if (said && /^[\d.,\s ]+$/.test(said)) el2.remove();
     }
     return (copy.textContent || "").trim().replace(/\s+/g, " ")
       .replace(/\d[\d,. ]*/g, "#")
@@ -246,7 +316,7 @@ def look(routes):
                     # An element that was absent entirely, like a panel title,
                     # leaves no "#" behind and is still caught.
                     had.remove("#")
-                elif s not in ALLOWED:
+                elif s not in ALLOWED.get(route, ()):
                     withheld.append(s)
             grew = after["height"] - before["height"]
             if withheld or grew > GROW:

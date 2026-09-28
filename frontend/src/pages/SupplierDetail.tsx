@@ -11,6 +11,7 @@ import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Block, Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
@@ -183,11 +184,19 @@ export default function SupplierDetail() {
           </button>
         </>
       )}
-      facts={d ? [
-        { label: "Owed now", value: money(d.owed),
-          hint: d.owed > 0 ? "Unpaid invoices" : "Nothing outstanding" },
-        { label: "Orders", value: d.orders.length,
-          hint: `${received} received` },
+      facts={[
+        /* The five things a buyer argues terms from are the same for every
+           wholesaler, so they are named on the screen before the account comes
+           back. Only the money, the rate and the days wait, and the verdict on
+           whether they deliver waits with them. */
+        { label: "Owed now",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.owed)}</Figure>,
+          hint: <Figure ready={!!d} w="16ch">
+            {d && (d.owed > 0 ? "Unpaid invoices" : "Nothing outstanding")}
+          </Figure> },
+        { label: "Orders",
+          value: <Figure ready={!!d} w="4ch">{d?.orders.length}</Figure>,
+          hint: <><Figure ready={!!d} w="3ch">{d && received}</Figure> received</> },
         // THE TWO FIGURES A BUYER RENEWING TERMS ACTUALLY ARGUES FROM.
         //
         // What arrived of what was asked for, and how long it took. Both
@@ -195,44 +204,74 @@ export default function SupplierDetail() {
         // conversation with a wholesaler was held on what somebody
         // remembered.
         { label: "Arrives",
-          value: d.record.fill_rate === null ? "Not known"
-            : `${Math.round(d.record.fill_rate * 100)}%`,
-          hint: d.record.fill_rate === null
-            ? (d.record.units_outstanding
-                ? `${d.record.units_outstanding} unit(s) still to come`
-                : "Nothing delivered yet")
-            : d.record.short_orders
-              ? `${d.record.short_orders} order(s) came up short`
-              : "of what was ordered",
-          tone: d.record.fill_rate === null ? undefined
+          value: <Figure ready={!!d} w="9ch">
+            {d && (d.record.fill_rate === null ? "Not known"
+              : `${Math.round(d.record.fill_rate * 100)}%`)}
+          </Figure>,
+          hint: <Figure ready={!!d} w="20ch">
+            {d && (d.record.fill_rate === null
+              ? (d.record.units_outstanding
+                  ? `${d.record.units_outstanding} unit(s) still to come`
+                  : "Nothing delivered yet")
+              : d.record.short_orders
+                ? `${d.record.short_orders} order(s) came up short`
+                : "of what was ordered")}
+          </Figure>,
+          tone: !d || d.record.fill_rate === null ? undefined
             : d.record.delivers ? "ok" : "bad" },
         { label: "Takes",
-          value: d.record.avg_days === null ? "Not known"
-            : `${d.record.avg_days} days`,
-          hint: d.record.slowest_days !== null && d.record.quickest_days !== null
-            && d.record.slowest_days > d.record.quickest_days
-              ? `between ${d.record.quickest_days} and ${d.record.slowest_days}`
-              : "from sending the order" },
-        { label: "Spent with them", value: money(d.record.spend),
-          hint: d.record.recent_spend
-            ? `${money(d.record.recent_spend)} in the last 90 days`
-            : "Nothing in the last 90 days" },
-      ] : undefined}
+          value: <Figure ready={!!d} w="9ch">
+            {d && (d.record.avg_days === null ? "Not known"
+              : `${d.record.avg_days} days`)}
+          </Figure>,
+          hint: <Figure ready={!!d} w="18ch">
+            {d && (d.record.slowest_days !== null && d.record.quickest_days !== null
+              && d.record.slowest_days > d.record.quickest_days
+                ? `between ${d.record.quickest_days} and ${d.record.slowest_days}`
+                : "from sending the order")}
+          </Figure> },
+        { label: "Spent with them",
+          value: <Figure ready={!!d} w="9ch">{d && money(d.record.spend)}</Figure>,
+          hint: <Figure ready={!!d} w="20ch">
+            {d && (d.record.recent_spend
+              ? `${money(d.record.recent_spend)} in the last 90 days`
+              : "Nothing in the last 90 days")}
+          </Figure> },
+      ]}
     >
-      {d && (
-        <>
-          {/* Leads the page: a buyer opening a supplier is usually about to
-              order from them or about to stop, and both are decided on this
-              rather than on the invoice list. */}
-          <Panel title="How they behave" count={d.record.findings.length}
-                 empty="Nothing has been ordered from them yet, so there is
-                        nothing to judge.">
-            <ul className="sup-findings">
-              {d.record.findings.map((f, i) => (
-                <li key={i} className={`sup-finding is-${f.tone}`}>{f.says}</li>
-              ))}
-            </ul>
-            {d.record.quoting.asked > 0 && (
+      {/* Five panel headings and twenty two column heads, every one of them
+          written down here and the same for every wholesaler in the country.
+          Behind the gate a buyer opening a supplier to settle an argument
+          about delivery got a name and nothing under it until the whole
+          account arrived. The headings and the heads are drawn at once now,
+          and each empty line still waits for its own count, because "nothing
+          has been billed" is a finding about a supplier and not about a page
+          that has yet to hear back. */}
+
+      {/* Leads the page: a buyer opening a supplier is usually about to
+          order from them or about to stop, and both are decided on this
+          rather than on the invoice list. */}
+      <Panel title="How they behave" count={d?.record.findings.length}
+             empty={d ? "Nothing has been ordered from them yet, so there is nothing to judge."
+                      : undefined}>
+        {!d ? (
+          <ul className="sup-findings">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="sup-finding">
+                <Block w="34ch" h="1em" className="sk-val" />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <ul className="sup-findings">
+            {d.record.findings.map((f, i) => (
+              <li key={i} className={`sup-finding is-${f.tone}`}>{f.says}</li>
+            ))}
+          </ul>
+        )}
+        {/* Whether this strip belongs on the page at all depends on whether
+            they have ever been asked to quote, so it waits for the answer. */}
+        {d && d.record.quoting.asked > 0 && (
               <div className="sup-quoting">
                 <div>
                   <b>{d.record.quoting.answered} of {d.record.quoting.asked}</b>
@@ -250,141 +289,158 @@ export default function SupplierDetail() {
                   </b>
                   <span className="muted small">To reply on average</span>
                 </div>
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Invoices" count={d.invoices.length}
-                 empty="Nothing has been billed by this supplier yet.">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <Th>Invoice</Th><Th>Dated</Th><Th>Due</Th>
-                  <Th className="num">Total</Th><Th className="num">Outstanding</Th>
-                  <Th>Status</Th><Th>Order</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.invoices.map((i) => (
-                  <tr key={i.id}>
-                    <td className="mono">
-                      <EntityLink kind="invoice" id={i.id}>{i.invoice_number}</EntityLink>
-                    </td>
-                    <td>{fmtDate(i.invoice_date)}</td>
-                    <td>{i.due_date ? fmtDate(i.due_date) : "No date"}</td>
-                    <td className="num">{money(i.total)}</td>
-                    <td className="num">
-                      {i.outstanding > 0.005 ? money(i.outstanding)
-                        : <span className="muted">Settled</span>}
-                    </td>
-                    <td><span className="badge">{sentence(i.status)}</span></td>
-                    <td className="mono">
-                      <EntityLink kind="order" id={i.order_id}>
-                        {i.order_id ? `#${i.order_id}` : "none"}
-                      </EntityLink>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-
-          <div className="grid cols-2">
-            <Panel title="Orders" count={d.orders.length}
-                   empty="No order has been raised with this supplier.">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Order</Th><Th>Status</Th>
-                    {/* What THEY said, beside what actually happened. Two
-                        different facts and worth comparing: a wholesaler
-                        who promises Tuesday and delivers Friday every time
-                        is a different problem from one who never promises. */}
-                    <Th>They said</Th><Th>Received</Th>
-                    <Th className="num">Value</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.orders.map((o) => (
-                    <tr key={o.id}>
-                      <td className="mono">
-                        <EntityLink kind="order" id={o.id}>{o.order_number}</EntityLink>
-                      </td>
-                      <td><span className="badge">{sentence(o.status)}</span></td>
-                      <td className="small">
-                        {o.acknowledged_at ? (
-                          <>
-                            {o.promised_date
-                              ? <>due {fmtDate(o.promised_date)}</>
-                              : "confirmed, no date given"}
-                            {o.lines_short > 0 && (
-                              <div className="muted small">
-                                {o.lines_short} line(s) short
-                              </div>
-                            )}
-                            {o.supplier_note && (
-                              <div className="muted small wrap">{o.supplier_note}</div>
-                            )}
-                          </>
-                        ) : o.status === "sent" ? (
-                          <span className="muted">Not confirmed yet</span>
-                        ) : (
-                          <span className="muted">Not asked</span>
-                        )}
-                      </td>
-                      <td>{o.received_at ? fmtDate(o.received_at)
-                                         : <span className="muted">Not yet</span>}</td>
-                      <td className="num">{money(o.value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-
-            <Panel title="Payments" count={d.payments.length}
-                   empty="Nothing has been paid to this supplier.">
-              <table className="dt">
-                <thead>
-                  <tr><Th>Paid</Th><Th>Method</Th><Th>Reference</Th><Th className="num">Amount</Th></tr>
-                </thead>
-                <tbody>
-                  {d.payments.map((p) => (
-                    <tr key={p.id}>
-                      <td>{fmtDate(p.paid_on)}</td>
-                      <td>{p.method}</td>
-                      <td className="mono">{p.reference || "none"}</td>
-                      <td className="num">{money(p.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
           </div>
+        )}
+      </Panel>
 
-          <Panel title="What they supply" count={d.supplies.length}
-                 empty="Nothing has been received from this supplier yet, so there is nothing to list."
-                 aside={<span className="muted small">
-                   Taken from what has actually been delivered
-                 </span>}>
-            <table className="dt">
-              <thead>
-                <tr><Th>Medicine</Th><Th className="num">Units received</Th><Th className="num">Last cost</Th></tr>
-              </thead>
+      <Panel title="Invoices" count={d?.invoices.length}
+             empty={d ? "Nothing has been billed by this supplier yet." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr>
+              <Th>Invoice</Th><Th>Dated</Th><Th>Due</Th>
+              <Th className="num">Total</Th><Th className="num">Outstanding</Th>
+              <Th>Status</Th><Th>Order</Th>
+            </tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={7} rows={3}
+                       widths={["60%", "50%", "50%", "45%", "45%", "40%", "35%"]} />
+          ) : (
+            <tbody>
+              {d.invoices.map((i) => (
+                <tr key={i.id}>
+                  <td className="mono">
+                    <EntityLink kind="invoice" id={i.id}>{i.invoice_number}</EntityLink>
+                  </td>
+                  <td>{fmtDate(i.invoice_date)}</td>
+                  <td>{i.due_date ? fmtDate(i.due_date) : "No date"}</td>
+                  <td className="num">{money(i.total)}</td>
+                  <td className="num">
+                    {i.outstanding > 0.005 ? money(i.outstanding)
+                      : <span className="muted">Settled</span>}
+                  </td>
+                  <td><span className="badge">{sentence(i.status)}</span></td>
+                  <td className="mono">
+                    <EntityLink kind="order" id={i.order_id}>
+                      {i.order_id ? `#${i.order_id}` : "none"}
+                    </EntityLink>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
+
+      <div className="grid cols-2">
+        <Panel title="Orders" count={d?.orders.length}
+               empty={d ? "No order has been raised with this supplier." : undefined}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Order</Th><Th>Status</Th>
+                {/* What THEY said, beside what actually happened. Two
+                    different facts and worth comparing: a wholesaler
+                    who promises Tuesday and delivers Friday every time
+                    is a different problem from one who never promises. */}
+                <Th>They said</Th><Th>Received</Th>
+                <Th className="num">Value</Th>
+              </tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={5} rows={3} secondLine={[2]}
+                         widths={["60%", "45%", "70%", "50%", "40%"]} />
+            ) : (
               <tbody>
-                {d.supplies.map((s) => (
-                  <tr key={s.product_id}>
-                    <td>
-                      <EntityLink kind="product" id={s.product_id}>{s.product}</EntityLink>
+                {d.orders.map((o) => (
+                  <tr key={o.id}>
+                    <td className="mono">
+                      <EntityLink kind="order" id={o.id}>{o.order_number}</EntityLink>
                     </td>
-                    <td className="num">{s.units_received}</td>
-                    <td className="num">{money(s.last_cost)}</td>
+                    <td><span className="badge">{sentence(o.status)}</span></td>
+                    <td className="small">
+                      {o.acknowledged_at ? (
+                        <>
+                          {o.promised_date
+                            ? <>due {fmtDate(o.promised_date)}</>
+                            : "confirmed, no date given"}
+                          {o.lines_short > 0 && (
+                            <div className="muted small">
+                              {o.lines_short} line(s) short
+                            </div>
+                          )}
+                          {o.supplier_note && (
+                            <div className="muted small wrap">{o.supplier_note}</div>
+                          )}
+                        </>
+                      ) : o.status === "sent" ? (
+                        <span className="muted">Not confirmed yet</span>
+                      ) : (
+                        <span className="muted">Not asked</span>
+                      )}
+                    </td>
+                    <td>{o.received_at ? fmtDate(o.received_at)
+                                       : <span className="muted">Not yet</span>}</td>
+                    <td className="num">{money(o.value)}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </Panel>
-        </>
-      )}
+            )}
+          </table>
+        </Panel>
+
+        <Panel title="Payments" count={d?.payments.length}
+               empty={d ? "Nothing has been paid to this supplier." : undefined}>
+          <table className="dt">
+            <thead>
+              <tr><Th>Paid</Th><Th>Method</Th><Th>Reference</Th><Th className="num">Amount</Th></tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={4} rows={3} widths={["50%", "45%", "60%", "40%"]} />
+            ) : (
+              <tbody>
+                {d.payments.map((p) => (
+                  <tr key={p.id}>
+                    <td>{fmtDate(p.paid_on)}</td>
+                    <td>{p.method}</td>
+                    <td className="mono">{p.reference || "none"}</td>
+                    <td className="num">{money(p.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </Panel>
+      </div>
+
+      <Panel title="What they supply" count={d?.supplies.length}
+             empty={d ? "Nothing has been received from this supplier yet, so there is nothing to list."
+                      : undefined}
+             aside={<span className="muted small">
+               Taken from what has actually been delivered
+             </span>}>
+        <table className="dt">
+          <thead>
+            <tr><Th>Medicine</Th><Th className="num">Units received</Th><Th className="num">Last cost</Th></tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={3} rows={3} widths={["80%", "40%", "40%"]} />
+          ) : (
+            <tbody>
+              {d.supplies.map((s) => (
+                <tr key={s.product_id}>
+                  <td>
+                    <EntityLink kind="product" id={s.product_id}>{s.product}</EntityLink>
+                  </td>
+                  <td className="num">{s.units_received}</td>
+                  <td className="num">{money(s.last_cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
     </RecordPage>
   );
 }

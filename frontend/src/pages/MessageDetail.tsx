@@ -54,13 +54,22 @@ export default function MessageDetail() {
       </>}
       loading={!d && !error}
       error={error}
-      facts={d ? [
-        { label: "Status", value: d.status,
-          hint: d.sent_at ? fmtDateTime(d.sent_at) : "Not sent" },
-        { label: "Channel", value: d.channel },
-        { label: "Kind", value: d.message_type },
-        { label: "Scheduled", value: fmtDateTime(d.scheduled_for) },
-      ] : undefined}
+      facts={[
+        /* Every message has a status, a channel, a kind and a time it was meant
+           to go, so those four words come up with the page and only the answers
+           pulse. */
+        { label: "Status",
+          value: <Figure ready={!!d} w="10ch">{d?.status}</Figure>,
+          hint: <Figure ready={!!d} w="16ch">
+            {d && (d.sent_at ? fmtDateTime(d.sent_at) : "Not sent")}
+          </Figure> },
+        { label: "Channel",
+          value: <Figure ready={!!d} w="8ch">{d?.channel}</Figure> },
+        { label: "Kind",
+          value: <Figure ready={!!d} w="12ch">{d?.message_type}</Figure> },
+        { label: "Scheduled",
+          value: <Figure ready={!!d} w="16ch">{d && fmtDateTime(d.scheduled_for)}</Figure> },
+      ]}
     >
       {/* The gate that stood here withheld both card headings and the five
           column names of the history table until the message came back. The

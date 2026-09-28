@@ -327,7 +327,14 @@ export default function Repeats() {
               (due.overdue ? `, ${due.overdue} already overdue.` : ".")
             : "Nobody is due."
           : ""}
-        count={due?.count ? `${money(due.due_value)} due` : undefined}
+        /* The chip is there from the first frame and only the money waits. The
+           word "due" is the same whatever the book says, so it stands outside
+           the ghost; an empty book still says so in words rather than taking
+           the chip away, which would move the title sideways at the moment of
+           the answer. */
+        count={<><Figure ready={!!due} w="8ch">
+          {due && (due.count ? money(due.due_value) : "Nothing")}
+        </Figure>{" "}due</>}
         /* THE CALL SHEET, OFF THE SCREEN.
            This list is telephoned from, and a person on a telephone is not
            also scrolling a table: they work down a printed sheet and tick it.

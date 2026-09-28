@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api, errorText, fmtDate, money } from "../api";
-import { Refreshable, TableSkeleton } from "./Skeleton";
+import { Figure, GhostRows } from "./Skeleton";
 import { EntityLink , TableSearch, useSearch } from "./Filters";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
@@ -51,11 +51,22 @@ interface Held {
 
 export default function Quarantine() {
   const toast = useToast();
-  const [lines, setLines] = useState<Held[]>([]);
+  /* Null until the server has answered, NOT an empty array.
+   *
+   * This started as `[]`, and an empty list is a statement: it is what puts
+   * "Nothing is being held" on the screen. Held stock is expired medicine and
+   * recalled batches sitting on a real shelf, so a screen that says there is
+   * none of it before it has been told anything is telling a pharmacy something
+   * dangerous. Null means not yet known, `[]` means genuinely none, and only the
+   * second one is allowed to reassure anybody. */
+  const [lines, setLines] = useState<Held[] | null>(null);
+  /** The read itself failed. Kept apart from both of the above, because a
+   *  failure is not an answer either. */
+  const [failed, setFailed] = useState(false);
   /* Held stock is where a return starts and where a recall is answered, so
      the question is always about one batch or one medicine, never about the
      list. It listed everything and offered no way to find one. */
-  const { q, setQ, shown } = useSearch(lines, (l) =>
+  const { q, setQ, shown } = useSearch(lines ?? [], (l) =>
     [l.product, l.batch, l.why, l.note, l.reason_code]);
   const [value, setValue] = useState(0);
   const [units, setUnits] = useState(0);
@@ -66,8 +77,13 @@ export default function Quarantine() {
   const load = useCallback(() => {
     setLoading(true);
     api.get<{ lines: Held[]; value: number; units: number }>("/api/stock/quarantine")
-      .then((r) => { setLines(r.lines); setValue(r.value); setUnits(r.units); })
-      .catch((e) => toast.error(errorText(e, "The held stock could not be read.")))
+      .then((r) => {
+        setLines(r.lines); setValue(r.value); setUnits(r.units); setFailed(false);
+      })
+      .catch((e) => {
+        setFailed(true);
+        toast.error(errorText(e, "The held stock could not be read."));
+      })
       .finally(() => setLoading(false));
   }, [toast]);
 
@@ -77,7 +93,7 @@ export default function Quarantine() {
     // Optimistic: the row leaves on the click, because it has. If the server
     // disagrees it comes back where it was rather than the list reloading,
     // which would lose the place of somebody working down it.
-    setLines((all) => all.filter((l) => l.batch_id !== line.batch_id));
+    setLines((all) => (all ?? []).filter((l) => l.batch_id !== line.batch_id));
     setValue((v) => Math.round((v - line.value) * 100) / 100);
     setUnits((u) => u - line.quantity);
     try {
@@ -85,7 +101,7 @@ export default function Quarantine() {
         `/api/stock/batches/${line.batch_id}/release`, {});
       toast.ok(r.message);
     } catch (e) {
-      setLines((all) => [...all, line].sort((a, b) => b.value - a.value));
+      setLines((all) => [...(all ?? []), line].sort((a, b) => b.value - a.value));
       setValue((v) => Math.round((v + line.value) * 100) / 100);
       setUnits((u) => u + line.quantity);
       toast.error(errorText(e, "That batch could not be released."));
@@ -113,15 +129,24 @@ export default function Quarantine() {
 
   return (
     <>
+      {/* SCOPED LOADING.
+          The sentence below and the whole table used to wait on the request,
+          and what stood in their place was a skeleton with the right headings
+          but no search box, so somebody answering a recall could not start
+          typing the batch number they were holding. The sentence is three
+          figures inside words that never change, so the words stay and the
+          figures pulse. */}
       <div className="qn-head">
         <p className="muted qn-say">
-          {lines.length === 0 && !loading
+          {lines && lines.length === 0
             ? null
             : <>
-                <b>{lines.length.toLocaleString()}</b> batch
-                {lines.length === 1 ? "" : "es"} held,
-                {" "}{units.toLocaleString()} unit{units === 1 ? "" : "s"},
-                {" "}<b>{money(value)}</b> at cost. This stock is still owned and
+                <b><Figure ready={!!lines} w="4ch">{lines?.length.toLocaleString()}</Figure></b>
+                {" batch"}{lines && lines.length === 1 ? "" : "es"} held,
+                {" "}<Figure ready={!!lines} w="5ch">{lines && units.toLocaleString()}</Figure>
+                {" unit"}{lines && units === 1 ? "" : "s"},
+                {" "}<b><Figure ready={!!lines} w="8ch">{lines && money(value)}</Figure></b> at
+                cost. This stock is still owned and
                 still counted. It cannot be dispensed, sold or sent to another
                 branch until somebody decides what happens to it.
               </>}
@@ -130,8 +155,19 @@ export default function Quarantine() {
 
       {/* An empty table is a header over a void, which reads as a screen that
           failed rather than one with nothing to show. The house empty block
-          says what would be here and why it is not. */}
-      {lines.length === 0 && !loading ? (
+          says what would be here and why it is not.
+
+          Three arms, in this order: a read that failed, a read that has not
+          answered, and only then a read that answered with nothing. */}
+      {failed && !lines ? (
+        <div className="empty">
+          <b>The held stock could not be read</b>
+          <p>
+            That is not the same as nothing being held. Nothing has been ruled
+            out; the list simply did not come back. Try again in a moment.
+          </p>
+        </div>
+      ) : lines && lines.length === 0 ? (
         <div className="empty">
           <b>Nothing is being held</b>
           <p>
@@ -142,14 +178,13 @@ export default function Quarantine() {
           </p>
         </div>
       ) : (
-      <Refreshable loading={loading} hasData={lines.length > 0}
-                   skeleton={<TableSkeleton cols={6} rows={6}
-                                            headers={["Medicine", "Batch", "Units",
-                                                      "Value at cost", "Why, and since", ""]}
-                                            widths={["30ch", "14ch", "10ch", "12ch", "12ch", "6ch"]} />}>
+      <div className={`refreshable${loading ? " is-refreshing" : ""}`}>
+        {/* Hoisted out of the old skeleton, so the box is typeable from the
+            first frame and only its count waits. */}
         <TableSearch value={q} onChange={setQ}
                      placeholder="Find a medicine, a batch or a reason…"
-                     shown={shown.length} total={lines.length} />
+                     ready={!!lines}
+                     shown={shown.length} total={lines?.length ?? 0} />
         <div className="dt-scroll">
           <table className="dt dt-wider">
             <thead>
@@ -162,6 +197,10 @@ export default function Quarantine() {
                 <th className="actions" />
               </tr>
             </thead>
+            {!lines ? (
+              <GhostRows cols={6} rows={6} secondLine={[1, 4]}
+                         widths={["30ch", "14ch", "10ch", "12ch", "12ch", "6ch"]} />
+            ) : (
             <tbody>
               {shown.map((l) => (
                 <tr key={l.batch_id}>
@@ -211,9 +250,10 @@ export default function Quarantine() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
         </div>
-      </Refreshable>
+      </div>
       )}
     </>
   );

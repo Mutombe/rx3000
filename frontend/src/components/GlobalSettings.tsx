@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../api";
 import { useStepUp, CANCELLED } from "./StepUp";
-import { TableSkeleton } from "./Skeleton";
+import { Block } from "./Skeleton";
 import { useToast } from "./Toast";
 import Select from "./Select";
 
@@ -28,6 +28,11 @@ interface Row {
  *  whether it is live: the warning below says stray keys are "being
  *  ignored", and these are not. */
 interface Elsewhere { key: string; where: string; value: string }
+
+/** How many setting rows to hold open while the declaration is fetched. Six is
+ *  roughly the shortest group, so the list grows downward rather than shrinking
+ *  under the reader. */
+const GHOST_SETTINGS = [0, 1, 2, 3, 4, 5];
 
 interface Payload {
   groups: Record<string, Row[]>;
@@ -79,8 +84,6 @@ export default function GlobalSettings() {
       setBusy("");
     }
   }
-
-  if (!data) return <div className="card"><TableSkeleton cols={2} rows={8} /></div>;
 
   function render(row: Row) {
     const current = draft[row.key] ?? String(row.value);
@@ -135,7 +138,39 @@ export default function GlobalSettings() {
     <>
       {prompt}
 
-      {data.unrecognised.length > 0 && (
+      {/* SCOPED LOADING.
+          A grey two-column table used to stand in for the whole screen, which
+          resembled nothing that came after it: settings are rows of a label, a
+          sentence of effect and a control, not cells. So the shape of a setting
+          is drawn instead, with its box and its Save button already there at the
+          size they will be, and only the words a server declares are ghosted.
+
+          The two warnings above stay out of it. "Nothing is unrecognised" and
+          "we have not asked yet" are different states, and a screen that has not
+          been answered must not reassure anybody. */}
+      {!data && (
+        <div className="card" aria-busy="true">
+          <h3><Block w="12ch" h="1em" className="sk-val" /></h3>
+          <div className="gs-list">
+            {GHOST_SETTINGS.map((i) => (
+              <div key={i} className="gs-row">
+                <div className="gs-main">
+                  <span className="gs-label"><Block w="20ch" h="1em" className="sk-val" /></span>
+                  <p className="gs-effect"><Block w="46ch" h="1em" className="sk-val" /></p>
+                </div>
+                <div className="gs-control">
+                  <div className="gs-input">
+                    <input disabled aria-label="A setting still being read" />
+                  </div>
+                  <button className="btn small" disabled>Save</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data && data.unrecognised.length > 0 && (
         // Surfaced, not hidden. A stray key is almost always a typo that has
         // been quietly doing nothing since somebody set it.
         <p className="st-note is-bad">
@@ -144,7 +179,7 @@ export default function GlobalSettings() {
         </p>
       )}
 
-      {(data.set_elsewhere?.length ?? 0) > 0 && (
+      {data && (data.set_elsewhere?.length ?? 0) > 0 && (
         // Live, and set on a better screen. Said plainly, because the
         // warning above it is about keys that do nothing, and somebody who
         // confuses the two deletes a setting a nightly job depends on.
@@ -161,7 +196,7 @@ export default function GlobalSettings() {
         </p>
       )}
 
-      {Object.entries(data.groups).map(([group, rows]) => (
+      {Object.entries(data?.groups ?? {}).map(([group, rows]) => (
         <div className="card" key={group}>
           <h3>{group}</h3>
           <div className="gs-list">{rows.map(render)}</div>

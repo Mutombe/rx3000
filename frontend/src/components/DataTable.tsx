@@ -323,7 +323,14 @@ export default function DataTable<T>({
         // that is what sets it on the real table. A fixed ghost row was 39px
         // against real rows of 49 to 84, so every one of these tables lifted
         // when its data arrived.
+        // AND THE REAL COLUMN NAMES, NOT GREY BARS WHERE THEY GO.
+        //
+        // The screen declared them eight lines above this, they are the same
+        // on every visit, and a reader waiting on a slow answer could not see
+        // what they were waiting for. Every `DataTable` in the product goes
+        // through here, so this is the one place it needed saying.
         <TableSkeleton cols={columns.length} rows={10}
+                       headers={columns.map((c) => c.header)}
                        rowHeight={density === "compact" ? 44
                                   : density === "comfortable" ? 59 : 72}
                        widths={columns.map((c) => c.width ?? "70%")} />

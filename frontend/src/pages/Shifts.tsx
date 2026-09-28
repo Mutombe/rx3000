@@ -7,7 +7,7 @@ import CashUp from "../components/CashUp";
 import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { Shift, ShiftTakings } from "../types";
 import { EntityLink } from "../components/Filters";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows, Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
@@ -21,6 +21,10 @@ const METHOD_LABEL: Record<string, string> = {
 
 export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
+  /* Whether the till has been asked yet, which `current` alone cannot say: a
+     null shift before the answer and a null shift after it are the same value
+     and opposite statements. */
+  const [shiftKnown, setShiftKnown] = useState(false);
   const [history, setHistory] = useState<Shift[]>([]);
   const [historyUnknown, setHistoryUnknown] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,6 +33,11 @@ export default function Shifts() {
   const [draw, setDraw] = useState("");
   const [notes, setNotes] = useState("");
   const [takings, setTakings] = useState<ShiftTakings | null>(null);
+  /* Same distinction the shift itself makes: a null takings that was never
+     answered and one that came back refused are the same value and opposite
+     statements, and a card left pulsing for ever is the second pretending to
+     be the first. */
+  const [takingsUnknown, setTakingsUnknown] = useState(false);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [counting, setCounting] = useState<Shift | null>(null);
@@ -36,15 +45,20 @@ export default function Shifts() {
   function load() {
     api.get<Shift | null>("/api/shifts/current").then((shift) => {
       setCurrent(shift);
+      setShiftKnown(true);
       // Only meaningful once a shift exists; skipped entirely on single-currency tills.
       if (shift) {
-        api.get<ShiftTakings>(`/api/shifts/${shift.id}/takings`).then(setTakings)
-          .catch((e) => toast.error(errorText(e,
-            "This shift's takings could not be read.")));
+        api.get<ShiftTakings>(`/api/shifts/${shift.id}/takings`)
+          .then((t) => { setTakings(t); setTakingsUnknown(false); })
+          .catch((e) => {
+            setTakings(null); setTakingsUnknown(true);
+            toast.error(errorText(e, "This shift's takings could not be read."));
+          });
       } else {
         setTakings(null);
+        setTakingsUnknown(false);
       }
-    }).catch((e) => toast.error(errorText(e)));
+    }).catch((e) => { setShiftKnown(true); toast.error(errorText(e)); });
     api.get<Shift[]>("/api/shifts")
       .then((r) => { setHistory(r); setHistoryUnknown(false); })
       // A `.finally` is not a `.catch`: the skeleton went away and an empty
@@ -82,7 +96,9 @@ export default function Shifts() {
       <PageHead
         title="Cash Office"
         sub="Opening float, takings by tender and end-of-shift cash-up"
-        count={current ? "A shift is open" : undefined}
+        count={<Figure ready={shiftKnown} w="13ch">
+          {shiftKnown && (current ? "A shift is open" : "No shift open")}
+        </Figure>}
         /* EVERY CASH-UP, WHICH IS WHERE A SHORTAGE IS FOUND.
            One cash-up on a screen says whether tonight balanced. Forty of them
            in a sheet say which till, and which person, is short every Friday,
@@ -90,7 +106,20 @@ export default function Shifts() {
         take={<ExportButton dataset="shifts" />}
       />
 
-      {current ? (
+      {/* SCOPED LOADING, AND THE ORDER OF THE ARMS.
+       *
+       * The whole of this hung on `current`, so six tile labels, two panel
+       * headings with their sentences and nine column heads were withheld
+       * until the till had answered and then arrived as though they had been
+       * fetched. They had not: the labels are written here and say the same
+       * thing on every visit, and only the money under them comes from
+       * anywhere.
+       *
+       * So the tiles are the frame, drawn while the answer is still coming,
+       * and the offer to start a shift sits after `shiftKnown` — because a
+       * screen that has not been told anything must not offer to open a till
+       * that is already open. */}
+      {!shiftKnown || current ? (
         <>
           <div className="grid cols-4">
             <div className="card stat hero">
@@ -100,7 +129,11 @@ export default function Shifts() {
                   was in the drawer before trading, not what should be in it
                   now. */}
               <div className="label">Opening float</div>
-              <div className="value">{money(current.opening_float)}</div>
+              <div className="value">
+                <Figure ready={!!current} w="9ch">
+                  {current && money(current.opening_float)}
+                </Figure>
+              </div>
               <div className="hint">Counted in at the start of this shift</div>
             </div>
             {/* Cash and mobile money were both missing from this row, which
@@ -109,41 +142,77 @@ export default function Shifts() {
                 the teller actually counts. */}
             <div className="card stat">
               <div className="label">Cash takings</div>
-              <div className="value">{money(cashTaken)}</div>
+              <div className="value">
+                <Figure ready={!!takings} w="9ch">{money(cashTaken)}</Figure>
+              </div>
               <div className="hint">net of change given</div>
             </div>
             <div className="card stat">
               <div className="label">Mobile money</div>
-              <div className="value">{money(mobileTaken)}</div>
+              <div className="value">
+                <Figure ready={!!takings} w="9ch">{money(mobileTaken)}</Figure>
+              </div>
             </div>
             <div className="card stat">
               <div className="label">Card takings</div>
-              <div className="value">{money(current.card_total)}</div>
+              <div className="value">
+                <Figure ready={!!current} w="9ch">
+                  {current && money(current.card_total)}
+                </Figure>
+              </div>
             </div>
             <div className="card stat">
               <div className="label">Medical aid</div>
-              <div className="value">{money(current.medical_aid_total)}</div>
+              <div className="value">
+                <Figure ready={!!current} w="9ch">
+                  {current && money(current.medical_aid_total)}
+                </Figure>
+              </div>
             </div>
             <div className="card stat">
               <div className="label">Transactions</div>
-              <div className="value">{current.sales_count}</div>
-              <div className="hint">since {fmtDateTime(current.opened_at)}</div>
+              <div className="value">
+                <Figure ready={!!current} w="3ch">{current?.sales_count}</Figure>
+              </div>
+              <div className="hint">
+                since{" "}
+                <Figure ready={!!current} w="14ch">
+                  {current && fmtDateTime(current.opened_at)}
+                </Figure>
+              </div>
             </div>
           </div>
 
-          {takings && takings.currencies.length > 0 && (
-            <div className="card">
-              <h3>Takings by currency</h3>
-              <p className="muted">
-                Each currency has its own drawer. Cash is shown net of change,
-                because change leaves the drawer in whichever currency it was given.
-              </p>
+          <div className="card">
+            <h3>Takings by currency</h3>
+            <p className="muted">
+              Each currency has its own drawer. Cash is shown net of change,
+              because change leaves the drawer in whichever currency it was given.
+            </p>
+            {takingsUnknown ? (
+              <div className="empty">
+                <b>This shift&rsquo;s takings could not be read</b>
+                <p>
+                  That is not a statement that no money has come in. Reload the
+                  page before counting a drawer against it.
+                </p>
+              </div>
+            ) : takings && takings.currencies.length === 0 ? (
+              <div className="empty">
+                Nothing has been taken on this shift yet, so every drawer still
+                holds what was counted into it.
+              </div>
+            ) : (
               <table>
                 <thead>
                   <tr><Th>Currency</Th><Th className="num">Opening float</Th><Th className="num">Cash (net)</Th>
                     <Th className="num">Card</Th><Th className="num">Mobile money</Th>
 </tr>
                 </thead>
+                {!takings ? (
+                  <GhostRows cols={5} rows={2}
+                             widths={["6ch", "8ch", "8ch", "8ch", "8ch"]} />
+                ) : (
                 <tbody>
                   {takings.currencies.map((c) => (
                     <tr key={c.currency}>
@@ -158,28 +227,47 @@ export default function Shifts() {
                     </tr>
                   ))}
                 </tbody>
+                )}
               </table>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Read against the sheet they fill in by hand, which has a column
               per wallet and per bank rather than one for "mobile money". */}
-          {takings && (takings.instruments?.length ?? 0) > 0 && (
-            <div className="card">
-              <h3>What it came in on</h3>
-              <p className="muted">
-                EcoCash and Omari settle separately, and so do the banks behind
-                a swipe. This is the same split as the teller sheet.
-              </p>
+          <div className="card">
+            <h3>What it came in on</h3>
+            <p className="muted">
+              EcoCash and Omari settle separately, and so do the banks behind
+              a swipe. This is the same split as the teller sheet.
+            </p>
+            {takingsUnknown ? (
+              <div className="empty">
+                What the money came in on could not be read. Reload the page
+                before reading this against a teller sheet.
+              </div>
+            ) : takings && (takings.instruments?.length ?? 0) === 0 ? (
+              <div className="empty">
+                No payment on this shift names a wallet or a bank yet.
+              </div>
+            ) : (
               <table className="dt dt-wide">
                 <thead>
                   <tr>
                     <Th>Instrument</Th><Th>Currency</Th>
                     <Th className="num">Payments</Th>
                     <Th className="num">Taken</Th>
-                    <th className="num">In {takings.base_currency}</th>
+                    {/* The base currency is this pharmacy's own setting, so the
+                        code waits and the word that makes the column readable
+                        does not. */}
+                    <th className="num">
+                      In <Figure ready={!!takings} w="4ch">{takings?.base_currency}</Figure>
+                    </th>
                   </tr>
                 </thead>
+                {!takings ? (
+                  <GhostRows cols={5} rows={3} secondLine={[0]}
+                             widths={["14ch", "6ch", "4ch", "8ch", "8ch"]} />
+                ) : (
                 <tbody>
                   {(takings.instruments ?? []).map((i, n) => (
                     <tr key={n}>
@@ -203,11 +291,15 @@ export default function Shifts() {
                     </tr>
                   ))}
                 </tbody>
+                )}
               </table>
-            </div>
-          )}
+            )}
+          </div>
 
-          <CashUp shiftId={current.id} onCounted={load} />
+          {/* The count itself needs a shift to count, so it waits for one
+              rather than being ghosted: there is no drawer to type into
+              until the till has said which one is open. */}
+          {current && <CashUp shiftId={current.id} onCounted={load} />}
 
         </>
       ) : (

@@ -11,6 +11,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import PageHead from "../components/PageHead";
+import { Figure } from "../components/Skeleton";
 
 type Tab = "companies" | "contacts";
 
@@ -233,9 +234,12 @@ export default function Accounts() {
       <PageHead
         title="Accounts and Contacts"
         sub="Corporate customers, clinics and the people behind them"
-        count={tab === "companies"
-          ? (companies.length ? `${companies.length} accounts` : undefined)
-          : (contacts.length ? `${contacts.length} contacts` : undefined)}
+        /* The chip is as much a fixture as the title beside it, so it is drawn
+           at once and the figure inside it is what waits. Which noun it counts
+           follows the open tab, which is ours to know, not the server's. */
+        count={<><Figure ready={!loading} w="6ch">
+          {!loading && (tab === "companies" ? companies.length : contacts.length)}
+        </Figure>{" "}{tab === "companies" ? "accounts" : "contacts"}</>}
         // the primary action follows the visible tab, so there is only ever one
         primary={tab === "companies"
           ? (
@@ -274,6 +278,7 @@ export default function Accounts() {
         />
       ) : (
         <DataTable
+          loading={loading}
           columns={contactCols}
           rows={shownContacts}
           rowKey={(c) => c.id}

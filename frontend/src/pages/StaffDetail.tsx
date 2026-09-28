@@ -11,7 +11,7 @@ import { useScheduleCodes } from "../schedules";
 import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { GhostRows } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import StaffPlacement from "../components/StaffPlacement";
 import { useAsk, useConfirm } from "../components/Confirm";
@@ -182,12 +182,20 @@ export default function StaffDetail() {
           )}
         </div>
       )}
-      facts={d ? [
-        { label: "Dispensings", value: d.dispensed_count },
-        { label: "Till sessions", value: d.shift_count },
-        { label: "Username", value: <span className="mono">{d.username}</span> },
-        { label: "Role", value: d.role },
-      ] : undefined}
+      facts={[
+        /* The same four things are asked of everybody on the payroll, so the
+           words stand and only the counts and the username wait. */
+        { label: "Dispensings",
+          value: <Figure ready={!!d} w="5ch">{d?.dispensed_count}</Figure> },
+        { label: "Till sessions",
+          value: <Figure ready={!!d} w="4ch">{d?.shift_count}</Figure> },
+        { label: "Username",
+          value: <span className="mono">
+            <Figure ready={!!d} w="12ch">{d?.username}</Figure>
+          </span> },
+        { label: "Role",
+          value: <Figure ready={!!d} w="12ch">{d?.role}</Figure> },
+      ]}
     >
       {/* Which shop they work in, before what they have done in it: an
           administrator opening this page is usually here to place or move
