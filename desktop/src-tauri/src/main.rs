@@ -39,8 +39,11 @@ use std::{env, fs, path::PathBuf};
 /// Deliberately not "whichever backend happens to be running": a machine with
 /// a stale local database would silently adopt it, and two tills showing
 /// different stock with no indication why is a worse failure than a clear
-/// "cannot connect". Switching is explicit, and the bound address is in the
-/// title bar so you can see which one you are on.
+/// "cannot connect". Switching is explicit, and the bound address is on the
+/// This Till screen so you can see which one you are on. It used to say the
+/// title bar here, which is where it was before the note in `setup` below
+/// took it out: a pharmacy should not read our hosting provider across the
+/// top of their own software.
 const DEFAULT_SERVER: &str = "https://rx3000-api.onrender.com";
 
 /// Where this till's backend lives.

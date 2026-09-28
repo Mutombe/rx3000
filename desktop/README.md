@@ -25,9 +25,15 @@ address would be a build per customer, so the address is configuration:
 3. `http://localhost:8177` — the single-machine pharmacy
 
 The resolved address is injected into the page before any script runs, printed
-to the log at startup, and shown in the window title. Pointing a till at the
-wrong server is the failure that wastes a support call, so it is visible without
-opening a settings screen.
+to the log at startup, and shown on the This Till screen. Pointing a till at
+the wrong server is the failure that wastes a support call, so it is visible
+without hunting for it.
+
+Not in the window title, which is where this file used to say it was. A
+pharmacy reading "RX5000 Pharmacy Suite" followed by our hosting provider and
+an endpoint across the top of their own software is being shown something that
+is not theirs, and This Till answers the same question over a telephone, which
+a title bar does not.
 
 ## Building
 
