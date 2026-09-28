@@ -12325,8 +12325,19 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 }
 
 /* ---- the conversation ---------------------------------------------------- */
+/* THE ASSISTANT'S OWN GROUND FOLLOWS THE BOX IT IS IN.
+ *
+ * `.ax` paints a background and declared no radius, so inside the card on the
+ * assistant page — 12px corners, no padding — its ground ran to four square
+ * corners and drew them over the card's curves. A square inside a round one is
+ * the one mismatch a reader notices without being able to say why.
+ *
+ * `inherit` rather than a number: this same surface sits in the page card at
+ * 12px and in the dock at its own radius, and neither should have to be
+ * restated here to be followed. */
 .ax { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto;
-      position: relative; background: var(--ax-bg); }
+      position: relative; background: var(--ax-bg);
+      border-radius: inherit; }
 .ax-thread {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: var(--s5); display: flex; flex-direction: column; gap: var(--s6);
@@ -12538,9 +12549,16 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    One field containing the clip, the text and the send, with the focus ring
    around all three. A row of separate controls reads as a form; this reads as
    somewhere to write. */
+/* The composer is the last thing in the surface, so it owns its two bottom
+   corners. Its own ground is the same colour as the surface, which is why this
+   was invisible until the surface stopped being square — then the rounding
+   moved up one level and the bar carried on painting square beneath it, on
+   every screen the dock appears on. `inherit` takes each corner from whatever
+   the surface is currently at: 12px on the assistant page, 14 in the dock. */
 .ax-ask {
   flex: 0 0 auto; padding: var(--s4); padding-top: var(--s3);
   background: var(--ax-bg); border-top: 1px solid var(--ax-line);
+  border-bottom-left-radius: inherit; border-bottom-right-radius: inherit;
   display: grid; gap: var(--s2);
 }
 .ax.is-compact .ax-ask { padding: var(--s3); }

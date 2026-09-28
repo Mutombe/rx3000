@@ -33,6 +33,7 @@ import { apiBase, getToken } from "../api";
 import { getThread, setThread, subscribeThread, type AssistantTurn }
   from "../assistantThread";
 import Markdown from "./Markdown";
+import AiPhase from "./AiPhase";
 import AssistantRoute, { RouteStep } from "./AssistantRoute";
 import AssistantDiagram from "./AssistantDiagram";
 import { Attachment, MAX_FILES, TAKES, filesFrom, readForAssistant }
@@ -313,6 +314,22 @@ export default function AssistantChat({ compact = false }: { compact?: boolean }
               </div>
             )}
             <p className="ax-asked">{turn.question}</p>
+
+            {/* THE SCREEN SAYS IT IS WORKING BEFORE THE SERVER DOES.
+                Everything below waits on the server: the steps arrive with the
+                first event, the text with the first token. So between pressing
+                Enter and the first byte the turn showed the question and
+                nothing else — measured at nine seconds of silence on a slow
+                answer, which is the whole of the wait, spent looking at a
+                screen that gave no sign of having heard.
+
+                `AiPhase` already says this everywhere else in the product. It
+                renders the moment the turn goes up, which is synchronous with
+                the keystroke, and stands down as soon as there is a real step
+                or a real word to show instead. */}
+            {turn.live && turn.steps.length === 0 && !turn.text && !turn.error && (
+              <AiPhase phase={{ kind: "thinking" }} />
+            )}
 
             {turn.steps.length > 0 && (
               <ol className="ax-steps-live" aria-live="polite">
