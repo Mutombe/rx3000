@@ -690,6 +690,18 @@ a:hover { opacity: 0.75; }
 .card h3 { margin-bottom: var(--s4); }
 
 .grid { display: grid; gap: var(--s4); }
+/* A BLOCK IN THE PAGE'S FLOW CARRIES THE PAGE'S RHYTHM.
+ *
+ * Every other block already does: the head 20px, the tab strip 20px, a card
+ * 16px, and the section nav now. A row of stat tiles declared none, so on five
+ * screens it sat flush on whatever came next — the tiles on the tab strip on
+ * Cases, on the board on Opportunities, on the console on Leads, on the card
+ * below on Cash Office and Revenue Intelligence.
+ *
+ * Scoped to a grid that IS a page block. A grid inside a card is laying out
+ * that card's contents and its spacing is the card's business, which is why
+ * this cannot go on `.grid` itself. */
+:is(.page, main) > :is(.grid, .bp-grid, .refreshable) { margin-bottom: var(--s5); }
 .cols-2 { grid-template-columns: 1fr 1fr; }
 .cols-3 { grid-template-columns: repeat(3, 1fr); }
 .cols-4 { grid-template-columns: repeat(4, 1fr); }
@@ -1154,6 +1166,23 @@ input[type="checkbox"], input[type="radio"] {
 label {
   display: block; font-size: var(--t-sm); font-weight: 500;
   color: var(--ink-mid); margin-bottom: var(--s2); letter-spacing: 0;
+}
+/* A LABEL THAT WRAPS ITS CONTROL HAS TO SPACE ITS OWN CAPTION.
+ *
+ * The margin above sits on the OUTSIDE of the label, which is right for
+ * `<label>Caption</label><input>` — the usual shape, and the one nearly every
+ * form here uses. The other shape is `<label>Caption <input></label>`, where
+ * the control is inside, so that margin spaces the whole label from whatever
+ * follows it and leaves the caption sitting directly on the control. Measured
+ * on Recall: one pixel between "Batch number or medicine" and the box under
+ * it, on a screen somebody opens with a recall notice in their hand.
+ *
+ * The first control inside takes the caption's air instead. Checkboxes and
+ * radios are excluded because there the control comes FIRST and the caption
+ * follows it on the same line — nothing is stacked and nothing needs a gap. */
+label > :is(input:not([type="checkbox"]):not([type="radio"]),
+             select, textarea, .sel-trigger, .rc-search):first-of-type {
+  margin-top: var(--s2);
 }
 .field { margin-bottom: var(--s4); min-width: 0; }
 .field .hint { font-size: var(--t-xs); color: var(--ink-soft); margin-top: var(--s1); }
@@ -7614,8 +7643,28 @@ table.dt.sub th { font-size: var(--t-xs); }
    carry four entries for one area. Same segmented look as .pill-tabs, but
    links rather than buttons: a tab you cannot send to a colleague is half a
    tab, and half the reason somebody opens Authorisations is a pasted link. */
+/* THE SAME STRIP AS `.pill-tabs`, AND IT SHOULD LOOK LIKE IT.
+ *
+ * Measured side by side on Claiming, these two were already identical in
+ * every respect that costs anything — same sunk ground, same hairline, same
+ * 8px radius, same inner pills. They differed in exactly two things, and both
+ * were accidents:
+ *
+ *   width    `inline-flex` made this one 412px while the strip directly below
+ *            it ran the full 1,190. Two bars of the same colour and border at
+ *            two different widths, stacked, read as one control that failed to
+ *            render rather than as two.
+ *   margin   none at all, against `.pill-tabs`'s 20px. So on Claiming it sat
+ *            flush on the tab strip under it, and on Licences flush on the
+ *            figures under that — no line of air anywhere between a navigation
+ *            strip and the screen it navigates.
+ *
+ * One kind of strip, one width, one rhythm. `flex-wrap` keeps a long set
+ * folding onto a second row rather than overflowing, which is what it was for
+ * when the box was only as wide as its contents. */
 .section-nav {
-  display: inline-flex; flex-wrap: wrap; gap: 2px;
+  display: flex; flex-wrap: wrap; gap: 2px;
+  margin-bottom: var(--s5);
   padding: 2px; background: var(--surface-sunk);
   border: 1px solid var(--line); border-radius: var(--r-md);
 }

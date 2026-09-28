@@ -221,7 +221,21 @@ def look(routes):
         for route in routes:
             try:
                 page.goto(BASE + route, wait_until="networkidle")
-                page.wait_for_timeout(2200)
+                # Wait for the rows, not for a guess at how long they take. A
+                # fixed pause was measuring 36 screens on a quiet machine and 13
+                # on a busy one, reporting "ok" either way — this guard's own
+                # hundred navigations are enough to make the machine busy.
+                try:
+                    page.wait_for_selector("main table tbody tr",
+                                           timeout=12000, state="attached")
+                    # A beat after the first row, so the rest of the page has
+                    # settled and column widths have stopped moving.
+                    page.wait_for_timeout(700)
+                except Exception:
+                    # Genuinely no table here, or it never arrived. Either way
+                    # there is nothing to measure; the count in `report` is what
+                    # notices if that happens too often.
+                    continue
                 for row in page.evaluate(PROBE):
                     row["route"] = route
                     found.append(row)
@@ -253,11 +267,25 @@ def judge(rows):
 def report(rows) -> int:
     bad = judge(rows)
     cols = len(rows)
+    seen = {r["route"] for r in rows}
+    # A guard that quietly measures less is a guard that quietly stops
+    # guarding. On a loaded machine the per-route wait expired before the rows
+    # arrived and the sweep fell from 36 screens to 11 — still reporting "ok",
+    # because every column it did manage to read was straight.
+    missed = [r for r in ROUTES if r not in seen]
+    if len(missed) > len(ROUTES) // 3:
+        print(f"\nFAIL  only {len(seen)} of {len(ROUTES)} screen(s) had a table "
+              f"to measure. That is not a pass, it is a sweep that did not run.")
+        print(f"  nothing read on: {', '.join(missed[:12])}"
+              + (f" (+{len(missed) - 12} more)" if len(missed) > 12 else ""))
+        print("  Usually the dev server is still warming or the machine is "
+              "loaded. Run it again on a quiet machine.")
+        return 1
     if not bad:
-        print(f"\nok  {cols} column(s) across {len({r['route'] for r in rows})} "
-              f"screen(s): every one has a single edge, and its heading is on it")
+        note = f"; {len(missed)} screen(s) had no table" if missed else ""
+        print(f"\nok  {cols} column(s) across {len(seen)} screen(s): every one "
+              f"has a single edge, and its heading is on it{note}")
         return 0
-    print(f"\nFAIL  {len(bad)} of {cols} column(s) do not line up\n")
     last = None
     for r, why in bad:
         if r["route"] != last:

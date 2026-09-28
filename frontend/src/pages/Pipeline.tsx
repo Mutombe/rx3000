@@ -162,7 +162,12 @@ export default function Pipeline() {
           looks like, so while it loads the columns carry ghosts rather than
           nothing. Otherwise the page says "no pipeline" for as long as the
           request takes. */}
-      {loading && deals.length === 0 && (
+      {/* The ghost board REPLACES the real one rather than sitting above it.
+          Both were rendering at once while the deals loaded, so the screen
+          showed a board of ghosts stacked directly on a board of empty
+          columns — two boards, no gap, and the second one saying there is no
+          pipeline while the first one said it was still loading. */}
+      {loading && deals.length === 0 ? (
         <div className="kanban">
           {STAGES.map((stage) => (
             <div key={stage.key} className="kanban-col">
@@ -172,8 +177,7 @@ export default function Pipeline() {
             </div>
           ))}
         </div>
-      )}
-
+      ) : (
       <div className="kanban">
         {STAGES.map((stage) => {
           const items = byStage(stage.key);
@@ -240,6 +244,7 @@ export default function Pipeline() {
           );
         })}
       </div>
+      )}
 
       {showForm && (
         <div className="modal-backdrop" onClick={() => setShowForm(false)}>

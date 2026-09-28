@@ -172,7 +172,14 @@ export function Refreshable({
 }) {
   if (loading && !hasData) return <>{skeleton}</>;
   return (
-    <div className={loading ? "is-refreshing" : undefined} aria-busy={loading}>
+    /* Named, so it can be spaced. This div is a page block on most screens —
+       it wraps the table — and it declared no bottom margin, so anything that
+       appeared after it sat flush on it: on Licences, the branch register that
+       opens when you click a branch landed on the table with no air at all.
+       Every other page block carries the page's rhythm; this one had no way to
+       be told about it. */
+    <div className={`refreshable${loading ? " is-refreshing" : ""}`}
+         aria-busy={loading}>
       {children}
     </div>
   );
