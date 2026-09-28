@@ -271,12 +271,24 @@ export default function HelpDesk() {
           </div>
           <div className="card stat">
             <div className="label">Avg first response</div>
-            <div className="value">{stats.avg_first_response_mins ?? "none"}<span style={{ fontSize: 15 }}>{stats.avg_first_response_mins ? "m" : ""}</span></div>
+            {/* "none" is a word, not a figure, and at the tile's 28px bold it
+                read as the loudest number on the screen. Said quietly, in its
+                own words: no case has been answered yet. */}
+            <div className="value">
+              {stats.avg_first_response_mins === null
+                || stats.avg_first_response_mins === undefined
+                ? <span className="muted">Nothing answered yet</span>
+                : <>{stats.avg_first_response_mins}<span className="unit">m</span></>}
+            </div>
             <div className="hint">resolution {stats.avg_resolution_hours ?? "none"}{stats.avg_resolution_hours ? "h" : ""}</div>
           </div>
           <div className="card stat">
             <div className="label">Satisfaction</div>
-            <div className="value">{stats.csat ?? "none"}<span style={{ fontSize: 15 }}>{stats.csat ? " / 5" : ""}</span></div>
+            <div className="value">
+              {stats.csat === null || stats.csat === undefined
+                ? <span className="muted">Nobody has rated a case</span>
+                : <>{stats.csat}<span className="unit"> / 5</span></>}
+            </div>
             <div className="hint">{stats.resolved_total} resolved all-time</div>
           </div>
         </div>

@@ -710,6 +710,40 @@ a:hover { opacity: 0.75; }
   font-family: var(--font-num); font-size: var(--t-2xl); font-weight: 700;
   letter-spacing: -0.022em; margin-top: var(--s2); line-height: 1.1; color: var(--ink);
 }
+/* WHEN THE FIGURE IS A SENTENCE INSTEAD.
+ *
+ * A stat tile is 28px, tabular, tight-tracked and bold, because that is what a
+ * number wants. Nothing in the tile knows it is a number, so when there is no
+ * figure to show — no dispensing yet, so no median wait — the sentence that
+ * stands in its place inherited all of it. "Nothing dispensed yet" came out in
+ * 28px bold across three lines, shouting a non-answer and making that tile
+ * half as tall again as the four beside it.
+ *
+ * Replacing it with a nought was the other option and it is a lie: nought
+ * minutes is a wait that happened. The rule in this product is that an absent
+ * value is named in its own words, so the words stay and the type stops
+ * pretending they are a figure — body size, normal weight, the quiet ink the
+ * hint below it uses, on one line where it fits.
+ *
+ * `:only-child` deliberately. A muted span BESIDE a figure is a unit or a
+ * qualifier ("14 today") and belongs at the figure's size; a muted span that
+ * IS the whole value is a sentence. */
+.stat .value > .muted:only-child,
+.stat-value > .muted:only-child,
+.age-stat-value > .muted:only-child {
+  font-family: inherit;
+  font-size: var(--t-base); font-weight: 400;
+  letter-spacing: 0; line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* The unit after a figure: minutes, "/ 5", a percent sign. Smaller than the
+   figure and quieter, because it qualifies the number rather than competing
+   with it. Two tiles wrote this as `style={{ fontSize: 15 }}`, a size that is
+   not on the scale and could not be found by anyone looking for it. */
+.stat .value .unit {
+  font-size: var(--t-lg); font-weight: 600; color: var(--ink-soft);
+  letter-spacing: 0;
+}
 .stat .hint { font-size: var(--t-sm); color: var(--ink-soft); margin-top: var(--s2); }
 /* The lead tile is marked by a rule in the brand colour, not by a gradient. */
 .stat.hero { position: relative; }
@@ -7876,6 +7910,36 @@ table.dt.sub th { font-size: var(--t-xs); }
 .toolbar :is(input, .sel-trigger):focus-visible {
   outline: 2px solid var(--accent-ring); outline-offset: -2px;
 }
+/* A FOCUS RING FOLLOWS THE SHAPE THE READER CAN SEE.
+ *
+ * Controls inside the rail give up their own corners — `border-radius: 0` two
+ * rules up — because the rail draws the box and they are segments of it. That
+ * is right for every segment except the two on the ends, which sit in the
+ * rail's own rounded corners. They have no corner of their own to give up:
+ * what the reader sees there is the rail's 8px curve.
+ *
+ * So focusing the search, the first segment on nearly every screen in the
+ * product, drew a square 2px ring inside a round corner. It reads as a
+ * rendering fault because it is one: the ring is describing a shape that is
+ * not on the screen.
+ *
+ * Minus the rail's own 1px border, because these sit inside it and two curves
+ * a pixel apart is the other way to get this wrong. */
+:is(.filter-bar, .dt-filters, .toolbar, .wc-bands) > :first-child,
+/* And one level in. A dimension filter is a `div` wrapping the control that
+   actually takes focus, so rounding the wrapper alone left the ring square on
+   the thing being focused. */
+:is(.filter-bar, .dt-filters, .toolbar, .wc-bands)
+  > :first-child > :is(input, button, .sel-trigger) {
+  border-start-start-radius: calc(var(--r-md) - 1px);
+  border-end-start-radius: calc(var(--r-md) - 1px);
+}
+:is(.filter-bar, .dt-filters, .toolbar, .wc-bands) > :last-child,
+:is(.filter-bar, .dt-filters, .toolbar, .wc-bands)
+  > :last-child > :is(input, button, .sel-trigger) {
+  border-start-end-radius: calc(var(--r-md) - 1px);
+  border-end-end-radius: calc(var(--r-md) - 1px);
+}
 /* The buttons at the end of the rail sit against it rather than inside it:
    an action is not a filter, and drawing it as one is how a rail stops
    reading as a set of narrowings. */
@@ -7900,6 +7964,9 @@ table.dt.sub th { font-size: var(--t-xs); }
    "Any schedule" and "Last 7 days" are different widths and should look it. */
 .filter-dim { flex: 0 0 auto; }
 .filter-dim > * { min-width: 9rem; }
+/* The word between two dates is a label, not a segment: no rule down its
+   left, and centred against the controls it joins. */
+.reg-to { padding: 0 var(--s3); border-left: none; }
 .filter-bar .btn { flex: 0 0 auto; height: var(--control); }
 @media (max-width: 720px) {
   /* On a phone the search takes its own line and the rest sit under it, rather

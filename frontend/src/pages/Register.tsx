@@ -161,20 +161,33 @@ export default function Register() {
       />
 
       <div className="card">
+        {/* Each filter in a `.filter-dim`, which is what stops it stretching.
+            Without it the schedule picker took the whole 1,146px rail on its
+            own and pushed the two dates onto a second line — so the rail was
+            three lines tall and the controls that ended up in its corners had
+            square focus rings inside its round ones. */}
         <div className="toolbar">
-          <Select
-            value={String(schedule ?? "")}
-            onChange={(__value) => setSchedule(__value)}
-            /* Named the way the pharmacist filtering them says them out loud.
-               A Zimbabwean register offered "Schedule 5" and "Schedule 6" for
-               the two things everybody in the room calls PP10 and N. */
-            options={[{ value: "", label: "All schedules" },
-                      { value: "5", label: sched(5) },
-                      { value: "6", label: sched(6) }]}
-          />
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ maxWidth: 180 }} />
-          <span className="muted">to</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ maxWidth: 180 }} />
+          <div className="filter-dim">
+            <Select
+              value={String(schedule ?? "")}
+              onChange={(__value) => setSchedule(__value)}
+              /* Named the way the pharmacist filtering them says them out loud.
+                 A Zimbabwean register offered "Schedule 5" and "Schedule 6" for
+                 the two things everybody in the room calls PP10 and N. */
+              options={[{ value: "", label: "All schedules" },
+                        { value: "5", label: sched(5) },
+                        { value: "6", label: sched(6) }]}
+            />
+          </div>
+          <div className="filter-dim">
+            <input type="date" value={dateFrom}
+                   onChange={(e) => setDateFrom(e.target.value)} />
+          </div>
+          <span className="muted reg-to">to</span>
+          <div className="filter-dim">
+            <input type="date" value={dateTo}
+                   onChange={(e) => setDateTo(e.target.value)} />
+          </div>
         </div>
         <Refreshable
           loading={loading}
