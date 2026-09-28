@@ -1073,10 +1073,6 @@ kbd, .kbd {
    A tinted left edge rather than a filled row: a table where every row is a
    block of colour is harder to read than one with none, and the eye still
    finds the edge. */
-.row-ok     { box-shadow: inset 3px 0 0 var(--ok); }
-.row-warn   { box-shadow: inset 3px 0 0 var(--warn); }
-.row-danger { box-shadow: inset 3px 0 0 var(--danger); }
-.row-muted  { box-shadow: inset 3px 0 0 var(--line-strong, var(--line)); }
 .dt td:first-child { position: relative; }
 
 /* The same three, for a figure rather than a row. */
@@ -2550,6 +2546,12 @@ select:disabled { background-color: var(--surface-sunk); opacity: 0.6; }
 /* A row that wants the eye without being an error — an overdue promise, a
  * period whose figures have drifted since sign-off. */
 .row-flag > td { background: var(--warn-soft); }
+/* A row that has been superseded — a licence replaced by a later one, kept
+   because it is still the proof the branch was licensed for the period it
+   covered. It used to be marked by a grey slab down its left edge. It is
+   marked by being quieter now, which is what "superseded" actually looks
+   like, and needs no colour at all. */
+.row-muted > td { color: var(--ink-soft); }
 
 /* Buttons grouped at the end of a table row. */
 td.actions { white-space: nowrap; text-align: right; }
@@ -2678,7 +2680,9 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   border-radius: var(--r-md);
   padding: var(--s2) var(--s3);
   background: var(--surface);
-  box-shadow: var(--e2);
+  /* One edge. This carried a 1px border and a 1px ring of the same colour in
+     the same place, which is the soft double line that reads as a shadow. */
+  color: var(--ink);
   animation: toast-in var(--m) var(--m-ease);
 }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
@@ -2706,9 +2710,25 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   background: none; border: 0; cursor: pointer; line-height: 1;
   font-size: var(--t-lg); color: var(--ink-mid); padding: 0 var(--s1);
 }
-.toast-ok    { border-left: 2px solid var(--ok);     background: var(--ok-soft); color: var(--ok); }
-.toast-warn  { border-left: 2px solid var(--warn);   background: var(--warn-soft); color: var(--warn); }
-.toast-error { border-left: 2px solid var(--danger); background: var(--danger-soft); color: var(--danger); }
+/* A COLOURED TOAST IS STILL SOMETHING TO READ.
+ *
+ * These set the text to the status colour on a tint of the same colour, which
+ * measured at 5.2:1 against the plain toast's 18.35:1 — inside AA and three
+ * and a half times harder to read than every other sentence in the product.
+ * At a counter, in daylight, that is the difference between a warning and a
+ * pale smudge.
+ *
+ * The ink goes back to the ink everything else uses. The colour stays where
+ * colour works, on the mark down the side and on the life bar, which nobody
+ * has to read. */
+.toast-ok    { border-left: 2px solid var(--ok);     background: var(--ok-soft); }
+.toast-warn  { border-left: 2px solid var(--warn);   background: var(--warn-soft); }
+.toast-error { border-left: 2px solid var(--danger); background: var(--danger-soft); }
+/* `.toast-life` drains in `currentColor`, which was the status colour while
+   the text was. Named again now the text is ink. */
+.toast-ok .toast-life    { background: var(--ok); }
+.toast-warn .toast-life  { background: var(--warn); }
+.toast-error .toast-life { background: var(--danger); }
 
 /* ---- breadcrumbs ----------------------------------------------------------
  * Quiet by default: the trail is orientation, not content. It earns attention
@@ -5000,7 +5020,6 @@ td.lb-actions {
 .product-pick.is-chosen {
   background: var(--accent-soft);
   border-color: var(--accent);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 .product-pick.is-chosen b { color: var(--ink); }
 
@@ -5441,7 +5460,6 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   background: var(--ink); color: var(--on-ink);
   font-size: var(--t-sm); font-weight: 500; line-height: 1.35;
   white-space: pre-wrap; overflow-wrap: anywhere;
-  box-shadow: var(--e2);
   pointer-events: none;                 /* never stands between pointer and row */
   animation: tip-in 90ms ease-out;
 }
@@ -6643,8 +6661,6 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 /* A band that carries a tone keeps it, as a mark down its leading edge rather
    than as a tinted card. On a strip the tint would read as a different
    surface; a rule reads as this one figure wanting attention. */
-.wc-bands > .wl-stat.wc-stale { box-shadow: inset 3px 0 0 var(--warn); }
-.wc-bands > .wl-stat.wc-abandoned { box-shadow: inset 3px 0 0 var(--danger); }
 @media (max-width: 1100px) {
   .wc-bands > .wl-stat { border-top: 1px solid var(--line); }
   .wc-bands > .wl-stat:nth-child(-n+3) { border-top: none; }
@@ -7445,10 +7461,7 @@ table.dt.sub th { font-size: var(--t-xs); }
  * The rail, not the number: a coloured heading reads as decoration, a coloured
  * edge reads as a flag. Same vocabulary as the table rows, so a red rail means
  * the same thing wherever it appears. */
-.highlight.is-bad    { box-shadow: inset 3px 0 0 var(--danger); }
 .highlight.is-bad .value { color: var(--danger); }
-.highlight.is-warn   { box-shadow: inset 3px 0 0 var(--warn); }
-.highlight.is-ok     { box-shadow: inset 3px 0 0 var(--ok); }
 
 /* ---- chain of custody ---------------------------------------------------
  *
@@ -7506,12 +7519,8 @@ table.dt.sub th { font-size: var(--t-xs); }
   margin: 12px 0 16px; padding: 12px 12px;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--surface-sunk);
-  box-shadow: inset 3px 0 0 var(--line-strong);
 }
-.sc-standing.is-good  { box-shadow: inset 3px 0 0 var(--ok); }
-.sc-standing.is-slow  { box-shadow: inset 3px 0 0 var(--warn); }
 .sc-standing.is-poor,
-.sc-standing.is-bad   { box-shadow: inset 3px 0 0 var(--danger); }
 .sc-standing-head {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 8px; margin-bottom: 8px;
@@ -7544,9 +7553,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   margin: 12px 0; padding: 12px 12px;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
   background: var(--surface-sunk);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
-.rd.is-overdue { box-shadow: inset 3px 0 0 var(--warn); }
 .rd-head { display: flex; justify-content: space-between; gap: 8px; }
 .rd-head > div { display: flex; flex-direction: column; gap: 2px; }
 .rd-head b { display: flex; align-items: center; gap: 6px; }
@@ -7604,11 +7611,8 @@ table.dt.sub th { font-size: var(--t-xs); }
   align-items: center; gap: 4px 16px;
   padding: 12px 12px; border-radius: var(--radius-sm);
   border-top: 1px solid var(--line-soft);
-  box-shadow: inset 3px 0 0 var(--line-strong);
 }
 .cc-action:first-child { border-top: 0; }
-.cc-action.is-warn { box-shadow: inset 3px 0 0 var(--warn); }
-.cc-action.is-bad  { box-shadow: inset 3px 0 0 var(--danger); }
 .cc-action-worth b { font-size: var(--t-lg); font-variant-numeric: tabular-nums; }
 .cc-action-what { display: flex; flex-direction: column; gap: 2px; }
 .cc-action-what .muted { font-size: var(--t-sm); }
@@ -8076,7 +8080,6 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* The step being worked. The one thing on the strip meant to catch the eye. */
 .trail-now button {
   border-color: var(--accent); background: var(--surface);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 .trail-now .trail-mark { color: var(--accent); }
 .trail-now .trail-text b { color: var(--ink); font-weight: 700; }
@@ -8454,10 +8457,10 @@ table.dt.sub th { font-size: var(--t-xs); }
 .trail-check   .trail-mark { color: var(--sec-check); }
 .trail-go      .trail-mark { color: var(--sec-go); }
 
-.trail-now.trail-patient button { border-color: var(--sec-patient-line); box-shadow: inset 3px 0 0 var(--sec-patient); }
-.trail-now.trail-items   button { border-color: var(--sec-items-line);   box-shadow: inset 3px 0 0 var(--sec-items); }
-.trail-now.trail-check   button { border-color: var(--sec-check-line);   box-shadow: inset 3px 0 0 var(--sec-check); }
-.trail-now.trail-go      button { border-color: var(--sec-go-line);      box-shadow: inset 3px 0 0 var(--sec-go); }
+.trail-now.trail-patient button { border-color: var(--sec-patient-line); }
+.trail-now.trail-items   button { border-color: var(--sec-items-line); }
+.trail-now.trail-check   button { border-color: var(--sec-check-line); }
+.trail-now.trail-go      button { border-color: var(--sec-go-line); }
 
 /* Done is done, in every stage. A finished step keeps the tick green because
    that is the one thing on the strip that means a state rather than a place. */
@@ -9222,7 +9225,6 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .rx-item.is-open > .rx-item-head {
   background: var(--surface-sunk);
   border-bottom: 0; margin-bottom: 0;
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 /* A row is one height, selected or not. A grid that changes shape under the
    hand working on it is a grid you cannot aim at. */
@@ -9570,9 +9572,6 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .rx-item-warn.is-major { color: var(--danger); }
 /* A row carrying a major finding is marked as well as flagged. One triangle in
    a column of eight rows is easy to miss; a row that reads differently is not. */
-.disp-dense .rx-item:has(.rx-item-warn.is-major) > .rx-item-head {
-  box-shadow: inset 3px 0 0 var(--danger);
-}
 
 /* No heading over the lane: three labelled fields do not need a fourth label
    above them. The controlled badge keeps its place because that one is not
@@ -10302,7 +10301,6 @@ button.fin-ack { cursor: pointer; }
    when there are twenty of them below it. */
 .disp-dense .rx-item-new > .rx-item-head {
   min-height: 30px;
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 .disp-dense .rx-item-new > .rx-item-head:hover { background: none; }
 
@@ -12275,11 +12273,13 @@ button.fin-ack { cursor: pointer; }
   max-height: min(38rem, calc(100vh - 6rem));
   display: flex; flex-direction: column;
   background: var(--ax-bg);
+  /* One edge, not a border and a ring on top of it. */
   border: 1px solid var(--ax-edge);
   border-radius: 14px; overflow: hidden;
-  /* The dock already carries its own 1px edge above; a three-layer blur on
-     top of it was the one piece of decoration on this panel. */
-  box-shadow: var(--e2);
+  /* A three-layer blur was removed here once already and replaced by a 1px
+     ring, which then sat on top of the 1px border above it — the same weight,
+     the same colour, the same place. That doubling is the soft edge that reads
+     as a shadow even when nothing is blurred. One border is the edge. */
   animation: ax-rise 120ms cubic-bezier(.16, 1, .3, 1);
 }
 /* A dialog is a question the till is waiting on an answer to. The assistant
@@ -12505,9 +12505,8 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 /* A step that CHANGES something is not the same instruction as one that moves
    you, and on a system where finishing fiscalises a receipt the difference is
    worth a stripe. */
-.ax-step.does { box-shadow: inset 3px 0 0 var(--accent); }
 .ax-step.does:not(:disabled):hover {
-  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 3px var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 .ax-step-n {
   display: inline-grid; place-items: center; flex: 0 0 auto;
@@ -14299,11 +14298,12 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    is left on this shelf" and "which shelf next". It used to answer neither:
    there was a search box and a running total, which together can only confirm
    a line somebody has already thought of. */
+/* The groove is gone. It was the last thing in the product painting an
+   offset, blurred shadow — a tenth of a per cent of black, pressed into a 6px
+   bar to suggest depth that is not there. The track already reads as a track:
+   it is a filled bar on a lighter ground with a radius. */
 .st-progress { height: 6px; border-radius: 3px; background: var(--line);
-               overflow: hidden; margin: var(--s3) 0;
-               /* Inset so an empty track reads as a container waiting to fill
-                  rather than as a rule across the card. */
-               box-shadow: inset 0 1px 2px rgba(0, 0, 0, .10); }
+               overflow: hidden; margin: var(--s3) 0; }
 .st-progress-done { height: 100%; background: var(--ok);
                     transition: width var(--m) var(--m-ease); }
 

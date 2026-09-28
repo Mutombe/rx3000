@@ -183,7 +183,10 @@ def plant() -> int:
     import time
     try:
         sheet.write_text(fault, encoding="utf-8")
-        time.sleep(4)
+        # Long enough for vite to rebuild a 14,000-line stylesheet on a
+        # machine that is already busy. At four seconds this plant passed
+        # on a quiet machine and reported a false all-clear on a loaded one.
+        time.sleep(9)
         touching, _ = look(["/claiming", "/compliance", "/branches"])
         if not touching:
             print("FAIL  a block's margin was removed and this said nothing")
