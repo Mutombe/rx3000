@@ -3995,32 +3995,62 @@ img { -webkit-user-drag: none; user-select: none; }
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0;
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface); overflow: hidden;
+  /* AND IT IS NOT THE THING THAT GIVES WAY.
+   *
+   * `overflow` anything but visible sets a flex item's automatic minimum size
+   * to zero. These strips sit in flex columns with a height limit, so the
+   * browser was free to shrink one to nothing to make the rest fit, and did:
+   * the dispensary worklist's strip was SEVEN pixels tall around three tiles
+   * that wanted forty-six, clipping them to a sliver of three rounded tops
+   * under the WORKLIST heading. Reported as buttons that looked sunk in,
+   * which is exactly what they were.
+   *
+   * A strip of figures is furniture. The list below it is the part with more
+   * than fits, and the part that already scrolls. */
+  flex: 0 0 auto;
 }
-.wl-stats > *, .ins-figures > *, .fin-stats > *,
-.st-figures > *, .bp-figures > *, .sk-stats > * {
+/* Written with the container class twice so it outranks a tile's own rule
+   whatever order the two land in.
+ *
+ * At one class each they tie, and `.wl-stat` is written later in this file,
+ * so it was winning the tie. It changes nothing today, because the dispensary
+ * deliberately overrides this further down with a rule more specific than
+ * either, but a reset that holds only while nobody reorders the file is one
+ * edit from being off. Same trap as `table.dt-wide` and `.pp .pp-nav-item`. */
+.wl-stats.wl-stats > *, .ins-figures.ins-figures > *,
+.fin-stats.fin-stats > *, .st-figures.st-figures > *,
+.bp-figures.bp-figures > *, .sk-stats.sk-stats > * {
   border: none; border-radius: 0; background: none;
   border-left: 1px solid var(--line);
   padding: var(--s3) var(--s4);
 }
-.wl-stats > :first-child, .ins-figures > :first-child,
-.fin-stats > :first-child, .st-figures > :first-child,
-.bp-figures > :first-child, .sk-stats > :first-child { border-left: none; }
+.wl-stats.wl-stats > :first-child, .ins-figures.ins-figures > :first-child,
+.fin-stats.fin-stats > :first-child, .st-figures.st-figures > :first-child,
+.bp-figures.bp-figures > :first-child,
+.sk-stats.sk-stats > :first-child { border-left: none; }
 /* Two, then one. The same strip is read on a laptop at a counter. */
 @media (max-width: 1100px) {
   .wl-stats, .ins-figures, .fin-stats, .st-figures, .bp-figures,
   .sk-stats { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
-  .wl-stats > *, .ins-figures > *, .fin-stats > *,
-  .st-figures > *, .bp-figures > *, .sk-stats > * {
+  /* Doubled for the same reason as above: a tile with a rule of its own
+     otherwise keeps its border on the narrow layout too. */
+  .wl-stats.wl-stats > *, .ins-figures.ins-figures > *,
+  .fin-stats.fin-stats > *, .st-figures.st-figures > *,
+  .bp-figures.bp-figures > *, .sk-stats.sk-stats > * {
     border-left: none; border-top: 1px solid var(--line);
   }
-  .wl-stats > :nth-child(-n+2),
-  .ins-figures > :nth-child(-n+2), .fin-stats > :nth-child(-n+2),
-  .st-figures > :nth-child(-n+2), .bp-figures > :nth-child(-n+2),
-  .sk-stats > :nth-child(-n+2) { border-top: none; }
-  .wl-stats > :nth-child(odd),
-  .ins-figures > :nth-child(odd), .fin-stats > :nth-child(odd),
-  .st-figures > :nth-child(odd), .bp-figures > :nth-child(odd),
-  .sk-stats > :nth-child(odd) { border-right: 1px solid var(--line); }
+  .wl-stats.wl-stats > :nth-child(-n+2),
+  .ins-figures.ins-figures > :nth-child(-n+2),
+  .fin-stats.fin-stats > :nth-child(-n+2),
+  .st-figures.st-figures > :nth-child(-n+2),
+  .bp-figures.bp-figures > :nth-child(-n+2),
+  .sk-stats.sk-stats > :nth-child(-n+2) { border-top: none; }
+  .wl-stats.wl-stats > :nth-child(odd),
+  .ins-figures.ins-figures > :nth-child(odd),
+  .fin-stats.fin-stats > :nth-child(odd),
+  .st-figures.st-figures > :nth-child(odd),
+  .bp-figures.bp-figures > :nth-child(odd),
+  .sk-stats.sk-stats > :nth-child(odd) { border-right: 1px solid var(--line); }
 }
 .wl-stat {
   display: flex; flex-direction: column; gap: 0; height: auto; padding: var(--s2);
@@ -10827,7 +10857,23 @@ button.fin-ack { cursor: pointer; }
  * against when it scans a rail, and without it every glance has to work out
  * the shape again. The hairline is quiet — quieter than the chosen one's, and
  * quieter than a card's — but it is there. */
-.disp-with-worklist .wl-stats { gap: 2px; }
+/* And the well stops drawing a box of its own.
+ *
+ * Everywhere else these three are one bordered strip divided by hairlines, and
+ * the tiles inside it draw nothing. The dispensary chose the opposite above,
+ * for a good reason: in a 320px rail these are filters somebody presses, and a
+ * control should look pressable before the pointer finds it. But the container
+ * kept its border and its ground while the tiles took theirs back, so the rail
+ * showed a box with three boxes in it, two pixels apart. Reported, with the
+ * squash above, as buttons that looked sunk in.
+ *
+ * One or the other. Here it is the tiles, so the well is just the space they
+ * sit in. Dropping `overflow` with it also restores the strip's own minimum
+ * height, which is the belt to the `flex: 0 0 auto` braces. */
+.disp-with-worklist .wl-stats {
+  gap: 2px; border: none; background: none; border-radius: 0;
+  overflow: visible;
+}
 .disp-with-worklist .wl-stat {
   background: var(--surface-sunk); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 6px 8px; box-shadow: none;
