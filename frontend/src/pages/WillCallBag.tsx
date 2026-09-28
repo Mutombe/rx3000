@@ -17,6 +17,7 @@ import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import LabelSheet from "../components/LabelSheet";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -137,6 +138,9 @@ export default function WillCallBag() {
           </button>
         : undefined}
     >
+      {/* The alerts stay behind the fetch on purpose: each of them says what to
+          do about this particular bag, and a page that has not heard back has
+          nothing to say about it. The panels below no longer wait. */}
       {bag && (
         <>
           {bag.collected_at ? (
@@ -171,48 +175,83 @@ export default function WillCallBag() {
               )}
             </>
           )}
+        </>
+      )}
 
-          <div className="grid cols-2">
-            <Panel title="What is in the bag">
-              <dl className="kv">
-                <dt>Medicine</dt>
-                <dd>
-                  <EntityLink kind="product" id={bag.product_id}>{bag.product}</EntityLink>
-                  {bag.schedule >= 3 && <span className="badge sched">{sched(bag.schedule)}</span>}
-                </dd>
-                <dt>Quantity</dt><dd>{bag.quantity}</dd>
-                <dt>Directions</dt>
-                <dd>
-                  {bag.directions || (
-                    // Nothing to print, and worth saying which kind of nothing:
-                    // every bag that came across from the old system has this,
-                    // because an invoice line never carried the directions.
-                    <span className="muted">None recorded on this script line</span>
-                  )}
-                </dd>
-                <dt>Script</dt>
-                <dd className="mono">
-                  <EntityLink kind="prescription" id={bag.prescription_id}>
-                    {bag.rx_number || "none"}
-                  </EntityLink>
-                  {bag.is_repeat && <div className="muted small">repeat</div>}
-                </dd>
-                <dt>Prescriber</dt>
-                <dd>
+      {/* The heading and the six labels of the bag card describe every bag on
+          the shelf, so they were never waiting on this one. Behind the gate,
+          somebody at the counter looked at an empty page and then at a full
+          one; now the questions are on the screen while their answers land. */}
+      <div className="grid cols-2">
+        <Panel title="What is in the bag">
+          <dl className="kv">
+            <dt>Medicine</dt>
+            <dd>
+              <Figure ready={!!bag} w="20ch">
+                {bag && (
+                  <>
+                    <EntityLink kind="product" id={bag.product_id}>{bag.product}</EntityLink>
+                    {bag.schedule >= 3 && <span className="badge sched">{sched(bag.schedule)}</span>}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Quantity</dt>
+            <dd><Figure ready={!!bag} w="3ch">{bag?.quantity}</Figure></dd>
+            <dt>Directions</dt>
+            <dd>
+              <Figure ready={!!bag} w="32ch">
+                {bag && (bag.directions || (
+                  // Nothing to print, and worth saying which kind of nothing:
+                  // every bag that came across from the old system has this,
+                  // because an invoice line never carried the directions.
+                  <span className="muted">None recorded on this script line</span>
+                ))}
+              </Figure>
+            </dd>
+            <dt>Script</dt>
+            <dd className="mono">
+              <Figure ready={!!bag} w="12ch">
+                {bag && (
+                  <>
+                    <EntityLink kind="prescription" id={bag.prescription_id}>
+                      {bag.rx_number || "none"}
+                    </EntityLink>
+                    {bag.is_repeat && <div className="muted small">repeat</div>}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Prescriber</dt>
+            <dd>
+              <Figure ready={!!bag} w="18ch">
+                {bag && (
                   <EntityLink kind="prescriber" id={bag.prescriber_id}>
                     {bag.prescriber || "Not recorded"}
                   </EntityLink>
-                </dd>
-                <dt>Checked by</dt>
-                <dd>
+                )}
+              </Figure>
+            </dd>
+            <dt>Checked by</dt>
+            <dd>
+              <Figure ready={!!bag} w="18ch">
+                {bag && (
                   <EntityLink kind="staff" id={bag.dispensed_by_id}>
                     {bag.dispensed_by || bag.pharmacist_initial || "none"}
                   </EntityLink>
-                </dd>
-              </dl>
-            </Panel>
+                )}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
 
-            {!bag.collected_at ? (
+        {/* The second card is the exception. Its heading is itself the answer:
+            a bag still on the shelf is handed over, a bag already gone is a
+            record of who took it, and naming either one early would tell the
+            counter something the page does not yet know. So this card, alone,
+            waits. */}
+        {bag && (
+          !bag.collected_at ? (
               <Panel title="Hand it over">
                 <p className="muted">
                   {bag.needs_id
@@ -248,44 +287,52 @@ export default function WillCallBag() {
                   </p>
                 )}
               </Panel>
-            ) : (
-              <Panel title="Who took it">
-                <dl className="kv">
-                  <dt>Collected</dt><dd>{fmtDateTime(bag.collected_at)}</dd>
-                  <dt>Taken by</dt><dd>{bag.collected_name || "Not recorded"}</dd>
-                </dl>
-              </Panel>
-            )}
-          </div>
+          ) : (
+            <Panel title="Who took it">
+              <dl className="kv">
+                <dt>Collected</dt><dd>{fmtDateTime(bag.collected_at)}</dd>
+                <dt>Taken by</dt><dd>{bag.collected_name || "Not recorded"}</dd>
+              </dl>
+            </Panel>
+          )
+        )}
+      </div>
 
-          <Panel title="Also waiting for this patient" count={bag.alongside.length}
-                 empty="Nothing else of theirs is on the shelf.">
-            <table className="dt">
-              <thead>
-                <tr><Th>Medicine</Th><Th className="num">Qty</Th><Th>Dispensed</Th></tr>
-              </thead>
-              <tbody>
-                {bag.alongside.map((a) => (
-                  <tr key={a.dispensing_id}>
-                    <td>
-                      <EntityLink to={`/will-call/${a.dispensing_id}`}>
-                        {a.product}
-                      </EntityLink>
-                    </td>
-                    <td className="num">{a.quantity}</td>
-                    <td>{fmtDateTime(a.dispensed_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-
-          {bag.patient.phone && (
-            <p className="muted">
-              <Phone size={13} /> {bag.patient.phone}
-            </p>
+      {/* Whether anything else of this patient's is on the shelf is a question
+          the counter asks of every bag, so it is asked here from the start.
+          The answer that there is nothing waits for the count, because an
+          unanswered page saying the shelf is clear is how a second bag gets
+          left behind. */}
+      <Panel title="Also waiting for this patient" count={bag?.alongside.length}
+             empty={bag ? "Nothing else of theirs is on the shelf." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr><Th>Medicine</Th><Th className="num">Qty</Th><Th>Dispensed</Th></tr>
+          </thead>
+          {!bag ? (
+            <GhostRows cols={3} rows={3} widths={["80%", "30%", "70%"]} />
+          ) : (
+            <tbody>
+              {bag.alongside.map((a) => (
+                <tr key={a.dispensing_id}>
+                  <td>
+                    <EntityLink to={`/will-call/${a.dispensing_id}`}>
+                      {a.product}
+                    </EntityLink>
+                  </td>
+                  <td className="num">{a.quantity}</td>
+                  <td>{fmtDateTime(a.dispensed_at)}</td>
+                </tr>
+              ))}
+            </tbody>
           )}
-        </>
+        </table>
+      </Panel>
+
+      {bag?.patient.phone && (
+        <p className="muted">
+          <Phone size={13} /> {bag.patient.phone}
+        </p>
       )}
 
       {labels && bag?.prescription_id && (

@@ -225,6 +225,7 @@ export default function StockWatch() {
         loading={loading}
         hasData={shown.length > 0}
         skeleton={<TableSkeleton cols={5} rows={8}
+                                 headers={["What", "Medicine", "Worth", "Since", ""]}
                                  widths={["26ch", "30ch", "10ch", "12ch", "8ch"]} />}
       >
         <div className="dt-scroll">

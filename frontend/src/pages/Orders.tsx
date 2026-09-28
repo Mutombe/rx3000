@@ -191,14 +191,18 @@ export default function Orders() {
 
       {tab === "orders" && (
         <div className="card">
+          {/* The search comes before the ghost table rather than inside
+              it: the field and its placeholder are the same on every visit
+              and can be typed into before a row has landed. Only the count
+              beside them is fetched. */}
+          <TableSearch ready={!loading} value={q} onChange={setQ}
+                         placeholder="Find an order or a supplier…"
+                         shown={shown.length} total={orders.length} />
           <Refreshable
             loading={loading}
             hasData={orders.length > 0}
             skeleton={<TableSkeleton cols={8} rows={8} rowHeight={55} widths={["3ch", "14ch", "20ch", "12ch", "16ch", "7ch", "12ch", "10ch"]} />}
           >
-            <TableSearch value={q} onChange={setQ}
-                         placeholder="Find an order or a supplier…"
-                         shown={shown.length} total={orders.length} />
             <table>
               <thead>
                 <tr>

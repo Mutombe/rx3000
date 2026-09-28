@@ -24,6 +24,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDate, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -158,8 +159,16 @@ export default function ClaimBatchDetail() {
           hint: "paid by patients at the counter" },
       ] : undefined}
     >
+      {/* The gate that stood here withheld three card headings, the whole
+          head of the claims table and every word of the pricing breakdown
+          until the batch came back. A claim batch is always priced the same
+          way — gross, scheme discount, levies, claimed — and those rows are
+          written here, not fetched. Only the money in them waits. */}
       {d && b && (
         <>
+          {/* The three alerts below are each a statement about money that has
+              already come back, so they stay behind the answer. The cards
+              underneath no longer do. */}
           {d.settled && Math.abs(d.unattributed) > 0.005 && (
             // The number this page exists for. A deduction that belongs to no
             // claim is the one a pharmacy never finds, because every screen
@@ -200,28 +209,38 @@ export default function ClaimBatchDetail() {
               later, and the amount falls to the patient or to the pharmacy.
             </div>
           )}
+        </>
+      )}
 
-          <Panel title="Claims in this batch" count={d.claims.length}
-                 empty={d.counted_on_batch > 0
-                   ? "The claims this batch was built from are no longer attached to it."
-                   : "Nothing has been added to this batch yet."}
-                 aside={b.reference
-                   ? <span className="muted small">Scheme reference {b.reference}</span>
-                   : undefined}>
-            <div className="dt-scroll">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Claim</Th>
-                    <Th>Patient</Th>
-                    <Th>Sale</Th>
-                    <Th>Status</Th>
-                    <Th className="num">Claimed</Th>
-                    <Th className="num">Approved</Th>
-                    <Th className="num">Settled</Th>
-                    <Th className="num">Short</Th>
-                  </tr>
-                </thead>
+      <Panel title="Claims in this batch" count={d?.claims.length}
+             /* Neither sentence is offered before the batch has been read.
+                "Nothing has been added yet" is a finding about the batch, and
+                a page that has been told nothing has found nothing out. */
+             empty={!d ? undefined : d.counted_on_batch > 0
+               ? "The claims this batch was built from are no longer attached to it."
+               : "Nothing has been added to this batch yet."}
+             aside={b?.reference
+               ? <span className="muted small">Scheme reference {b.reference}</span>
+               : undefined}>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Claim</Th>
+                <Th>Patient</Th>
+                <Th>Sale</Th>
+                <Th>Status</Th>
+                <Th className="num">Claimed</Th>
+                <Th className="num">Approved</Th>
+                <Th className="num">Settled</Th>
+                <Th className="num">Short</Th>
+              </tr>
+            </thead>
+            {!d || !b ? (
+              <GhostRows cols={8} rows={3}
+                         widths={["70%", "65%", "70%", "45%",
+                                  "55%", "55%", "55%", "45%"]} />
+            ) : (
                 <tbody>
                   {d.claims.map((c) => (
                     <tr key={c.id}
@@ -264,63 +283,81 @@ export default function ClaimBatchDetail() {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={4}><b>Total</b></td>
-                    <td className="num"><b>{money(b.total_claimed)}</b></td>
-                    <td className="num" />
-                    <td className="num">
-                      <b>{d.settled ? money(b.total_settled) : "none"}</b>
-                    </td>
-                    <td className="num">
-                      <b className={d.settled && d.shortfall > 0.005 ? "neg" : undefined}>
-                        {d.settled ? money(d.shortfall) : "none"}
-                      </b>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </Panel>
+            )}
+            <tfoot>
+              <tr>
+                <td colSpan={4}><b>Total</b></td>
+                <td className="num">
+                  <b><Figure ready={!!b} w="9ch">{b && money(b.total_claimed)}</Figure></b>
+                </td>
+                <td className="num" />
+                <td className="num">
+                  <b>
+                    <Figure ready={!!d && !!b} w="9ch">
+                      {d && b && (d.settled ? money(b.total_settled) : "none")}
+                    </Figure>
+                  </b>
+                </td>
+                <td className="num">
+                  <b className={d?.settled && d.shortfall > 0.005 ? "neg" : undefined}>
+                    <Figure ready={!!d} w="9ch">
+                      {d && (d.settled ? money(d.shortfall) : "none")}
+                    </Figure>
+                  </b>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </Panel>
 
-          <Panel title="How the batch was priced"
-                 aside={<span className="muted small">
-                   What was asked for, and why it is not the shelf price
-                 </span>}>
-            <table className="dt">
-              <tbody>
-                <tr>
-                  <td>Gross</td>
-                  <td className="muted wrap">Before the scheme's discount</td>
-                  <td className="num">{money(b.total_gross)}</td>
-                </tr>
-                <tr>
-                  <td>Scheme discount</td>
-                  <td className="muted wrap">Agreed with the pay office</td>
-                  <td className="num">−{money(b.total_discount)}</td>
-                </tr>
-                <tr>
-                  <td>Levies</td>
-                  <td className="muted wrap">
-                    Collected from patients at the counter, so never claimed
-                  </td>
-                  <td className="num">−{money(b.total_levy)}</td>
-                </tr>
-                <tr>
-                  <td><b>Claimed from the scheme</b></td>
-                  <td />
-                  <td className="num"><b>{money(b.total_claimed)}</b></td>
-                </tr>
-              </tbody>
-            </table>
-          </Panel>
+      <Panel title="How the batch was priced"
+             aside={<span className="muted small">
+               What was asked for, and why it is not the shelf price
+             </span>}>
+        <table className="dt">
+          <tbody>
+            <tr>
+              <td>Gross</td>
+              <td className="muted wrap">Before the scheme's discount</td>
+              <td className="num">
+                <Figure ready={!!b} w="9ch">{b && money(b.total_gross)}</Figure>
+              </td>
+            </tr>
+            <tr>
+              <td>Scheme discount</td>
+              <td className="muted wrap">Agreed with the pay office</td>
+              <td className="num">
+                <Figure ready={!!b} w="9ch">{b && <>−{money(b.total_discount)}</>}</Figure>
+              </td>
+            </tr>
+            <tr>
+              <td>Levies</td>
+              <td className="muted wrap">
+                Collected from patients at the counter, so never claimed
+              </td>
+              <td className="num">
+                <Figure ready={!!b} w="9ch">{b && <>−{money(b.total_levy)}</>}</Figure>
+              </td>
+            </tr>
+            <tr>
+              <td><b>Claimed from the scheme</b></td>
+              <td />
+              <td className="num">
+                <b><Figure ready={!!b} w="9ch">{b && money(b.total_claimed)}</Figure></b>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </Panel>
 
-          {b.notes && (
-            <Panel title="Notes">
-              <p className="wrap">{b.notes}</p>
-            </Panel>
-          )}
-        </>
+      {/* A batch with nothing written on it has no notes card at all, so this
+          one stays behind the answer rather than ghosting a card that may
+          never exist. */}
+      {b?.notes && (
+        <Panel title="Notes">
+          <p className="wrap">{b.notes}</p>
+        </Panel>
       )}
     </RecordPage>
   );

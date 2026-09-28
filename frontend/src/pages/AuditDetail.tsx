@@ -24,6 +24,7 @@ import { ArrowLeft, UserSwitch, Warning } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDateTime } from "../api";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import Th from "../components/Th";
 
 interface Entry {
@@ -107,79 +108,111 @@ export default function AuditDetail() {
           hint: row.ip_address || "" },
       ] : []}
     >
-      {row && (
-        <>
-          {/* THE ONE FACT THAT CHANGES WHAT THE ENTRY MEANS.
-              Without it the trail says a cashier in Bulawayo voided a sale at
-              two in the morning when it was somebody at head office. */}
-          {row.acted_as && (
-            <div className="alert warn">
-              <UserSwitch size={15} weight="fill" /> This was done by{" "}
-              <b>{row.username}</b> while signed in as <b>{row.acted_as}</b>.
-              The action is recorded against {row.acted_as}, and the person who
-              actually took it is {row.username}.
-            </div>
-          )}
-
-          {row.status_code >= 400 && (
-            <div className="alert error">
-              <Warning size={15} weight="fill" /> The server refused this with{" "}
-              {row.status_code}, so whatever it asked for did not happen.
-            </div>
-          )}
-
-          <Panel title="What was asked">
-            <dl className="kv">
-              <dt>Action</dt>
-              <dd><span className="badge muted">{row.action}</span></dd>
-
-              <dt>Endpoint</dt>
-              <dd className="mono wrap">{row.path}</dd>
-
-              <dt>Summary</dt>
-              <dd>{row.summary || <span className="muted">None recorded</span>}</dd>
-
-              <dt>Answer</dt>
-              <dd><Status code={row.status_code} /></dd>
-
-              <dt>From</dt>
-              <dd className="mono">
-                {row.ip_address || <span className="muted">Not recorded</span>}
-              </dd>
-
-              <dt>When</dt>
-              <dd>{fmtDateTime(row.created_at)}</dd>
-            </dl>
-          </Panel>
-
-          <Panel
-            // Named where there is a name, neutral where there is not:
-            // "What they was doing around it" is what a fallback inside a
-            // sentence gets you.
-            title={row.username
-              ? `What ${row.username} was doing around it`
-              : "What else happened around it"}
-            count={row.before.length + row.after.length}
-            empty="Nothing else is recorded for this person."
-          >
-            <div className="table-wrap">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>When</Th><Th>Action</Th><Th>Endpoint</Th>
-                    <Th>Answer</Th><th className="actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {row.before.map((e) => line(e))}
-                  {line(row, true)}
-                  {row.after.map((e) => line(e))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
+      {/* The gate that stood here held back both panel headings, the six
+          labels under "What was asked" and the whole head of the table beneath
+          them until the entry came back. Not one of those is fetched: an audit
+          entry always has an action, an endpoint, an answer and a time, and
+          the reader waiting on a slow one should at least be able to see what
+          they are waiting for. Only the values beside the labels pulse. */}
+      {/* THE ONE FACT THAT CHANGES WHAT THE ENTRY MEANS.
+          Without it the trail says a cashier in Bulawayo voided a sale at
+          two in the morning when it was somebody at head office. */}
+      {row?.acted_as && (
+        <div className="alert warn">
+          <UserSwitch size={15} weight="fill" /> This was done by{" "}
+          <b>{row.username}</b> while signed in as <b>{row.acted_as}</b>.
+          The action is recorded against {row.acted_as}, and the person who
+          actually took it is {row.username}.
+        </div>
       )}
+
+      {row && row.status_code >= 400 && (
+        <div className="alert error">
+          <Warning size={15} weight="fill" /> The server refused this with{" "}
+          {row.status_code}, so whatever it asked for did not happen.
+        </div>
+      )}
+
+      <Panel title="What was asked">
+        <dl className="kv">
+          <dt>Action</dt>
+          <dd>
+            <Figure ready={!!row} w="6ch">
+              {row && <span className="badge muted">{row.action}</span>}
+            </Figure>
+          </dd>
+
+          <dt>Endpoint</dt>
+          <dd className="mono wrap">
+            <Figure ready={!!row} w="30ch">{row?.path}</Figure>
+          </dd>
+
+          <dt>Summary</dt>
+          <dd>
+            <Figure ready={!!row} w="36ch">
+              {row && (row.summary
+                || <span className="muted">None recorded</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Answer</dt>
+          <dd>
+            <Figure ready={!!row} w="4ch">
+              {row && <Status code={row.status_code} />}
+            </Figure>
+          </dd>
+
+          <dt>From</dt>
+          <dd className="mono">
+            <Figure ready={!!row} w="12ch">
+              {row && (row.ip_address
+                || <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
+
+          <dt>When</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && fmtDateTime(row.created_at)}
+            </Figure>
+          </dd>
+        </dl>
+      </Panel>
+
+      <Panel
+        // Named where there is a name, neutral where there is not:
+        // "What they was doing around it" is what a fallback inside a
+        // sentence gets you. Before the entry arrives nobody has a name
+        // either, so the neutral wording carries the wait as well.
+        title={row?.username
+          ? `What ${row.username} was doing around it`
+          : "What else happened around it"}
+        count={row ? row.before.length + row.after.length : undefined}
+        // Only once the neighbours are actually in hand. A screen that has
+        // been told nothing must not announce that there is nothing.
+        empty={row ? "Nothing else is recorded for this person." : undefined}
+      >
+        <div className="table-wrap">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>When</Th><Th>Action</Th><Th>Endpoint</Th>
+                <Th>Answer</Th><th className="actions" />
+              </tr>
+            </thead>
+            {!row ? (
+              <GhostRows cols={5} rows={3}
+                         widths={["70%", "40%", "85%", "30%", "40%"]} />
+            ) : (
+              <tbody>
+                {row.before.map((e) => line(e))}
+                {line(row, true)}
+                {row.after.map((e) => line(e))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

@@ -248,6 +248,8 @@ export default function Shifts() {
           loading={loading}
           hasData={history.length > 0}
           skeleton={<TableSkeleton cols={10} rows={5}
+            headers={["Cashier", "Run", "Opened", "Closed", "Float", "Expected",
+                      "Counted", "Variance", "Sales", "Notes"]}
             widths={["14ch", "8ch", "12ch", "12ch", "8ch", "8ch", "8ch", "8ch", "8ch", "10ch"]} />}
         >
         {/* Ten columns wanting 1,128px in a 1,002px card. Everything that

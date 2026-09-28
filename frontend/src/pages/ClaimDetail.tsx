@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
 import Th from "../components/Th";
@@ -68,84 +69,136 @@ export default function ClaimDetail() {
           hint: "levy and any shortfall" },
       ] : undefined}
     >
-      {d && (
-        <>
-          {/* The scheme's own words, first. A clerk chasing a rejection needs
-              the reason before any of the arithmetic. */}
-          {(d.response_message || d.deferred_reason) && (
-            <div className={`alert ${d.status === "rejected" ? "error" : "warn"}`}>
-              <b>{d.status === "deferred" ? "Held" : d.status}</b>
-              {": "}{d.deferred_reason || d.response_message}
-            </div>
-          )}
+      {/* The gate that stood here withheld all three card headings, the
+          fourteen labels under the first two and the head of the lines table
+          until the claim came back. Every claim is priced the same way and
+          carries the same fields; those words are the form, not the answer.
+          Only the amounts and the names beside them pulse. */}
 
-          <div className="grid cols-2">
-            <Panel title="How it was priced">
-              <dl className="kv">
-                <dt>Gross</dt><dd className="num">{money(d.gross)}</dd>
-                <dt>Scheme discount</dt><dd className="num">{money(d.discount)}</dd>
-                <dt>Levy</dt><dd className="num">{money(d.levy)}</dd>
-                <dt>Dispensing fee</dt><dd className="num">{money(d.dispensing_fee)}</dd>
-                <dt>Claimed</dt><dd className="num"><b>{money(d.amount_claimed)}</b></dd>
-                <dt>Allowed</dt><dd className="num">{money(d.amount_approved)}</dd>
-                <dt>Shortfall</dt>
-                <dd className="num">
-                  {d.shortfall > 0.005 ? money(d.shortfall) : <span className="muted">None</span>}
-                </dd>
-              </dl>
-            </Panel>
-
-            <Panel title="The claim">
-              <dl className="kv">
-                <dt>Status</dt>
-                <dd><span className={`badge ${TONE[d.status] ?? ""}`}>{d.status}</span></dd>
-                <dt>Patient</dt>
-                <dd>
-                  <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
-                  {d.patient.phone && <div className="muted small">{d.patient.phone}</div>}
-                </dd>
-                <dt>Scheme</dt><dd>{d.scheme.name}</dd>
-                <dt>Sale</dt>
-                <dd className="mono">
-                  <EntityLink kind="sale" id={d.sale_id}>{d.sale_number || "none"}</EntityLink>
-                </dd>
-                <dt>Diagnosis</dt><dd className="mono">{d.icd10_code || "none"}</dd>
-                <dt>Authorisation</dt><dd className="mono">{d.authorisation || "none"}</dd>
-                <dt>Submitted</dt>
-                <dd>
-                  {d.submitted_at ? fmtDateTime(d.submitted_at)
-                    : <span className="muted">Not sent</span>}
-                  {d.submit_attempts > 1 && (
-                    <div className="muted small">{d.submit_attempts} attempts</div>
-                  )}
-                </dd>
-              </dl>
-            </Panel>
-          </div>
-
-          <Panel title="What was dispensed" count={d.lines.length}
-                 empty="No sale lines are attached to this claim.">
-            <table className="dt">
-              <thead>
-                <tr><Th>Medicine</Th><Th className="num">Qty</Th><Th className="num">Value</Th></tr>
-              </thead>
-              <tbody>
-                {d.lines.map((l, i) => (
-                  <tr key={i}>
-                    <td>
-                      <EntityLink kind="product" id={l.product_id}>
-                        {l.product || "none"}
-                      </EntityLink>
-                    </td>
-                    <td className="num">{l.quantity}</td>
-                    <td className="num">{money(l.line_total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-        </>
+      {/* The scheme's own words, first. A clerk chasing a rejection needs
+          the reason before any of the arithmetic. */}
+      {d && (d.response_message || d.deferred_reason) && (
+        <div className={`alert ${d.status === "rejected" ? "error" : "warn"}`}>
+          <b>{d.status === "deferred" ? "Held" : d.status}</b>
+          {": "}{d.deferred_reason || d.response_message}
+        </div>
       )}
+
+      <div className="grid cols-2">
+        <Panel title="How it was priced">
+          <dl className="kv">
+            <dt>Gross</dt>
+            <dd className="num"><Figure ready={!!d} w="9ch">{d && money(d.gross)}</Figure></dd>
+            <dt>Scheme discount</dt>
+            <dd className="num"><Figure ready={!!d} w="9ch">{d && money(d.discount)}</Figure></dd>
+            <dt>Levy</dt>
+            <dd className="num"><Figure ready={!!d} w="9ch">{d && money(d.levy)}</Figure></dd>
+            <dt>Dispensing fee</dt>
+            <dd className="num">
+              <Figure ready={!!d} w="9ch">{d && money(d.dispensing_fee)}</Figure>
+            </dd>
+            <dt>Claimed</dt>
+            <dd className="num">
+              <b><Figure ready={!!d} w="9ch">{d && money(d.amount_claimed)}</Figure></b>
+            </dd>
+            <dt>Allowed</dt>
+            <dd className="num">
+              <Figure ready={!!d} w="9ch">{d && money(d.amount_approved)}</Figure>
+            </dd>
+            <dt>Shortfall</dt>
+            <dd className="num">
+              <Figure ready={!!d} w="9ch">
+                {d && (d.shortfall > 0.005
+                  ? money(d.shortfall)
+                  : <span className="muted">None</span>)}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+
+        <Panel title="The claim">
+          <dl className="kv">
+            <dt>Status</dt>
+            <dd>
+              <Figure ready={!!d} w="8ch">
+                {d && <span className={`badge ${TONE[d.status] ?? ""}`}>{d.status}</span>}
+              </Figure>
+            </dd>
+            <dt>Patient</dt>
+            <dd>
+              <Figure ready={!!d} w="18ch">
+                {d && (
+                  <>
+                    <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
+                    {d.patient.phone && <div className="muted small">{d.patient.phone}</div>}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Scheme</dt>
+            <dd><Figure ready={!!d} w="18ch">{d?.scheme.name}</Figure></dd>
+            <dt>Sale</dt>
+            <dd className="mono">
+              <Figure ready={!!d} w="12ch">
+                {d && (
+                  <EntityLink kind="sale" id={d.sale_id}>{d.sale_number || "none"}</EntityLink>
+                )}
+              </Figure>
+            </dd>
+            <dt>Diagnosis</dt>
+            <dd className="mono">
+              <Figure ready={!!d} w="8ch">{d && (d.icd10_code || "none")}</Figure>
+            </dd>
+            <dt>Authorisation</dt>
+            <dd className="mono">
+              <Figure ready={!!d} w="12ch">{d && (d.authorisation || "none")}</Figure>
+            </dd>
+            <dt>Submitted</dt>
+            <dd>
+              <Figure ready={!!d} w="16ch">
+                {d && (
+                  <>
+                    {d.submitted_at ? fmtDateTime(d.submitted_at)
+                      : <span className="muted">Not sent</span>}
+                    {d.submit_attempts > 1 && (
+                      <div className="muted small">{d.submit_attempts} attempts</div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+      </div>
+
+      <Panel title="What was dispensed" count={d?.lines.length}
+             /* Only once the claim is in hand. Until then nothing is known
+                about what was dispensed, which is not the same as nothing
+                having been dispensed. */
+             empty={d ? "No sale lines are attached to this claim." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr><Th>Medicine</Th><Th className="num">Qty</Th><Th className="num">Value</Th></tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={3} rows={3} widths={["75%", "30%", "50%"]} />
+          ) : (
+            <tbody>
+              {d.lines.map((l, i) => (
+                <tr key={i}>
+                  <td>
+                    <EntityLink kind="product" id={l.product_id}>
+                      {l.product || "none"}
+                    </EntityLink>
+                  </td>
+                  <td className="num">{l.quantity}</td>
+                  <td className="num">{money(l.line_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
     </RecordPage>
   );
 }

@@ -175,6 +175,8 @@ export default function Patients() {
           hasData={patients.length > 0}
           skeleton={
             <TableSkeleton cols={8} rows={9} rowHeight={70}
+              headers={["", "Patient", "ID Number", "Contact", "Medical Aid",
+                        "Allergies", "Loyalty", ""]}
               widths={["3ch", "22ch", "14ch", "16ch", "16ch", "14ch", "8ch", "10ch"]} />
           }
         >

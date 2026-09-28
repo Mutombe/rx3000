@@ -20,7 +20,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import RepeatValue from "../components/RepeatValue";
 import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
 import { useSelection } from "../hooks/useSelection";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows, Refreshable } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Checkbox from "../components/Checkbox";
 import Pagination from "../components/Pagination";
@@ -343,26 +343,42 @@ export default function Repeats() {
         <>
           {/* What the fortnight is worth, before the list of names. A call
               sheet without it is a list; with it, it is a list in the order
-              worth telephoning. */}
-          {due && (
-            <div className="wc-bands">
-              <div className="wl-stat">
-                <b>{money(due.due_value ?? 0)}</b><span>Due, all of it</span>
-              </div>
-              <div className={`wl-stat${(due.overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
-                <b>{money(due.overdue_value ?? 0)}</b>
-                <span>{due.overdue} already overdue</span>
-              </div>
-              {/* The one the pharmacy loses by its own doing. */}
-              <div className={`wl-stat${(due.cannot_supply ?? 0) > 0 ? " wc-abandoned" : ""}`}>
-                <b>{money(due.blocked_value ?? 0)}</b>
-                <span>{due.cannot_supply} cannot be filled today</span>
-              </div>
-              <div className="wl-stat">
-                <b>{due.total_due ?? due.count}</b><span>Repeats due</span>
-              </div>
+              worth telephoning.
+
+              This whole strip used to wait behind `due &&`, which withheld
+              four labels that are written here and are the same on every
+              visit. Two of them carry a count inside the sentence, so the
+              count alone pulses and the words around it stay put. */}
+          <div className="wc-bands">
+            <div className="wl-stat">
+              <b><Figure ready={!!due} w="9ch">{due && money(due.due_value ?? 0)}</Figure></b>
+              <span>Due, all of it</span>
             </div>
-          )}
+            <div className={`wl-stat${(due?.overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
+              <b>
+                <Figure ready={!!due} w="9ch">{due && money(due.overdue_value ?? 0)}</Figure>
+              </b>
+              <span>
+                <Figure ready={!!due} w="3ch">{due?.overdue}</Figure> already overdue
+              </span>
+            </div>
+            {/* The one the pharmacy loses by its own doing. */}
+            <div className={`wl-stat${(due?.cannot_supply ?? 0) > 0 ? " wc-abandoned" : ""}`}>
+              <b>
+                <Figure ready={!!due} w="9ch">{due && money(due.blocked_value ?? 0)}</Figure>
+              </b>
+              <span>
+                <Figure ready={!!due} w="3ch">{due?.cannot_supply}</Figure>{" "}
+                cannot be filled today
+              </span>
+            </div>
+            <div className="wl-stat">
+              <b>
+                <Figure ready={!!due} w="3ch">{due && (due.total_due ?? due.count)}</Figure>
+              </b>
+              <span>Repeats due</span>
+            </div>
+          </div>
 
           <div className="dt-filters">
             <label>
@@ -381,12 +397,15 @@ export default function Repeats() {
               page ground and began at the exact pixel the filter bar ended, so
               the controls and the rows read as one undifferentiated block. */}
           <div className="card">
-          <Refreshable
-            loading={loading}
-            hasData={!!due?.items.length}
-            skeleton={<TableSkeleton cols={8} rows={8} rowHeight={69}
-              widths={["18ch", "22ch", "10ch", "9ch", "9ch", "11ch", "9ch", "6ch"]} />}
-          >
+            {/* The head is written down five lines below, so the head is drawn
+                and only the rows under it wait on the server. It used to go
+                with them: eight column names, every one of them known before
+                the request left, replaced by eight grey bars.
+
+                `Refreshable` stays for what it is actually for: changing the
+                horizon or ticking "overdue only" refetches, and the sheet
+                somebody is reading dims rather than emptying. */}
+            <Refreshable loading={loading} hasData skeleton={null}>
             <div className="dt-scroll">
               {/* Eight columns on a laptop card gave each 102px. A patient's
                   name wants 145 and "Tenofovir/Lamivudine/Dolutegravir"
@@ -411,6 +430,14 @@ export default function Repeats() {
                         would be, which is where somebody is looking. */}
                     <th className="actions" /></tr>
                 </thead>
+                {!due ? (
+                  /* A patient carries their telephone number underneath and a
+                     medicine its quantity and days of supply, so both ghost
+                     with a second line and the rows measure what they will
+                     measure when they land. */
+                  <GhostRows cols={8} rows={8} rowHeight={69} secondLine={[1, 2]}
+                    widths={["3ch", "16ch", "20ch", "9ch", "8ch", "9ch", "10ch", "9ch"]} />
+                ) : (
                 <tbody>
                   {dueRows.items.map((i) => (
                     // The repeat line, not the person holding it. Clicking a
@@ -525,14 +552,21 @@ export default function Repeats() {
                       </RowActions>
                     </RowLink>
                   ))}
-                  {!due?.items.length && !loading && (
-                    <tr><td colSpan={6} className="muted pad">Nobody is due.</td></tr>
+                  {/* Only reachable once the call sheet has actually been
+                      read. "Nobody is due" while the request is still out is
+                      the screen answering a question it has not been told the
+                      answer to. */}
+                  {due.items.length === 0 && (
+                    <tr><td colSpan={8} className="muted pad">Nobody is due.</td></tr>
                   )}
                 </tbody>
+                )}
               </table>
-              <Pagination meta={dueRows.meta} onPage={dueRows.setPage} noun="repeats" />
+              {due && (
+                <Pagination meta={dueRows.meta} onPage={dueRows.setPage} noun="repeats" />
+              )}
             </div>
-          </Refreshable>
+            </Refreshable>
           </div>
         </>
       )}
@@ -561,26 +595,40 @@ export default function Repeats() {
                 a figure about this pharmacy. Change the period or reload the
                 page to ask again.
               </p>
-            ) : !perf ? <TableSkeleton cols={4} rows={3} /> : (
+            ) : (
+              /* SCOPED LOADING.
+               *
+               * These seven bands and the breakdown under them used to be a
+               * four column table skeleton, which withheld every word: "What
+               * one repeat is worth", "Of the value kept", and the head of the
+               * table that says where each lost repeat went. None of it is
+               * fetched. Only the money and the counts are, and a count sitting
+               * inside a sentence pulses on its own so the sentence stays
+               * readable while it arrives. */
               <>
                 <div className="wc-bands">
                   <div className="wl-stat">
-                    <b>{money(perf.due_value)}</b>
-                    <span>the book was worth · {perf.due} repeats</span>
+                    <b><Figure ready={!!perf} w="9ch">{perf && money(perf.due_value)}</Figure></b>
+                    <span>
+                      the book was worth ·{" "}
+                      <Figure ready={!!perf} w="3ch">{perf?.due}</Figure> repeats
+                    </span>
                   </div>
                   <div className="wl-stat">
-                    <b className="tone-ok">{money(perf.captured_value)}</b>
+                    <b className="tone-ok">
+                      <Figure ready={!!perf} w="9ch">{perf && money(perf.captured_value)}</Figure>
+                    </b>
                     <span>
-                      we filled · {perf.captured}
+                      we filled · <Figure ready={!!perf} w="3ch">{perf?.captured}</Figure>
                       {/* On time is the half that decides whether they come
                           back. A pharmacy filling everything three weeks late
                           has kept the money and is one bad month from losing
                           the patient. */}
-                      {perf.on_time_rate !== null && perf.on_time_rate !== undefined
+                      {perf && perf.on_time_rate !== null && perf.on_time_rate !== undefined
                         && ` · ${Math.round(perf.on_time_rate * 100)}% on time`}
                     </span>
                   </div>
-                  {perf.filled_late > 0 && (
+                  {perf && perf.filled_late > 0 && (
                     <div className="wl-stat wc-stale">
                       <b className="tone-warn">{money(perf.filled_late_value)}</b>
                       <span>
@@ -592,33 +640,39 @@ export default function Repeats() {
                   {/* The number the whole view exists for, said as money and
                       as a share, because "we lose about ten per cent" is a
                       sentence nobody can act on. */}
-                  <div className={`wl-stat${perf.lost_value > 0.005 ? " wc-stale" : ""}`}>
-                    <b className={`tone-${rateTone(
-                      100 - (perf.value_loss_rate ?? 0) * 100, 80)}`}>
-                      {money(perf.lost_value)}
+                  <div className={`wl-stat${perf && perf.lost_value > 0.005 ? " wc-stale" : ""}`}>
+                    <b className={perf ? `tone-${rateTone(
+                      100 - (perf.value_loss_rate ?? 0) * 100, 80)}` : undefined}>
+                      <Figure ready={!!perf} w="9ch">{perf && money(perf.lost_value)}</Figure>
                     </b>
                     <span>
-                      lost · {perf.lost} repeats
-                      {perf.value_loss_rate !== null
+                      lost · <Figure ready={!!perf} w="3ch">{perf?.lost}</Figure> repeats
+                      {perf && perf.value_loss_rate !== null
                         && ` · ${Math.round(perf.value_loss_rate * 100)}% of the value`}
                     </span>
                   </div>
                   <div className="wl-stat">
-                    <b className={`tone-${rateTone(
-                      (perf.value_capture_rate ?? 0) * 100, 80)}`}>
-                      {perf.value_capture_rate === null
-                        ? <span className="muted">No repeats due yet</span>
-                        : `${Math.round(perf.value_capture_rate * 100)}%`}
+                    <b className={perf ? `tone-${rateTone(
+                      (perf.value_capture_rate ?? 0) * 100, 80)}` : undefined}>
+                      <Figure ready={!!perf} w="4ch">
+                        {perf && (perf.value_capture_rate === null
+                          ? <span className="muted">No repeats due yet</span>
+                          : `${Math.round(perf.value_capture_rate * 100)}%`)}
+                      </Figure>
                     </b>
                     <span>Of the value kept</span>
                   </div>
                   <div className="wl-stat">
-                    <b>{money(perf.average_value)}</b>
+                    <b><Figure ready={!!perf} w="9ch">{perf && money(perf.average_value)}</Figure></b>
                     <span>What one repeat is worth</span>
                   </div>
                   <div className="wl-stat">
-                    <b>{money(perf.due_today_value)}</b>
-                    <span>due today · {perf.due_today}</span>
+                    <b>
+                      <Figure ready={!!perf} w="9ch">{perf && money(perf.due_today_value)}</Figure>
+                    </b>
+                    <span>
+                      due today · <Figure ready={!!perf} w="3ch">{perf?.due_today}</Figure>
+                    </span>
                   </div>
                 </div>
 
@@ -637,6 +691,10 @@ export default function Repeats() {
                       <Th className="num">Share</Th><Th>What fixes it</Th>
                     </tr>
                   </thead>
+                  {!perf ? (
+                    <GhostRows cols={5} rows={4}
+                               widths={["16ch", "4ch", "8ch", "5ch", "30ch"]} />
+                  ) : (
                   <tbody>
                     {perf.loss_split.map((r: any) => (
                       <tr key={r.reason}
@@ -651,11 +709,19 @@ export default function Repeats() {
                       </tr>
                     ))}
                   </tbody>
+                  )}
+                  {/* The total line is words plus two figures, so it is drawn
+                      from the first frame and the table does not grow a row
+                      when the answer lands. */}
                   <tfoot>
                     <tr>
                       <td><b>Lost altogether</b></td>
-                      <td className="num"><b>{perf.lost}</b></td>
-                      <td className="num"><b>{money(perf.lost_value)}</b></td>
+                      <td className="num">
+                        <b><Figure ready={!!perf} w="3ch">{perf?.lost}</Figure></b>
+                      </td>
+                      <td className="num">
+                        <b><Figure ready={!!perf} w="9ch">{perf && money(perf.lost_value)}</Figure></b>
+                      </td>
                       <td className="num"><b>100%</b></td>
                       <td />
                     </tr>

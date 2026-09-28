@@ -10,6 +10,7 @@ import { Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useAsk, useConfirm } from "../components/Confirm";
 import BusyButton from "../components/BusyButton";
@@ -124,105 +125,148 @@ export default function BatchDetail() {
         { label: "Unit cost", value: money(d.unit_cost) },
       ] : undefined}
     >
-      {d && (
-        <>
-          {d.warnings.length > 0 && (
-            <div className="alert warn">
-              <Warning size={16} weight="fill" />
-              <ul>{d.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-            </div>
-          )}
-
-          <div className="grid cols-2">
-            <Panel title="Where it came from">
-              <dl className="kv">
-                <dt>Medicine</dt>
-                <dd>
-                  <EntityLink kind="product" id={d.product_id}>{d.product}</EntityLink>
-                  {d.schedule >= 3 && <span className="badge sched">{schedCode(d.schedule)}</span>}
-                </dd>
-                <dt>Supplier</dt>
-                <dd>
-                  {d.origin.supplier || <span className="muted">Not recorded</span>}
-                  {d.origin.supplier_phone && (
-                    <div className="muted small">{d.origin.supplier_phone}</div>
-                  )}
-                  {/* Said out loud: an inferred supplier is a guess, and the
-                      pharmacy is about to telephone it. */}
-                  {!d.origin.certain && d.origin.supplier && (
-                    <div className="muted small">
-                      Inferred from the most recent order for this medicine, not
-                      recorded against the batch.
-                    </div>
-                  )}
-                </dd>
-                <dt>Order</dt><dd className="mono">{d.origin.order_number || "none"}</dd>
-                <dt>Received</dt>
-                <dd>{d.received_at ? fmtDateTime(d.received_at) : "Not recorded"}</dd>
-                <dt>Reference</dt><dd className="mono">{d.reference || "none"}</dd>
-              </dl>
-            </Panel>
-
-            <Panel title="Where it went">
-              <dl className="kv">
-                <dt>Received</dt><dd className="num">{d.quantities.received}</dd>
-                <dt>Still on the shelf</dt><dd className="num">{d.quantities.on_shelf}</dd>
-                <dt>Traced to a patient</dt>
-                <dd className="num">{d.quantities.traced_to_a_patient}</dd>
-                <dt>Sold to a walk-in</dt>
-                <dd className="num">{d.quantities.sold_to_a_walk_in}</dd>
-                <dt>Unaccounted for</dt>
-                <dd className="num">
-                  {d.quantities.unaccounted}
-                  {d.quantities.unaccounted > 0 && (
-                    <div className="muted small">
-                      left the shelf with no batch recorded against the sale
-                    </div>
-                  )}
-                </dd>
-              </dl>
-            </Panel>
-          </div>
-
-          <Panel title="Who received it" count={d.recipients.length}
-                 empty={d.quantities.on_shelf
-                   ? "All of it is still on the shelf, which is the best possible answer."
-                   : "It left the shelf without a batch recorded against the sale, so who received it cannot be established from here."}>
-            <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
-              <table className="dt">
-                <thead>
-                  <tr><Th>Patient</Th><Th className="num">Qty</Th><Th>When</Th><Th>Reference</Th></tr>
-                </thead>
-                <tbody>
-                  {d.recipients.map((r, i) => (
-                    <tr key={`${r.sale_number}-${i}`}>
-                      <td>
-                        <EntityLink kind="patient" id={r.patient_id}>
-                          <b>{r.patient}</b>
-                        </EntityLink>
-                        <div className="muted small">
-                          {r.phone || "No telephone number on file"}
-                        </div>
-                      </td>
-                      <td className="num">{r.quantity}</td>
-                      <td>{fmtDate(r.sold_at)}</td>
-                      <td className="mono small">
-                        {r.rx_number
-                          ? <EntityLink kind="prescription" id={r.prescription_id}>
-                              {r.rx_number}
-                            </EntityLink>
-                          : <EntityLink kind="sale" id={r.sale_id}>
-                              {r.sale_number}
-                            </EntityLink>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
+      {/* The gate that stood here kept all three card headings, the ten labels
+          under them and the head of the recipients table off the screen until
+          the trace came back. A batch always came from somewhere and always
+          went somewhere; those words are written here and owe nothing to the
+          server. Only the figures beside them wait. */}
+      {d && d.warnings.length > 0 && (
+        <div className="alert warn">
+          <Warning size={16} weight="fill" />
+          <ul>{d.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+        </div>
       )}
+
+      <div className="grid cols-2">
+        <Panel title="Where it came from">
+          <dl className="kv">
+            <dt>Medicine</dt>
+            <dd>
+              <Figure ready={!!d} w="20ch">
+                {d && (
+                  <>
+                    <EntityLink kind="product" id={d.product_id}>{d.product}</EntityLink>
+                    {d.schedule >= 3 && <span className="badge sched">{schedCode(d.schedule)}</span>}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Supplier</dt>
+            <dd>
+              <Figure ready={!!d} w="18ch">
+                {d && (
+                  <>
+                    {d.origin.supplier || <span className="muted">Not recorded</span>}
+                    {d.origin.supplier_phone && (
+                      <div className="muted small">{d.origin.supplier_phone}</div>
+                    )}
+                    {/* Said out loud: an inferred supplier is a guess, and the
+                        pharmacy is about to telephone it. */}
+                    {!d.origin.certain && d.origin.supplier && (
+                      <div className="muted small">
+                        Inferred from the most recent order for this medicine, not
+                        recorded against the batch.
+                      </div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Order</dt>
+            <dd className="mono">
+              <Figure ready={!!d} w="12ch">{d && (d.origin.order_number || "none")}</Figure>
+            </dd>
+            <dt>Received</dt>
+            <dd>
+              <Figure ready={!!d} w="16ch">
+                {d && (d.received_at ? fmtDateTime(d.received_at) : "Not recorded")}
+              </Figure>
+            </dd>
+            <dt>Reference</dt>
+            <dd className="mono">
+              <Figure ready={!!d} w="12ch">{d && (d.reference || "none")}</Figure>
+            </dd>
+          </dl>
+        </Panel>
+
+        <Panel title="Where it went">
+          <dl className="kv">
+            <dt>Received</dt>
+            <dd className="num"><Figure ready={!!d} w="4ch">{d?.quantities.received}</Figure></dd>
+            <dt>Still on the shelf</dt>
+            <dd className="num"><Figure ready={!!d} w="4ch">{d?.quantities.on_shelf}</Figure></dd>
+            <dt>Traced to a patient</dt>
+            <dd className="num">
+              <Figure ready={!!d} w="4ch">{d?.quantities.traced_to_a_patient}</Figure>
+            </dd>
+            <dt>Sold to a walk-in</dt>
+            <dd className="num">
+              <Figure ready={!!d} w="4ch">{d?.quantities.sold_to_a_walk_in}</Figure>
+            </dd>
+            <dt>Unaccounted for</dt>
+            <dd className="num">
+              <Figure ready={!!d} w="4ch">
+                {d && (
+                  <>
+                    {d.quantities.unaccounted}
+                    {d.quantities.unaccounted > 0 && (
+                      <div className="muted small">
+                        left the shelf with no batch recorded against the sale
+                      </div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+      </div>
+
+      <Panel title="Who received it" count={d?.recipients.length}
+             /* Both of these sentences claim to know where the stock went,
+                which is precisely what is still being fetched, so neither is
+                offered until the trace is in hand. */
+             empty={!d ? undefined : d.quantities.on_shelf
+               ? "All of it is still on the shelf, which is the best possible answer."
+               : "It left the shelf without a batch recorded against the sale, so who received it cannot be established from here."}>
+        <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
+          <table className="dt">
+            <thead>
+              <tr><Th>Patient</Th><Th className="num">Qty</Th><Th>When</Th><Th>Reference</Th></tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={4} rows={3} secondLine={[0]}
+                         widths={["70%", "30%", "55%", "50%"]} />
+            ) : (
+              <tbody>
+                {d.recipients.map((r, i) => (
+                  <tr key={`${r.sale_number}-${i}`}>
+                    <td>
+                      <EntityLink kind="patient" id={r.patient_id}>
+                        <b>{r.patient}</b>
+                      </EntityLink>
+                      <div className="muted small">
+                        {r.phone || "No telephone number on file"}
+                      </div>
+                    </td>
+                    <td className="num">{r.quantity}</td>
+                    <td>{fmtDate(r.sold_at)}</td>
+                    <td className="mono small">
+                      {r.rx_number
+                        ? <EntityLink kind="prescription" id={r.prescription_id}>
+                            {r.rx_number}
+                          </EntityLink>
+                        : <EntityLink kind="sale" id={r.sale_id}>
+                            {r.sale_number}
+                          </EntityLink>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

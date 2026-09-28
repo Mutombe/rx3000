@@ -12,6 +12,7 @@ import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { GhostRows } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Th from "../components/Th";
@@ -105,6 +106,13 @@ export default function InvoiceDetail() {
         ? <BusyButton onClick={approve}>Approve for payment</BusyButton>
         : undefined}
     >
+      {/* The gate that stood here withheld the Lines billed heading and the
+          four column names above it until the invoice came back. Every
+          supplier invoice is billed as a line, a quantity, a unit and a
+          total, whatever the supplier put on it. The match card below stays
+          behind the answer, because an invoice with no order linked to it has
+          no such card at all and ghosting one would promise a comparison that
+          may not be coming. */}
       {d && (
         <>
           {d.status === "queried" && d.query_note && (
@@ -155,34 +163,43 @@ export default function InvoiceDetail() {
               </Panel>
             </>
           )}
-
-          <Panel title="Lines billed" count={d.items.length}
-                 empty="Only the invoice total was keyed, so there are no lines to show.">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <Th>Line</Th><Th className="num">Qty</Th>
-                  <Th className="num">Unit</Th><Th className="num">Total</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {d.items.map((i) => (
-                  <tr key={i.id}>
-                    <td>
-                      <EntityLink kind="product" id={i.product_id}>
-                        {i.description || `#${i.product_id}`}
-                      </EntityLink>
-                    </td>
-                    <td className="num">{i.quantity}</td>
-                    <td className="num">{money(i.unit_cost)}</td>
-                    <td className="num">{money(i.line_total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
         </>
       )}
+
+      <Panel title="Lines billed" count={d?.items.length}
+             /* Held back until the invoice is in hand: saying only the total
+                was keyed is a statement about how somebody entered it, which
+                nothing on an unanswered page can know. */
+             empty={d
+               ? "Only the invoice total was keyed, so there are no lines to show."
+               : undefined}>
+        <table className="dt">
+          <thead>
+            <tr>
+              <Th>Line</Th><Th className="num">Qty</Th>
+              <Th className="num">Unit</Th><Th className="num">Total</Th>
+            </tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={4} rows={3} widths={["75%", "30%", "50%", "50%"]} />
+          ) : (
+            <tbody>
+              {d.items.map((i) => (
+                <tr key={i.id}>
+                  <td>
+                    <EntityLink kind="product" id={i.product_id}>
+                      {i.description || `#${i.product_id}`}
+                    </EntityLink>
+                  </td>
+                  <td className="num">{i.quantity}</td>
+                  <td className="num">{money(i.unit_cost)}</td>
+                  <td className="num">{money(i.line_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
     </RecordPage>
   );
 }

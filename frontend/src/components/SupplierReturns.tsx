@@ -277,6 +277,8 @@ export default function SupplierReturns() {
 
       <Refreshable loading={loading} hasData={rows.length > 0}
                    skeleton={<TableSkeleton cols={6} rows={5}
+                                            headers={["Reference", "Supplier", "Why", "Value",
+                                                      "Standing", ""]}
                                             widths={["12ch", "20ch", "12ch", "10ch", "12ch", "10ch"]} />}>
         <div className="dt-scroll">
           {/* Only the columns with a known shape carry a width; the supplier

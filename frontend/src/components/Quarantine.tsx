@@ -143,8 +143,10 @@ export default function Quarantine() {
         </div>
       ) : (
       <Refreshable loading={loading} hasData={lines.length > 0}
-                   skeleton={<TableSkeleton cols={5} rows={6}
-                                            widths={["30ch", "14ch", "10ch", "12ch", "12ch"]} />}>
+                   skeleton={<TableSkeleton cols={6} rows={6}
+                                            headers={["Medicine", "Batch", "Units",
+                                                      "Value at cost", "Why, and since", ""]}
+                                            widths={["30ch", "14ch", "10ch", "12ch", "12ch", "6ch"]} />}>
         <TableSearch value={q} onChange={setQ}
                      placeholder="Find a medicine, a batch or a reason…"
                      shown={shown.length} total={lines.length} />

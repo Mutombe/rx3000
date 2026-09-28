@@ -193,6 +193,8 @@ export default function Register() {
           loading={loading}
           hasData={entries.length > 0}
           skeleton={<TableSkeleton cols={9} rows={10} rowHeight={49}
+            headers={["Date & time", "Substance", "Sched.", "Entry", "Qty",
+                      "Balance", "Patient", "Prescriber", "Reference"]}
             widths={["16ch", "18ch", "6ch", "8ch", "6ch", "8ch", "16ch", "14ch", "10ch"]} />}
         >
         {/* The controlled register: nine columns wanting 1,168px in a
@@ -268,6 +270,7 @@ export default function Register() {
         </div>
         {reprintsLoading ? (
           <TableSkeleton cols={4} rows={5} rowHeight={49}
+                         headers={["When", "Script", "By", "Why"]}
                          widths={["14ch", "12ch", "12ch", "24ch"]} />
         ) : reprintsUnknown ? (
           <div className="empty">

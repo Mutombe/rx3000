@@ -6,7 +6,7 @@ import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../components/charts";
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
-import { TableSkeleton } from "../components/Skeleton";
+import { Block, Figure, GhostRows } from "../components/Skeleton";
 import { TabStrip } from "../components/PageTabs";
 import { Printer } from "@phosphor-icons/react";
 import PageHead from "../components/PageHead";
@@ -28,35 +28,44 @@ export default function CrmReports() {
   const [params, setParams] = useSearchParams();
   const tab = (TABS.find(([t]) => t === params.get("tab"))?.[0] ?? "forecast") as Tab;
   const setTab = (t: Tab) => setParams(t === "forecast" ? {} : { tab: t }, { replace: true });
-  const [forecast, setForecast] = useState<ForecastMonth[]>([]);
+  /* Null until the tab's own request answers, and an empty array once it has.
+     These were all `[]` from the first frame, which made "no campaigns to
+     attribute yet" and "no users to report on" true statements about a request
+     that had not been sent. A report cannot say there is nothing until it has
+     been told. */
+  const [forecast, setForecast] = useState<ForecastMonth[] | null>(null);
   const [funnel, setFunnel] = useState<FunnelReport | null>(null);
-  const [owners, setOwners] = useState<OwnerReport[]>([]);
-  const [roi, setRoi] = useState<CampaignROI[]>([]);
+  const [owners, setOwners] = useState<OwnerReport[] | null>(null);
+  const [roi, setRoi] = useState<CampaignROI[] | null>(null);
   // Follows the theme, so the charts repaint rather than keeping the light hues
   // on a dark surface.
   const SERIES = useSeries();
   const toast = useToast();
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    /* A failed read sets the tab's state to an empty answer rather than
+       leaving it null, because null is "still coming" and a skeleton that
+       never resolves is the one failure nobody reports. The toast says what
+       went wrong; the tab then says it has nothing. */
     if (tab === "forecast") api.get<ForecastMonth[]>("/api/crm/reports/forecast?months=6").then(setForecast)
-      .catch((e) => toast.error(errorText(e)))
-      .finally(() => setLoading(false));
+      .catch((e) => { setForecast([]); toast.error(errorText(e)); });
     if (tab === "funnel") api.get<FunnelReport>("/api/crm/reports/funnel").then(setFunnel).catch((e) => toast.error(errorText(e)));
-    if (tab === "owners") api.get<OwnerReport[]>("/api/crm/reports/by-owner").then(setOwners).catch((e) => toast.error(errorText(e)));
-    if (tab === "campaigns") api.get<CampaignROI[]>("/api/crm/reports/campaign-roi").then(setRoi).catch((e) => toast.error(errorText(e)));
+    if (tab === "owners") api.get<OwnerReport[]>("/api/crm/reports/by-owner").then(setOwners)
+      .catch((e) => { setOwners([]); toast.error(errorText(e)); });
+    if (tab === "campaigns") api.get<CampaignROI[]>("/api/crm/reports/campaign-roi").then(setRoi)
+      .catch((e) => { setRoi([]); toast.error(errorText(e)); });
   }, [tab]);
 
   const totals = useMemo(() => ({
-    open: forecast.reduce((s, f) => s + f.open_value, 0),
-    weighted: forecast.reduce((s, f) => s + f.weighted_value, 0),
-    won: forecast.reduce((s, f) => s + f.won_value, 0),
-    deals: forecast.reduce((s, f) => s + f.deals, 0),
+    open: (forecast ?? []).reduce((s, f) => s + f.open_value, 0),
+    weighted: (forecast ?? []).reduce((s, f) => s + f.weighted_value, 0),
+    won: (forecast ?? []).reduce((s, f) => s + f.won_value, 0),
+    deals: (forecast ?? []).reduce((s, f) => s + f.deals, 0),
   }), [forecast]);
 
   const channelMix = useMemo(() => {
     const byChannel = new Map<string, number>();
-    roi.forEach((c) => byChannel.set(c.channel, (byChannel.get(c.channel) ?? 0) + c.pipeline_value));
+    (roi ?? []).forEach((c) => byChannel.set(c.channel, (byChannel.get(c.channel) ?? 0) + c.pipeline_value));
 
     /* Biggest first, and never more slices than there are colours.
        The old line took `SERIES[i % SERIES.length]`, so a seventh channel was
@@ -82,7 +91,10 @@ export default function CrmReports() {
   }, [roi, SERIES]);
 
   const worstDrop = useMemo(() => {
-    let worst = { from: "none", lost: 0 };
+    // Empty rather than "none": where no stage loses more than another the
+    // tile says so in a sentence, below, rather than printing a word that
+    // reads as the name of a stage.
+    let worst = { from: "", lost: 0 };
     funnel?.stages.forEach((s, i) => {
       if (i === 0) return;
       const lost = funnel.stages[i - 1].count - s.count;
@@ -102,7 +114,7 @@ export default function CrmReports() {
     const head = await letterhead();
     const today = new Date().toLocaleDateString();
 
-    if (tab === "forecast" && forecast.length) {
+    if (tab === "forecast" && forecast?.length) {
       printDocument(head, {
         kind: "Revenue forecast",
         meta: [
@@ -161,7 +173,7 @@ export default function CrmReports() {
       return;
     }
 
-    if (tab === "owners" && owners.length) {
+    if (tab === "owners" && owners?.length) {
       printDocument(head, {
         kind: "Performance by owner",
         meta: [
@@ -198,7 +210,7 @@ export default function CrmReports() {
       return;
     }
 
-    if (tab === "campaigns" && roi.length) {
+    if (tab === "campaigns" && roi?.length) {
       printDocument(head, {
         kind: "Campaign returns",
         meta: [
@@ -257,27 +269,44 @@ export default function CrmReports() {
 
       {tab === "forecast" && (
         <>
+          {/* SCOPED LOADING.
+           *
+           * The four labels and three of the hints are written here and are
+           * the same on every visit. They used to be drawn over a total of
+           * nought, which is worse than a skeleton: a forecast that says
+           * "Open pipeline 0" while it is still asking has told a board
+           * meeting something untrue. Only the figures wait. */}
           <div className="grid cols-4">
             <div className="card stat hero">
               <div className="label">Open pipeline</div>
-              <div className="value">{money(totals.open)}</div>
+              <div className="value">
+                <Figure ready={!!forecast} w="9ch">{money(totals.open)}</Figure>
+              </div>
               <div className="hint">next six months</div>
             </div>
             <div className="card stat">
               <div className="label">Weighted forecast</div>
-              <div className="value">{money(totals.weighted)}</div>
+              <div className="value">
+                <Figure ready={!!forecast} w="9ch">{money(totals.weighted)}</Figure>
+              </div>
               <div className="hint">
-                {totals.open ? Math.round((totals.weighted / totals.open) * 100) : 0}% of open value
+                <Figure ready={!!forecast} w="3ch">
+                  {totals.open ? Math.round((totals.weighted / totals.open) * 100) : 0}
+                </Figure>% of open value
               </div>
             </div>
             <div className="card stat">
               <div className="label">Closed won</div>
-              <div className="value">{money(totals.won)}</div>
+              <div className="value">
+                <Figure ready={!!forecast} w="9ch">{money(totals.won)}</Figure>
+              </div>
               <div className="hint">booked in period</div>
             </div>
             <div className="card stat">
               <div className="label">Deals in play</div>
-              <div className="value">{totals.deals}</div>
+              <div className="value">
+                <Figure ready={!!forecast} w="3ch">{totals.deals}</Figure>
+              </div>
               <div className="hint">with an expected close date</div>
             </div>
           </div>
@@ -291,38 +320,23 @@ export default function CrmReports() {
                 { key: "Weighted", colour: SERIES[0], dashed: true },
               ]} />
             </div>
-            <ColumnChart
-              format={compact}
-              markerLabel="weighted"
-              columns={forecast.map((f) => ({
-                label: f.month,
-                marker: f.weighted_value,
-                segments: [
-                  { key: "Closed won", value: f.won_value, colour: SERIES[0] },
-                  { key: "Open pipeline", value: f.open_value, colour: SERIES[2] },
-                ],
-              }))}
-            />
-            <table>
-              <thead><tr><Th>Month</Th><Th className="num">Deals</Th><Th className="num">Open</Th>
-                <Th className="num">Weighted</Th><Th className="num">Won</Th><Th className="num">Coverage</Th></tr></thead>
-              <tbody>
-                {forecast.map((f) => (
-                  <tr key={f.month}>
-                    <td><b>{f.month}</b></td>
-                    <td className="num">{f.deals}</td>
-                    <td className="num">{money(f.open_value)}</td>
-                    <td className="num">{money(f.weighted_value)}</td>
-                    <td className="num">{money(f.won_value)}</td>
-                    <td className="num">
-                      {f.weighted_value ? `${Math.round((f.open_value / f.weighted_value) * 10) / 10}×` : "none"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {loading && forecast.length === 0 && <TableSkeleton cols={6} rows={6} rowHeight={45} />}
-            {!loading && forecast.length === 0 && (
+            {/* Three arms, in this order: the plot area and the ghost rows
+                while the months are still coming, the empty answer once they
+                have come and there are none, and the report itself. The head
+                is written a few lines down, so it is drawn for real either
+                way and a reader waiting on a slow answer can at least see
+                what they are waiting for. */}
+            {!forecast ? (
+              <>
+                <Block h={230} round="md" />
+                <table>
+                  <thead><tr><Th>Month</Th><Th className="num">Deals</Th><Th className="num">Open</Th>
+                    <Th className="num">Weighted</Th><Th className="num">Won</Th><Th className="num">Coverage</Th></tr></thead>
+                  <GhostRows cols={6} rows={6} rowHeight={45}
+                             widths={["10ch", "4ch", "9ch", "9ch", "9ch", "5ch"]} />
+                </table>
+              </>
+            ) : forecast.length === 0 ? (
               <div className="empty">
                 <b>No dated opportunities to forecast</b>
                 <p>
@@ -330,33 +344,91 @@ export default function CrmReports() {
                   Give the open ones a date and they will appear here.
                 </p>
               </div>
+            ) : (
+              <>
+                <ColumnChart
+                  format={compact}
+                  markerLabel="weighted"
+                  columns={forecast.map((f) => ({
+                    label: f.month,
+                    marker: f.weighted_value,
+                    segments: [
+                      { key: "Closed won", value: f.won_value, colour: SERIES[0] },
+                      { key: "Open pipeline", value: f.open_value, colour: SERIES[2] },
+                    ],
+                  }))}
+                />
+                <table>
+                  <thead><tr><Th>Month</Th><Th className="num">Deals</Th><Th className="num">Open</Th>
+                    <Th className="num">Weighted</Th><Th className="num">Won</Th><Th className="num">Coverage</Th></tr></thead>
+                  <tbody>
+                    {forecast.map((f) => (
+                      <tr key={f.month}>
+                        <td><b>{f.month}</b></td>
+                        <td className="num">{f.deals}</td>
+                        <td className="num">{money(f.open_value)}</td>
+                        <td className="num">{money(f.weighted_value)}</td>
+                        <td className="num">{money(f.won_value)}</td>
+                        <td className="num">
+                          {f.weighted_value
+                            ? `${Math.round((f.open_value / f.weighted_value) * 10) / 10}×`
+                            : "nothing weighted"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
             )}
           </div>
         </>
       )}
 
-      {tab === "funnel" && funnel && (
+      {tab === "funnel" && (
         <>
+          {/* The three labels, the hints and the panel heading below are all
+              written here. They used to sit behind `funnel &&`, so this tab
+              opened as a blank page and then dropped a whole screen into
+              place at once. */}
           <div className="grid cols-3">
             <div className="card stat hero">
               <div className="label">Lead → customer</div>
-              <div className="value">{funnel.lead_to_customer_rate}%</div>
+              <div className="value">
+                <Figure ready={!!funnel} w="4ch">
+                  {funnel && `${funnel.lead_to_customer_rate}%`}
+                </Figure>
+              </div>
               <div className="hint">end-to-end conversion</div>
             </div>
             <div className="card stat">
               <div className="label">Disqualified</div>
-              <div className="value">{funnel.disqualified}</div>
+              <div className="value">
+                <Figure ready={!!funnel} w="3ch">{funnel?.disqualified}</Figure>
+              </div>
               <div className="hint">removed before conversion</div>
             </div>
             <div className="card stat">
               <div className="label">Biggest drop-off</div>
-              <div className="value" style={{ fontSize: 22 }}>{worstDrop.from}</div>
-              <div className="hint">{worstDrop.lost} lost at this step</div>
+              {/* A stage name rather than a number, so the block that stands
+                  in for it is the width of a stage name. */}
+              <div className="value" style={{ fontSize: 22 }}>
+                <Figure ready={!!funnel} w="12ch">
+                  {funnel && (worstDrop.from
+                    ? worstDrop.from
+                    : <span className="muted">No stage loses more than another</span>)}
+                </Figure>
+              </div>
+              <div className="hint">
+                <Figure ready={!!funnel} w="3ch">{funnel && worstDrop.lost}</Figure>
+                {" "}lost at this step
+              </div>
             </div>
           </div>
           <div className="card">
             <div className="card-head"><h3>Conversion funnel</h3></div>
-            <FunnelChart stages={funnel.stages} />
+            {funnel
+              ? <FunnelChart stages={funnel.stages} />
+              : <Block h={220} round="md" />}
           </div>
         </>
       )}
@@ -375,28 +447,45 @@ export default function CrmReports() {
                 than left to the stylesheet. That mismatch is what made these
                 charts look wrong: the key said blue and green, the bars were
                 black and pink. */}
-            <BarList
-              format={money}
-              colours={[SERIES[0], SERIES[2]]}
-              labels={["Open pipeline", "Closed won"]}
-              rows={owners.map((o) => ({
-                label: o.name,
-                sub: `${o.role} · ${o.open_deals} open · ${o.win_rate}% win rate`,
-                primary: o.pipeline_value,
-                secondary: o.won_value,
-              }))}
-            />
-            {owners.length === 0 && <div className="empty">No users to report on</div>}
+            {/* "No users to report on" was reachable before the request had
+                answered, which told a sales manager their team did not exist.
+                Ghost, then the empty answer, then the bars. */}
+            {!owners ? (
+              <Block h={180} round="md" />
+            ) : owners.length === 0 ? (
+              <div className="empty">No users to report on</div>
+            ) : (
+              <BarList
+                format={money}
+                colours={[SERIES[0], SERIES[2]]}
+                labels={["Open pipeline", "Closed won"]}
+                rows={owners.map((o) => ({
+                  label: o.name,
+                  sub: `${o.role} · ${o.open_deals} open · ${o.win_rate}% win rate`,
+                  primary: o.pipeline_value,
+                  secondary: o.won_value,
+                }))}
+              />
+            )}
           </div>
 
           <div className="card">
             <div className="card-head"><h3>Workload &amp; quality</h3></div>
+            {/* Nine column names, every one of them written here, so the head
+                is real and the rows alone are ghosted. A rep's name carries
+                their role underneath, so that column ghosts with a second
+                line or the table lifts when the people land. */}
             <table>
               <thead>
                 <tr><Th>Rep</Th><Th className="num">Open deals</Th><Th className="num">Pipeline</Th>
                   <Th className="num">Weighted</Th><Th className="num">Won</Th><Th className="num">Win rate</Th>
                   <Th className="num">Leads</Th><Th className="num">Cases</Th><Th className="num">Overdue</Th></tr>
               </thead>
+              {!owners ? (
+                <GhostRows cols={9} rows={4} secondLine={[0]}
+                           widths={["16ch", "4ch", "9ch", "9ch", "9ch",
+                                    "5ch", "4ch", "4ch", "4ch"]} />
+              ) : (
               <tbody>
                 {owners.map((o) => (
                   <tr key={o.user_id}>
@@ -414,6 +503,7 @@ export default function CrmReports() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
           </div>
         </>
@@ -424,8 +514,12 @@ export default function CrmReports() {
           <div className="grid cols-2">
             <div className="card">
               <div className="card-head"><h3>Pipeline sourced by channel</h3></div>
-              <Donut slices={channelMix} format={compact}
-                     empty="No attributed pipeline yet. Campaigns have not sourced a deal." />
+              {/* The donut's own empty sentence is an answer about the
+                  campaigns, so it waits until the campaigns have been read. */}
+              {roi
+                ? <Donut slices={channelMix} format={compact}
+                         empty="No attributed pipeline yet. Campaigns have not sourced a deal." />
+                : <Block w={168} h={168} round="pill" />}
             </div>
             <div className="card">
               <div className="card-head">
@@ -436,18 +530,23 @@ export default function CrmReports() {
                   { key: "Closed won", colour: SERIES[2] },
                 ]} />
               </div>
-              <BarList
-                format={money}
-                colours={[SERIES[0], SERIES[2]]}
-                labels={["Pipeline sourced", "Closed won"]}
-                rows={roi.map((c) => ({
-                  label: c.name,
-                  sub: `${c.channel.toUpperCase()} · ${c.sent} sent · ${c.response_rate}% response`,
-                  primary: c.pipeline_value,
-                  secondary: c.won_value,
-                }))}
-              />
-              {roi.length === 0 && <div className="empty">No campaigns to attribute yet</div>}
+              {!roi ? (
+                <Block h={180} round="md" />
+              ) : roi.length === 0 ? (
+                <div className="empty">No campaigns to attribute yet</div>
+              ) : (
+                <BarList
+                  format={money}
+                  colours={[SERIES[0], SERIES[2]]}
+                  labels={["Pipeline sourced", "Closed won"]}
+                  rows={roi.map((c) => ({
+                    label: c.name,
+                    sub: `${c.channel.toUpperCase()} · ${c.sent} sent · ${c.response_rate}% response`,
+                    primary: c.pipeline_value,
+                    secondary: c.won_value,
+                  }))}
+                />
+              )}
             </div>
           </div>
 
@@ -459,6 +558,13 @@ export default function CrmReports() {
                   <Th className="num">Response</Th><Th className="num">Converted</Th><Th className="num">Opportunities</Th>
                   <Th className="num">Pipeline</Th><Th className="num">Won</Th></tr>
               </thead>
+              {!roi ? (
+                /* A campaign carries its segment underneath, so that column
+                   ghosts with a second line. */
+                <GhostRows cols={9} rows={4} secondLine={[0]}
+                           widths={["18ch", "6ch", "5ch", "4ch", "5ch",
+                                    "5ch", "5ch", "9ch", "9ch"]} />
+              ) : (
               <tbody>
                 {roi.map((c) => (
                   <tr key={c.campaign_id}>
@@ -474,6 +580,7 @@ export default function CrmReports() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
           </div>
         </>

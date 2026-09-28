@@ -115,6 +115,7 @@ export default function Reminders() {
           loading={loading}
           hasData={messages.length > 0}
           skeleton={<TableSkeleton cols={6} rows={9} rowHeight={49}
+            headers={["Patient", "Type", "Channel", "Message", "Status", "When"]}
             widths={["18ch", "10ch", "8ch", "26ch", "10ch", "12ch"]} />}
         >
         <table>

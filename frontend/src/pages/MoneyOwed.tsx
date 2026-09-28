@@ -18,7 +18,7 @@ import { TableSearch, useSearch } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
-import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows, Refreshable } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
@@ -224,29 +224,108 @@ export default function MoneyOwed() {
 
       {failed && <div className="alert error">{failed}</div>}
 
-      {data && (
-        <div className="wc-bands">
-          <div className="wl-stat">
-            <b>{money(data.total_owed)}</b><span>Owed to the pharmacy</span>
-          </div>
-          <div className="wl-stat">
-            <b>{data.patients}</b><span>patient{data.patients === 1 ? "" : "s"}</span>
-          </div>
-          <button
-            className={`wl-stat${stale.length ? " wc-stale" : ""}`
-                       + (olderThan ? " is-on" : "")}
-            onClick={() => setOlderThan(olderThan ? 0 : 30)}
-            title={olderThan
-              ? "Show everything owed again"
-              : "Show only what has been owed longer than a month"}>
-            <b>{money(stale.reduce((s, r) => s + r.balance, 0))}</b>
-            <span>Owing more than a month</span>
-          </button>
+      {/* SCOPED LOADING.
+       *
+       * The three bands sat behind `data &&`, so a debtors' screen opened with
+       * nothing on it at all: not the figures, which nobody could know yet,
+       * but "Owed to the pharmacy" and "Owing more than a month", which are
+       * written here and are the same words every morning. The month filter is
+       * one of those bands, so it disappeared with them and the one control
+       * that narrows this list was missing exactly while somebody was waiting
+       * for the list.
+       *
+       * The words stay. The figures pulse, and the button is simply inert
+       * until there is something to filter. */}
+      <div className="wc-bands">
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="9ch">{data && money(data.total_owed)}</Figure></b>
+          <span>Owed to the pharmacy</span>
         </div>
-      )}
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="3ch">{data?.patients}</Figure></b>
+          {/* Said in the plural until the count is in. Guessing "patient" or
+              "patients" from a nought would be guessing the answer. */}
+          <span>patient{data && data.patients === 1 ? "" : "s"}</span>
+        </div>
+        <button
+          className={`wl-stat${data && stale.length ? " wc-stale" : ""}`
+                     + (olderThan ? " is-on" : "")}
+          disabled={!data}
+          onClick={() => setOlderThan(olderThan ? 0 : 30)}
+          title={olderThan
+            ? "Show everything owed again"
+            : "Show only what has been owed longer than a month"}>
+          <b>
+            <Figure ready={!!data} w="9ch">
+              {data && money(stale.reduce((s, r) => s + r.balance, 0))}
+            </Figure>
+          </b>
+          <span>Owing more than a month</span>
+        </button>
+      </div>
 
       <div className="card">
-        {rows.length === 0 && !failed ? (
+        {/* The search box and its placeholder are written here, so they are on
+            screen from the first frame and hold the row the table hangs
+            beneath. "Nobody owes the pharmacy anything" used to be reachable
+            the instant the page opened, before a single sale had been counted,
+            which told the one person chasing debts that there were none. It is
+            now the last arm of three: ghost, then empty, then the real list. */}
+        {data ? (
+          <TableSearch value={q} onChange={setQ}
+                       placeholder="Find a patient, a phone number or a sale…"
+                       shown={shown.length} total={rows.length} />
+        ) : (
+          /* The same row, in the same place, because the box and its
+             placeholder are written here and somebody can start typing a name
+             before the list lands. The only part of it that is an answer is
+             the count on the right, and `TableSearch` can only print a number,
+             so while there is no answer the count pulses instead of saying
+             nought. Nought would be a claim about the debtors' book. */
+          <div className="dt-filters">
+            <input type="search" className="filter-search" value={q}
+                   placeholder="Find a patient, a phone number or a sale…"
+                   onChange={(e) => setQ(e.target.value)} />
+            <span className="dt-count muted">
+              <Figure ready={false} w="3ch">{null}</Figure>
+            </span>
+          </div>
+        )}
+        {/* Said where the list is, not only on the tile, because what is on
+            screen is now a part of what is owed and everything below reads
+            differently for it. */}
+        {olderThan > 0 && (
+          <p className="muted small">
+            Showing the {rows.length} owed longer than a month, of{" "}
+            {all.length}.{" "}
+            <button className="linkish" onClick={() => setOlderThan(0)}>
+              Show everything owed
+            </button>
+          </p>
+        )}
+        {!data && failed ? (
+          /* A skeleton that never resolves is the one failure nobody reports,
+             because it looks like patience is all it needs. The alert above
+             has already said what went wrong, so this simply stops pulsing. */
+          <p className="muted small">
+            Nothing can be listed here until what is owed can be read again.
+          </p>
+        ) : !data ? (
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Patient</Th><Th>Sale</Th><Th>Since</Th>
+                <Th className="num">Sale</Th><Th className="num">Paid</Th>
+                <Th className="num">Owed</Th><th className="actions" />
+              </tr>
+            </thead>
+            {/* A patient carries their telephone number underneath and a date
+                carries how many days ago it was, so those two ghost with a
+                second line or the table lifts when the rows land. */}
+            <GhostRows cols={7} rows={5} secondLine={[0, 2]}
+                       widths={["18ch", "10ch", "10ch", "8ch", "8ch", "8ch", "7ch"]} />
+          </table>
+        ) : rows.length === 0 ? (
           <div className="empty">
             <b>Nobody owes the pharmacy anything.</b>
             <p>
@@ -255,27 +334,10 @@ export default function MoneyOwed() {
             </p>
           </div>
         ) : (
-          <Refreshable
-            loading={loading}
-            hasData={!!data?.items?.length}
-            skeleton={<TableSkeleton cols={7} rows={5}
-              widths={["20ch", "12ch", "10ch", "10ch", "10ch", "10ch", "10ch"]} />}
-          >
-          <TableSearch value={q} onChange={setQ}
-                       placeholder="Find a patient, a phone number or a sale…"
-                       shown={shown.length} total={rows.length} />
-          {/* Said where the list is, not only on the tile, because what is on
-              screen is now a part of what is owed and everything below reads
-              differently for it. */}
-          {olderThan > 0 && (
-            <p className="muted small">
-              Showing the {rows.length} owed longer than a month, of{" "}
-              {all.length}.{" "}
-              <button className="linkish" onClick={() => setOlderThan(0)}>
-                Show everything owed
-              </button>
-            </p>
-          )}
+          /* The previous list stays put while the next one loads: a debtors'
+             table that blanks itself on every refresh reads as the money
+             having been collected. */
+          <Refreshable loading={loading} hasData skeleton={null}>
           <table className="dt">
             <thead>
               <tr>

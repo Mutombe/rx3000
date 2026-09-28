@@ -20,6 +20,7 @@ import { CheckCircle, Warning, XCircle } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -190,142 +191,183 @@ export default function DispensingDetail() {
           tone: incomplete ? "bad" : undefined },
       ] : undefined}
     >
-      {d && (
-        <>
-          {/* Not collected is the state that costs money and nobody sees. The
-              stock is off the shelf, the patient is not taking it, and on a
-              scheme script a claim has been made for something never received. */}
-          {!d.collected_at && (
-            <div className={`alert ${(d.days_waiting ?? 0) > 14 ? "error" : "warn"}`}>
-              <Warning size={16} weight="fill" />{" "}
-              Still on the will-call shelf
-              {d.days_waiting !== null && `: ${d.days_waiting} day${
-                d.days_waiting === 1 ? "" : "s"} now`}
-              . The stock is out of circulation and the patient is not taking it.
-            </div>
-          )}
+      {/* The gate that stood here withheld both card headings, the nine
+          labels under them, the wording of every compliance check and the
+          head of the sibling table until the dispensing came back. A handover
+          record asks the same questions of every dispensing, scheduled or
+          not, and that is the whole reason this block never disappears when
+          it is empty. Withholding the questions while the answers load was
+          the same fault in a smaller form. Only the answers pulse now. */}
 
-          {incomplete && (
-            // Said out loud rather than left for somebody to infer from two
-            // red crosses. A scheduled item handed over without the checks is
-            // exactly what an inspection is looking for.
-            <div className="alert error">
-              <Warning size={16} weight="fill" />{" "}
-              This is a schedule {d.schedule} item and the handover record is
-              incomplete.
-            </div>
-          )}
+      {/* Not collected is the state that costs money and nobody sees. The
+          stock is off the shelf, the patient is not taking it, and on a
+          scheme script a claim has been made for something never received. */}
+      {d && !d.collected_at && (
+        <div className={`alert ${(d.days_waiting ?? 0) > 14 ? "error" : "warn"}`}>
+          <Warning size={16} weight="fill" />{" "}
+          Still on the will-call shelf
+          {d.days_waiting !== null && `: ${d.days_waiting} day${
+            d.days_waiting === 1 ? "" : "s"} now`}
+          . The stock is out of circulation and the patient is not taking it.
+        </div>
+      )}
 
-          <div className="grid cols-2">
-            <Panel title="What was handed over">
-              <dl className="kv">
-                <dt>Medicine</dt>
-                <dd>
-                  {d.product
-                    ? <EntityLink kind="product" id={d.product.id}>
-                        {d.product.name}
-                      </EntityLink>
-                    : "none"}
-                  {d.product?.form && (
-                    <span className="muted"> · {d.product.form}</span>
-                  )}
-                  {(d.product?.schedule ?? 0) > 0 && (
-                    <span className="badge warn"> {schedCode(d.product!.schedule)}</span>
-                  )}
-                </dd>
-                <dt>Quantity</dt><dd>{d.quantity}</dd>
-                <dt>Directions</dt>
-                <dd className="wrap">
-                  {d.directions || <span className="muted">None recorded</span>}
-                </dd>
-                <dt>Diagnosis</dt>
-                <dd className="mono">
-                  {d.icd10_code || <span className="muted">None</span>}
-                </dd>
-                <dt>Patient</dt>
-                <dd>
-                  {d.patient.id
-                    ? <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
-                    : d.patient.name}
-                  {d.patient.phone && (
-                    <div className="muted small">{d.patient.phone}</div>
-                  )}
-                </dd>
-                <dt>Script</dt>
-                <dd>
-                  {d.prescription ? (
-                    <>
-                      <EntityLink kind="prescription" id={d.prescription.id}>
-                        {d.prescription.number || `#${d.prescription.id}`}
-                      </EntityLink>
-                      {d.prescription.date && (
-                        <span className="muted"> · {fmtDate(d.prescription.date)}</span>
-                      )}
-                      {d.prescription.doctor && (
-                        <div className="muted small">
-                          {d.prescription.doctor_id
-                            ? <EntityLink kind="prescriber" id={d.prescription.doctor_id}><Person name={d.prescription.doctor} /></EntityLink>
-                            : d.prescription.doctor}
-                        </div>
-                      )}
-                    </>
-                  ) : <span className="muted">None</span>}
-                </dd>
-                {d.sale && (
+      {d && incomplete && (
+        // Said out loud rather than left for somebody to infer from two
+        // red crosses. A scheduled item handed over without the checks is
+        // exactly what an inspection is looking for.
+        <div className="alert error">
+          <Warning size={16} weight="fill" />{" "}
+          This is a schedule {d.schedule} item and the handover record is
+          incomplete.
+        </div>
+      )}
+
+      <div className="grid cols-2">
+        <Panel title="What was handed over">
+          <dl className="kv">
+            <dt>Medicine</dt>
+            <dd>
+              <Figure ready={!!d} w="20ch">
+                {d && (
                   <>
-                    <dt>Sale</dt>
-                    <dd>
-                      <EntityLink kind="sale" id={d.sale.id}>
-                        {d.sale.number}
-                      </EntityLink>{" "}
-                      <span className={`badge ${
-                        d.sale.status === "paid" ? "ok"
-                          : d.sale.status === "void" ? "bad" : "warn"}`}>
-                        {d.sale.status}
-                      </span>
-                    </dd>
+                    {d.product
+                      ? <EntityLink kind="product" id={d.product.id}>
+                          {d.product.name}
+                        </EntityLink>
+                      : "none"}
+                    {d.product?.form && (
+                      <span className="muted"> · {d.product.form}</span>
+                    )}
+                    {(d.product?.schedule ?? 0) > 0 && (
+                      <span className="badge warn"> {schedCode(d.product!.schedule)}</span>
+                    )}
                   </>
                 )}
-              </dl>
-            </Panel>
+              </Figure>
+            </dd>
+            <dt>Quantity</dt>
+            <dd><Figure ready={!!d} w="4ch">{d?.quantity}</Figure></dd>
+            <dt>Directions</dt>
+            <dd className="wrap">
+              <Figure ready={!!d} w="30ch">
+                {d && (d.directions || <span className="muted">None recorded</span>)}
+              </Figure>
+            </dd>
+            <dt>Diagnosis</dt>
+            <dd className="mono">
+              <Figure ready={!!d} w="8ch">
+                {d && (d.icd10_code || <span className="muted">None</span>)}
+              </Figure>
+            </dd>
+            <dt>Patient</dt>
+            <dd>
+              <Figure ready={!!d} w="18ch">
+                {d && (
+                  <>
+                    {d.patient.id
+                      ? <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
+                      : d.patient.name}
+                    {d.patient.phone && (
+                      <div className="muted small">{d.patient.phone}</div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Script</dt>
+            <dd>
+              <Figure ready={!!d} w="14ch">
+                {d && (d.prescription ? (
+                  <>
+                    <EntityLink kind="prescription" id={d.prescription.id}>
+                      {d.prescription.number || `#${d.prescription.id}`}
+                    </EntityLink>
+                    {d.prescription.date && (
+                      <span className="muted"> · {fmtDate(d.prescription.date)}</span>
+                    )}
+                    {d.prescription.doctor && (
+                      <div className="muted small">
+                        {d.prescription.doctor_id
+                          ? <EntityLink kind="prescriber" id={d.prescription.doctor_id}><Person name={d.prescription.doctor} /></EntityLink>
+                          : d.prescription.doctor}
+                      </div>
+                    )}
+                  </>
+                ) : <span className="muted">None</span>)}
+              </Figure>
+            </dd>
+            {d?.sale && (
+              <>
+                <dt>Sale</dt>
+                <dd>
+                  <EntityLink kind="sale" id={d.sale.id}>
+                    {d.sale.number}
+                  </EntityLink>{" "}
+                  <span className={`badge ${
+                    d.sale.status === "paid" ? "ok"
+                      : d.sale.status === "void" ? "bad" : "warn"}`}>
+                    {d.sale.status}
+                  </span>
+                </dd>
+              </>
+            )}
+          </dl>
+        </Panel>
 
-            <Panel
-              title="The record"
-              aside={<span className="muted small">
-                {controlled
-                  ? "A scheduled item. This is the legal record"
-                  : "Kept on every dispensing, so a gap reads as a gap"}
-              </span>}
-            >
-              <dl className="kv">
-                <dt>Dispensed by</dt>
-                <dd>
-                  {d.dispensed_by_id
-                    ? <EntityLink kind="staff" id={d.dispensed_by_id}>
-                        {d.dispensed_by || "none"}
-                      </EntityLink>
-                    : d.dispensed_by || <span className="muted">None</span>}
-                  {d.pharmacist_initial && (
-                    <span className="muted"> · initialled {d.pharmacist_initial}</span>
-                  )}
-                </dd>
-                <dt>When</dt><dd>{fmtDateTime(d.dispensed_at)}</dd>
-                <dt>Collected</dt>
-                <dd>
-                  {d.collected_at ? (
-                    <>
-                      {fmtDateTime(d.collected_at)}
-                      {d.collected_name && (
-                        <div className="muted small">
-                          Taken by {d.collected_name}
-                          {d.collected_by && ` · released by ${d.collected_by}`}
-                        </div>
-                      )}
-                    </>
-                  ) : <span className="muted">Still on the shelf</span>}
-                </dd>
-              </dl>
-              <ul className="plain-list">
+        <Panel
+          title="The record"
+          // Which of the two sentences applies depends on the schedule, so
+          // it waits rather than guessing and telling somebody this is not
+          // the legal record when it is.
+          aside={d ? <span className="muted small">
+            {controlled
+              ? "A scheduled item. This is the legal record"
+              : "Kept on every dispensing, so a gap reads as a gap"}
+          </span> : undefined}
+        >
+          <dl className="kv">
+            <dt>Dispensed by</dt>
+            <dd>
+              <Figure ready={!!d} w="16ch">
+                {d && (
+                  <>
+                    {d.dispensed_by_id
+                      ? <EntityLink kind="staff" id={d.dispensed_by_id}>
+                          {d.dispensed_by || "none"}
+                        </EntityLink>
+                      : d.dispensed_by || <span className="muted">None</span>}
+                    {d.pharmacist_initial && (
+                      <span className="muted"> · initialled {d.pharmacist_initial}</span>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>When</dt>
+            <dd>
+              <Figure ready={!!d} w="16ch">{d && fmtDateTime(d.dispensed_at)}</Figure>
+            </dd>
+            <dt>Collected</dt>
+            <dd>
+              <Figure ready={!!d} w="16ch">
+                {d && (d.collected_at ? (
+                  <>
+                    {fmtDateTime(d.collected_at)}
+                    {d.collected_name && (
+                      <div className="muted small">
+                        Taken by {d.collected_name}
+                        {d.collected_by && ` · released by ${d.collected_by}`}
+                      </div>
+                    )}
+                  </>
+                ) : <span className="muted">Still on the shelf</span>)}
+              </Figure>
+            </dd>
+          </dl>
+          <ul className="plain-list">
+            {d ? (
+              <>
                 {d.scan_verified !== undefined && (
                   <Checked ok={!!d.scan_verified}>
                     Pack scanned against the script{d.scan_code && `: ${d.scan_code}`}
@@ -336,93 +378,115 @@ export default function DispensingDetail() {
                 <Checked ok={d.id_verified}>
                   Identity checked{d.id_number_seen && `: ${d.id_number_seen}`}
                 </Checked>
-              </ul>
-              {d.compliance_notes && (
-                <p className="prose">{d.compliance_notes}</p>
-              )}
+              </>
+            ) : (
+              /* The points themselves are written here, so they are read
+                 while the answers come. The mark is not: a red cross drawn
+                 before the server has said anything would report a failed
+                 check on a record nobody has looked at. */
+              ["Original script sighted", "Prescriber verified",
+               "Identity checked"].map((point) => (
+                <li key={point}>
+                  <Figure ready={false} w="2ch">{null}</Figure>{" "}
+                  <span>{point}</span>
+                </li>
+              ))
+            )}
+          </ul>
+          {d?.compliance_notes && (
+            <p className="prose">{d.compliance_notes}</p>
+          )}
 
               {/* What the patient was told. Every point is listed, covered or
                   not, so a record with nothing ticked reads as nothing covered
                   rather than as a section somebody has to notice is absent. */}
-              {d.counselling && (
-                <div className="dd-counsel">
-                  <h4>
-                    Counselling
-                    <span className="muted">
-                      {d.counselling.some((p) => p.covered)
-                        ? (d.counselled_by ? ` · recorded by ${d.counselled_by}` : "")
-                        : " · none recorded"}
-                    </span>
-                  </h4>
-                  <ul className="plain-list">
-                    {d.counselling.map((p) => (
-                      <Checked key={p.key} ok={p.covered}>{p.label}</Checked>
-                    ))}
-                  </ul>
-                  {d.counselling_notes && <p className="prose">{d.counselling_notes}</p>}
-                </div>
-              )}
-            </Panel>
-          </div>
-
-          {d.repeat && (
-            <Panel
-              title="Where this sits in the repeat"
-              aside={<Link className="btn ghost sm"
-                           to={`/repeats/${d.repeat.item_id}`}>
-                Open the repeat
-              </Link>}
-            >
-              <p className="muted">
-                Fill {d.repeat.used} of {d.repeat.allowed}
-                {d.repeat.left > 0
-                  ? `, ${d.repeat.left} left`
-                  : ", the last one on this script"}
-                {d.repeat.next_due && ` · next due ${fmtDate(d.repeat.next_due)}`}
-                {d.repeat.interval_days
-                  ? ` · every ${d.repeat.interval_days} days`
-                  : ""}
-              </p>
-            </Panel>
-          )}
-
-          <Panel
-            title="The rest of this script"
-            count={d.siblings.length}
-            empty="Nothing else was dispensed against this script."
-            aside={<span className="muted small">
-              {/* A bag with one of three items in it is a different thing from
-                  a finished script, and only this says which. */}
-              So a bag is not handed over while its other half stays on the shelf
-            </span>}
-          >
-            <div className="dt-scroll">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Medicine</Th><Th className="num">Qty</Th>
-                    <Th>Dispensed</Th><Th>Collected</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.siblings.map((s) => (
-                    <tr key={s.id}>
-                      <td><Link to={`/dispensings/${s.id}`}>{s.product}</Link></td>
-                      <td className="num">{s.quantity}</td>
-                      <td>{fmtDateTime(s.dispensed_at)}</td>
-                      <td>
-                        {s.collected_at
-                          ? fmtDate(s.collected_at)
-                          : <span className="badge warn">On the shelf</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {d?.counselling && (
+            <div className="dd-counsel">
+              <h4>
+                Counselling
+                <span className="muted">
+                  {d.counselling.some((p) => p.covered)
+                    ? (d.counselled_by ? ` · recorded by ${d.counselled_by}` : "")
+                    : " · none recorded"}
+                </span>
+              </h4>
+              <ul className="plain-list">
+                {d.counselling.map((p) => (
+                  <Checked key={p.key} ok={p.covered}>{p.label}</Checked>
+                ))}
+              </ul>
+              {d.counselling_notes && <p className="prose">{d.counselling_notes}</p>}
             </div>
-          </Panel>
-        </>
+          )}
+        </Panel>
+      </div>
+
+      {/* Most dispensings are not on a repeat, so this card is not part of
+          the frame and has nothing to hold open. */}
+      {d?.repeat && (
+        <Panel
+          title="Where this sits in the repeat"
+          aside={<Link className="btn ghost sm"
+                       to={`/repeats/${d.repeat.item_id}`}>
+            Open the repeat
+          </Link>}
+        >
+          <p className="muted">
+            Fill {d.repeat.used} of {d.repeat.allowed}
+            {d.repeat.left > 0
+              ? `, ${d.repeat.left} left`
+              : ", the last one on this script"}
+            {d.repeat.next_due && ` · next due ${fmtDate(d.repeat.next_due)}`}
+            {d.repeat.interval_days
+              ? ` · every ${d.repeat.interval_days} days`
+              : ""}
+          </p>
+        </Panel>
       )}
+
+      <Panel
+        title="The rest of this script"
+        count={d?.siblings.length}
+        /* The one thing this card exists to say is whether the rest of the
+           bag is still on the shelf, so it must not say "nothing else" until
+           it has been told. */
+        empty={d ? "Nothing else was dispensed against this script." : undefined}
+        aside={<span className="muted small">
+          {/* A bag with one of three items in it is a different thing from
+              a finished script, and only this says which. */}
+          So a bag is not handed over while its other half stays on the shelf
+        </span>}
+      >
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Medicine</Th><Th className="num">Qty</Th>
+                <Th>Dispensed</Th><Th>Collected</Th>
+              </tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={4} rows={3}
+                         widths={["75%", "30%", "60%", "50%"]} />
+            ) : (
+              <tbody>
+                {d.siblings.map((s) => (
+                  <tr key={s.id}>
+                    <td><Link to={`/dispensings/${s.id}`}>{s.product}</Link></td>
+                    <td className="num">{s.quantity}</td>
+                    <td>{fmtDateTime(s.dispensed_at)}</td>
+                    <td>
+                      {s.collected_at
+                        ? fmtDate(s.collected_at)
+                        : <span className="badge warn">On the shelf</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

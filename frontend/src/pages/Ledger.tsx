@@ -237,6 +237,7 @@ export default function Ledger() {
           loading={loading}
           hasData={!!tb?.lines.length}
           skeleton={<TableSkeleton cols={6} rows={8}
+            headers={["Code", "Account", "Type", "Debit", "Credit", "Balance"]}
             widths={["6ch", "22ch", "10ch", "10ch", "10ch", "10ch"]} />}
         >
           <div className="dt-scroll">
@@ -287,7 +288,9 @@ export default function Ledger() {
         <Refreshable
           loading={loading}
           hasData={entries.length > 0}
-          skeleton={<TableSkeleton cols={6} rows={8} />}
+          skeleton={<TableSkeleton cols={6} rows={8}
+            headers={["Reference", "Date", "Period", "Description", "Source",
+                      "Total"]} />}
         >
           <div className="dt-scroll">
             <table className="dt">

@@ -79,8 +79,10 @@ export default function ProductDispensings({ productId }: { productId: number })
       <Refreshable
         loading={loading}
         hasData={rows.length > 0}
-        skeleton={<TableSkeleton cols={5} rows={6}
-                                 widths={["16ch", "22ch", "14ch", "8ch", "18ch"]} />}
+        skeleton={<TableSkeleton cols={6} rows={6}
+                                 headers={["When", "Patient", "Script", "Units",
+                                           "Dispensed by", "Paid"]}
+                                 widths={["16ch", "22ch", "14ch", "8ch", "18ch", "10ch"]} />}
       >
         {!loading && rows.length === 0 ? (
           <p className="muted">This medicine has never been dispensed.</p>

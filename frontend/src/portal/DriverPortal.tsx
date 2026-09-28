@@ -24,7 +24,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiBase } from "../api";
-import { PortalApp, PortalBy, PortalDoor, PortalGone, PortalLoading,
+import { Block } from "../components/Skeleton";
+import { PortalApp, PortalBy, PortalDoor, PortalGone,
   PortalMark, PortalNav, PortalNone, useBrand, usePortalPass } from "./PortalShell";
 import SignaturePad from "./SignaturePad";
 import "./portal.css";
@@ -95,7 +96,51 @@ export default function DriverPortal() {
       />
     );
   }
-  if (!run) return <PortalLoading brand={brand} />;
+  /* THE ROUND ARRIVES INTO A SCREEN, NOT INSTEAD OF ONE.
+   *
+   * This returned a centred spinner reading "Fetching this from the
+   * pharmacy...", so a driver who had just typed their code correctly was
+   * shown a card with no bar, no tabs and nothing they could act on, and then
+   * a different screen. By this point the shell is entirely known: the
+   * pharmacy's mark, the driver's own top bar and the three tabs are not
+   * fetched, and on a phone at the roadside the frame arriving first is the
+   * difference between a screen that is loading and one that is broken.
+   *
+   * Only the door itself waits, at the size a door card takes. */
+  if (!run) {
+    return (
+      <PortalApp
+        bar={
+          <>
+            <PortalMark brand={brand} small />
+            <span className="pp-appbar-said">
+              <b className="pp-appbar-shop">{brand?.name || "Your round"}</b>
+              <span className="pp-appbar-who">Fetching your round</span>
+            </span>
+          </>
+        }
+        nav={
+          <PortalNav
+            tabs={[
+              { key: "stop" as const, label: "This stop", icon: <IconDoor /> },
+              { key: "round" as const, label: "The round", icon: <IconList /> },
+              { key: "shop" as const, label: "Pharmacy", icon: <IconShop /> },
+            ]}
+            tab={tab}
+            setTab={setTab}
+          />
+        }
+      >
+        <section className="pp-card dp-drop" aria-busy="true">
+          <div className="dp-where">
+            <Block w="6ch" h={12} />
+            <Block w="80%" h={26} />
+            <Block w="55%" h={14} />
+          </div>
+        </section>
+      </PortalApp>
+    );
+  }
 
   /* The stop being worked on, and the rest of the round. A driver is standing
      at one door: that door is the screen, and the round is a tap away. The

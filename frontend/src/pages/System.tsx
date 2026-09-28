@@ -198,7 +198,9 @@ export default function System() {
         <Refreshable
           loading={loading}
           hasData={!!backups?.files.length}
-          skeleton={<TableSkeleton cols={3} rows={4} widths={["26ch", "10ch", "22ch"]} />}
+          skeleton={<TableSkeleton cols={3} rows={4}
+                                   headers={["File", "Size", "Taken"]}
+                                   widths={["26ch", "10ch", "22ch"]} />}
         >
           <div className="dt-scroll">
             <table className="dt">

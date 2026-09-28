@@ -165,14 +165,18 @@ export default function DeferredClaims() {
         </p>
       ) : (
         <div className="dt-scroll">
+          {/* The search comes before the ghost table rather than inside
+              it: the field and its placeholder are the same on every visit
+              and can be typed into before a row has landed. Only the count
+              beside them is fetched. */}
+          <TableSearch ready={!loading} value={q} onChange={setQ}
+                       placeholder="Find a claim, a patient or a scheme…"
+                       shown={shown.length} total={rows.length} />
           <Refreshable
             loading={loading}
             hasData={rows.length > 0}
             skeleton={<TableSkeleton cols={6} rows={5} />}
           >
-          <TableSearch value={q} onChange={setQ}
-                       placeholder="Find a claim, a patient or a scheme…"
-                       shown={shown.length} total={rows.length} />
           <table className="dt dt-wider">
             <thead>
               <tr>

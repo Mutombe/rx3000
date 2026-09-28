@@ -247,7 +247,9 @@ export default function BranchDetail() {
           <Refreshable
             loading={loading}
             hasData={docs.length > 0}
-            skeleton={<TableSkeleton cols={4} rows={4} widths={["24ch", "14ch", "12ch", "10ch"]} />}
+            skeleton={<TableSkeleton cols={5} rows={4}
+                                     headers={["Document", "Reference", "Issuer", "Standing", "Renewal"]}
+                                     widths={["24ch", "14ch", "12ch", "10ch", "9ch"]} />}
           >
             <div className="dt-scroll">
               <table className="dt">
@@ -311,7 +313,9 @@ export default function BranchDetail() {
         <Refreshable
           loading={loading}
           hasData={lines.length > 0}
-          skeleton={<TableSkeleton cols={3} rows={5} widths={["30ch", "10ch", "10ch"]} />}
+          skeleton={<TableSkeleton cols={4} rows={5}
+                                   headers={["Medicine", "Here", "Reorder at", "Across the group"]}
+                                   widths={["30ch", "10ch", "10ch", "12ch"]} />}
         >
           <div className="dt-scroll">
             <table className="dt">

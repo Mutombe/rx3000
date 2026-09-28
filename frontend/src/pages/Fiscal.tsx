@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
@@ -184,17 +184,26 @@ export default function Fiscal() {
     act("close", "/api/fiscal/day/close", "Fiscal day closed and the Z-report filed.");
   }
 
-  if (!status) return <div className="card"><TableSkeleton cols={7} rows={8} rowHeight={55}
-    widths={["10ch","9ch","13ch","9ch","8ch","9ch","5ch"]} /></div>;
-
-  const day = status.open_day;
-  const problems = status.queued_receipts + status.rejected_receipts;
+  /* THE PAGE IS NOT REPLACED BY A GREY TABLE WHILE IT LOADS.
+   *
+   * There was a branch here returning one card with a seven column ghost
+   * table, which withheld the page title and its sentence, the "How this till
+   * files" and "The trading day" headings, the Who files / Suits / Regime
+   * labels and the receipt figures' labels. None of that is fetched.
+   *
+   * Everything below reads through `status?` now, so the frame is drawn at
+   * once and only the figures wait.
+   */
+  const day = status?.open_day;
+  const problems = status
+    ? status.queued_receipts + status.rejected_receipts
+    : null;
 
   return (
     <>
       <PageHead title="Fiscalisation" sub="The trading day, the receipts filed with the authority, and proof that none has been altered" />
 
-      {!status.required && (
+      {status && !status.required && (
         <p className="st-note">
           This jurisdiction does not require fiscalisation, so nothing here is
           filed. The day and the chain are still kept, because they are useful
@@ -205,13 +214,23 @@ export default function Fiscal() {
       {/* Who files. Never implied. */}
       <div className="card">
         <h3>How this till files</h3>
-        <p className="fs-route">{status.route.route}</p>
+        <p className="fs-route">
+          <Figure ready={!!status} w="24ch">{status?.route.route}</Figure>
+        </p>
         <dl className="fs-facts">
-          <div><dt>Who files</dt><dd>{status.route.who_files}</dd></div>
-          <div><dt>Suits</dt><dd>{status.route.suits}</dd></div>
-          <div><dt>Regime</dt><dd className="mono">{status.regime}</dd></div>
+          {/* The three words on the left are what this card is for and are the
+              same in every pharmacy. Only the answers beside them are filed
+              somewhere and have to be fetched. */}
+          <div><dt>Who files</dt>
+            <dd><Figure ready={!!status} w="14ch">{status?.route.who_files}</Figure></dd></div>
+          <div><dt>Suits</dt>
+            <dd><Figure ready={!!status} w="16ch">{status?.route.suits}</Figure></dd></div>
+          <div><dt>Regime</dt>
+            <dd className="mono"><Figure ready={!!status} w="10ch">{status?.regime}</Figure></dd></div>
         </dl>
-        <p className="muted small">{status.route.setup}</p>
+        <p className="muted small">
+          <Figure ready={!!status} w="40ch">{status?.route.setup}</Figure>
+        </p>
       </div>
 
       <div className="card">
@@ -275,12 +294,14 @@ export default function Fiscal() {
             <div className="stat-row">
               <div className="stat">
                 <span className="stat-label">Queued</span>
-                <span className="stat-value">{status.queued_receipts}</span>
+                <span className="stat-value">
+                  <Figure ready={!!status} w="3ch">{status?.queued_receipts}</Figure>
+                </span>
               </div>
               <div className="stat">
                 <span className="stat-label">Rejected</span>
-                <span className={`stat-value${status.rejected_receipts ? " is-bad" : ""}`}>
-                  {status.rejected_receipts}
+                <span className={`stat-value${status?.rejected_receipts ? " is-bad" : ""}`}>
+                  <Figure ready={!!status} w="3ch">{status?.rejected_receipts}</Figure>
                 </span>
               </div>
             </div>
@@ -315,13 +336,18 @@ export default function Fiscal() {
             over five thousand of the oldest receipts, and every recent one,
             which is the only kind anybody edits, went unchecked under a
             sentence promising otherwise. */}
-        <p className={`st-note ${status.chain.ok
+        {/* The chain's verdict is the one thing on this card that is a
+            finding rather than a fixture, so it is the one thing that waits.
+            Its tone waits with it: an unknown chain is not a good one. */}
+        <p className={`st-note ${!status ? "" : status.chain.ok
           ? (status.chain.partial ? "is-warn" : "is-ok") : "is-bad"}`}>
-          {status.chain.says
-            ?? (status.chain.ok
-              ? `${status.chain.checked.toLocaleString()} receipts verify.`
-              : `The chain breaks at receipt ${status.chain.broken_at}. `
-                + `${status.chain.reason}`)}
+          <Figure ready={!!status} w="34ch">
+            {status && (status.chain.says
+              ?? (status.chain.ok
+                ? `${status.chain.checked.toLocaleString()} receipts verify.`
+                : `The chain breaks at receipt ${status.chain.broken_at}. `
+                  + `${status.chain.reason}`))}
+          </Figure>
         </p>
       </div>
 

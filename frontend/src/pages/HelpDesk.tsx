@@ -15,6 +15,7 @@ import { useAiDraft } from "../hooks/useAiStream";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
+import { Figure } from "../components/Skeleton";
 import { useRowWork } from "../hooks/useRowWork";
 import BusyButton from "../components/BusyButton";
 
@@ -255,19 +256,41 @@ export default function HelpDesk() {
         </p>
       )}
 
-      {stats && (
+      {/* SCOPED LOADING.
+       *
+       * The four tiles waited behind `stats &&`. What that withheld was four
+       * labels and four hints, every word of them written here: "SLA
+       * breached", "awaiting first reply", "due within 2h". A case desk opens
+       * on this row and reads it before anything else, and until the stats
+       * call came back there was nothing to read and then a row of cards
+       * shoved the table down the page.
+       *
+       * The tiles are drawn at once and only the figures pulse. They are left
+       * out entirely when the read failed, because `statsUnknown` above has
+       * already said so in words and a tile that pulses for ever is a screen
+       * that looks like it merely needs more patience. */}
+      {!statsUnknown && (
         <div className="grid cols-4">
           <div className="card stat hero">
             <div className="label">Open tickets</div>
-            <div className="value">{stats.open}</div>
-            <div className="hint">{stats.awaiting_first_response} awaiting first reply</div>
+            <div className="value">
+              <Figure ready={!!stats} w="3ch">{stats?.open}</Figure>
+            </div>
+            <div className="hint">
+              <Figure ready={!!stats} w="3ch">{stats?.awaiting_first_response}</Figure>
+              {" "}awaiting first reply
+            </div>
           </div>
           <div className="card stat">
             <div className="label">SLA breached</div>
-            <div className="value" style={{ color: stats.sla_breached ? "var(--danger)" : undefined }}>
-              {stats.sla_breached}
+            {/* The danger red follows the figure. Nothing is painted as a
+                breach until something has actually been counted as one. */}
+            <div className="value" style={{ color: stats?.sla_breached ? "var(--danger)" : undefined }}>
+              <Figure ready={!!stats} w="3ch">{stats?.sla_breached}</Figure>
             </div>
-            <div className="hint">{stats.due_within_2h} due within 2h</div>
+            <div className="hint">
+              <Figure ready={!!stats} w="3ch">{stats?.due_within_2h}</Figure> due within 2h
+            </div>
           </div>
           <div className="card stat">
             <div className="label">Avg first response</div>
@@ -275,21 +298,35 @@ export default function HelpDesk() {
                 read as the loudest number on the screen. Said quietly, in its
                 own words: no case has been answered yet. */}
             <div className="value">
-              {stats.avg_first_response_mins === null
-                || stats.avg_first_response_mins === undefined
-                ? <span className="muted">Nothing answered yet</span>
-                : <>{stats.avg_first_response_mins}<span className="unit">m</span></>}
+              <Figure ready={!!stats} w="5ch">
+                {stats && (stats.avg_first_response_mins === null
+                  || stats.avg_first_response_mins === undefined
+                  ? <span className="muted">Nothing answered yet</span>
+                  : <>{stats.avg_first_response_mins}<span className="unit">m</span></>)}
+              </Figure>
             </div>
-            <div className="hint">resolution {stats.avg_resolution_hours ?? "none"}{stats.avg_resolution_hours ? "h" : ""}</div>
+            <div className="hint">
+              resolution{" "}
+              <Figure ready={!!stats} w="4ch">
+                {stats && (stats.avg_resolution_hours
+                  ? `${stats.avg_resolution_hours}h`
+                  : "not yet measured")}
+              </Figure>
+            </div>
           </div>
           <div className="card stat">
             <div className="label">Satisfaction</div>
             <div className="value">
-              {stats.csat === null || stats.csat === undefined
-                ? <span className="muted">Nobody has rated a case</span>
-                : <>{stats.csat}<span className="unit"> / 5</span></>}
+              <Figure ready={!!stats} w="5ch">
+                {stats && (stats.csat === null || stats.csat === undefined
+                  ? <span className="muted">Nobody has rated a case</span>
+                  : <>{stats.csat}<span className="unit"> / 5</span></>)}
+              </Figure>
             </div>
-            <div className="hint">{stats.resolved_total} resolved all-time</div>
+            <div className="hint">
+              <Figure ready={!!stats} w="3ch">{stats?.resolved_total}</Figure>
+              {" "}resolved all-time
+            </div>
           </div>
         </div>
       )}

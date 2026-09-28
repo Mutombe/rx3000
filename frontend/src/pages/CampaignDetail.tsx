@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -102,49 +103,67 @@ export default function CampaignDetail() {
         { label: "Status", value: d.status },
       ] : undefined}
     >
-      {d && (
-        <>
-          <Panel title="What it said">
-            <dl className="kv">
-              <dt>Subject</dt><dd>{d.subject || "none"}</dd>
-              <dt>Audience</dt><dd>{d.segment}</dd>
-              <dt>Channel</dt><dd>{d.channel}</dd>
-              <dt>Created</dt>
-              <dd>{d.created_at ? fmtDateTime(d.created_at) : "No date"}</dd>
-            </dl>
-            <p className="prose" style={{ whiteSpace: "pre-wrap" }}>
-              {d.body || <span className="muted">No body was recorded.</span>}
-            </p>
-          </Panel>
+      {/* The gate that stood here held back both card headings, the four
+          labels under the first and the whole head of the recipients table.
+          A campaign always has a subject, an audience, a channel and a date,
+          and the table always names a patient, a channel, a time and a
+          status. Saying so costs nothing and it was being withheld. */}
+      <Panel title="What it said">
+        <dl className="kv">
+          <dt>Subject</dt>
+          <dd><Figure ready={!!d} w="30ch">{d && (d.subject || "none")}</Figure></dd>
+          <dt>Audience</dt>
+          <dd><Figure ready={!!d} w="16ch">{d?.segment}</Figure></dd>
+          <dt>Channel</dt>
+          <dd><Figure ready={!!d} w="8ch">{d?.channel}</Figure></dd>
+          <dt>Created</dt>
+          <dd>
+            <Figure ready={!!d} w="16ch">
+              {d && (d.created_at ? fmtDateTime(d.created_at) : "No date")}
+            </Figure>
+          </dd>
+        </dl>
+        <p className="prose" style={{ whiteSpace: "pre-wrap" }}>
+          <Figure ready={!!d} w="40ch">
+            {d && (d.body || <span className="muted">No body was recorded.</span>)}
+          </Figure>
+        </p>
+      </Panel>
 
-          <Panel title="Who it went to" count={d.messages.length}
-                 empty="This campaign has not sent anything yet.">
-            <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
-              <table className="dt">
-                <thead>
-                  <tr><Th>Patient</Th><Th>Channel</Th><Th>When</Th><Th>Status</Th></tr>
-                </thead>
-                <tbody>
-                  {d.messages.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        <EntityLink kind="patient" id={m.patient.id}><Person name={m.patient.name} /></EntityLink>
-                      </td>
-                      <td>{m.channel}</td>
-                      <td>
-                        <EntityLink kind="message" id={m.id}>
-                          {fmtDateTime(m.sent_at || m.scheduled_for)}
-                        </EntityLink>
-                      </td>
-                      <td><span className={`badge ${TONE[m.status] ?? ""}`}>{m.status}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
-      )}
+      <Panel title="Who it went to" count={d?.messages.length}
+             /* Held back until the messages are in hand: "has not sent
+                anything yet" is a claim about the campaign, not about the
+                request that is still in flight. */
+             empty={d ? "This campaign has not sent anything yet." : undefined}>
+        <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
+          <table className="dt">
+            <thead>
+              <tr><Th>Patient</Th><Th>Channel</Th><Th>When</Th><Th>Status</Th></tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={4} rows={3}
+                         widths={["65%", "35%", "60%", "40%"]} />
+            ) : (
+              <tbody>
+                {d.messages.map((m) => (
+                  <tr key={m.id}>
+                    <td>
+                      <EntityLink kind="patient" id={m.patient.id}><Person name={m.patient.name} /></EntityLink>
+                    </td>
+                    <td>{m.channel}</td>
+                    <td>
+                      <EntityLink kind="message" id={m.id}>
+                        {fmtDateTime(m.sent_at || m.scheduled_for)}
+                      </EntityLink>
+                    </td>
+                    <td><span className={`badge ${TONE[m.status] ?? ""}`}>{m.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

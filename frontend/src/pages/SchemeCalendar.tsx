@@ -19,7 +19,7 @@ import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import { useStepUp, CANCELLED } from "../components/StepUp";
-import { TableSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
@@ -42,7 +42,9 @@ interface Calendar {
 }
 
 function when(days: number | null, on: string | null): string {
-  if (days === null || !on) return "—";
+  // A dash here was the screen shrugging. Nobody has told us this funder's
+  // dates, and that is a sentence, not a punctuation mark.
+  if (days === null || !on) return "No date agreed";
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";
   return `${days} days · ${fmtDate(on)}`;
@@ -65,8 +67,9 @@ interface Standing {
 }
 
 export default function SchemeCalendar() {
+  /* `data` being null is the whole of "nothing has arrived yet" now, so the
+     separate loading flag went with the skeleton it used to switch on. */
   const [data, setData] = useState<Calendar | null>(null);
-  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
@@ -84,7 +87,6 @@ export default function SchemeCalendar() {
       .then((d) => { setData(d); setFailed(""); })
       .catch((e) => setFailed(errorText(e, "The claiming calendar could not be loaded.")))
       .finally(() => {
-        setLoading(false);
         window.setTimeout(() => setSpinning(false), 400);
       });
   }, []);
@@ -184,20 +186,32 @@ export default function SchemeCalendar() {
 
       {failed && <div className="alert error">{failed}</div>}
 
+      {/* SCOPED LOADING.
+       *
+       * The three bands, the table's whole head and the card around it used to
+       * wait behind `data &&` while the request was out, so a screen whose
+       * entire subject is dates and deadlines opened saying nothing at all.
+       * "Claimed, not yet paid" is written here and is true before anybody
+       * asks the server; only the figure beside it is in doubt. */}
+      <div className="wc-bands">
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="9ch">{data && money(data.awaiting_payment)}</Figure></b>
+          <span>Claimed, not yet paid</span>
+        </div>
+        {/* The stale and overdue tones follow the figures, so nothing is
+            flagged on the strength of a nought nobody has counted. */}
+        <div className={`wl-stat${data?.held ? " wc-stale" : ""}`}>
+          <b><Figure ready={!!data} w="3ch">{data?.held}</Figure></b>
+          <span>Claims held, not sent</span>
+        </div>
+        <div className={`wl-stat${data && dueSoon.length ? " wc-abandoned" : ""}`}>
+          <b><Figure ready={!!data} w="3ch">{data && dueSoon.length}</Figure></b>
+          <span>Cut-offs within three days</span>
+        </div>
+      </div>
+
       {data && (
         <>
-          <div className="wc-bands">
-            <div className="wl-stat">
-              <b>{money(data.awaiting_payment)}</b><span>Claimed, not yet paid</span>
-            </div>
-            <div className={`wl-stat${data.held ? " wc-stale" : ""}`}>
-              <b>{data.held}</b><span>Claims held, not sent</span>
-            </div>
-            <div className={`wl-stat${dueSoon.length ? " wc-abandoned" : ""}`}>
-              <b>{dueSoon.length}</b><span>Cut-offs within three days</span>
-            </div>
-          </div>
-
           {/* The deadline that costs money if it passes. */}
           {dueSoon.length > 0 && (
             <div className="alert warn">
@@ -221,27 +235,31 @@ export default function SchemeCalendar() {
               or when the money is coming.
             </div>
           )}
+        </>
+      )}
 
-          {/* Every funder's cut-off and payment day. A blank frame while it
-              loads reads as a pharmacy with no schemes on file, which is the
-              one thing that would make this page pointless. */}
-          {loading && (
-            <div className="card">
-              <TableSkeleton cols={5} rows={5}
-                widths={["20ch", "12ch", "14ch", "12ch", "14ch"]} />
-            </div>
-          )}
-          {!loading && (
-          <div className="card">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <Th>Funder</Th><Th>Claims in by</Th><Th>Next cut-off</Th>
-                  <Th>Pays on</Th><Th>Next payment</Th>
-                  <Th className="num">Awaiting</Th><Th className="num">Held</Th>
-                  <th className="actions" />
-                </tr>
-              </thead>
+      {/* Every funder's cut-off and payment day. A blank frame while it
+          loads reads as a pharmacy with no schemes on file, which is the
+          one thing that would make this page pointless. The column names are
+          written three lines below, so they are drawn for real and the rows
+          alone are ghosted. Note the order of the arms: "no funder has a
+          calendar yet" is only reachable once the schemes have actually been
+          counted. */}
+      <div className="card">
+        <table className="dt">
+          <thead>
+            <tr>
+              <Th>Funder</Th><Th>Claims in by</Th><Th>Next cut-off</Th>
+              <Th>Pays on</Th><Th>Next payment</Th>
+              <Th className="num">Awaiting</Th><Th className="num">Held</Th>
+              <th className="actions" />
+            </tr>
+          </thead>
+          {!data ? (
+            <GhostRows cols={8} rows={5} secondLine={[0]}
+                       widths={["20ch", "10ch", "14ch", "10ch", "14ch",
+                                "9ch", "4ch", "8ch"]} />
+          ) : (
               <tbody>
                 {schemes.map((s) => (
                   <tr key={s.id}
@@ -300,18 +318,16 @@ export default function SchemeCalendar() {
                   </tr>
                 ))}
                 {schemes.length === 0 && (
-                  <EmptyRow cols={7} title="No funder has a calendar yet">
+                  <EmptyRow cols={8} title="No funder has a calendar yet">
                     A calendar is when a scheme wants its claims in and when it
                     pays. Without one this screen cannot tell you which cut-off
                     is next, and the dates come from the scheme's own contract.
                   </EmptyRow>
                 )}
               </tbody>
-            </table>
-          </div>
           )}
-        </>
-      )}
+        </table>
+      </div>
 
       {stepUpPrompt}
       {editing && (

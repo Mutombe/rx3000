@@ -266,8 +266,10 @@ export default function GoodsReceipts() {
       </div>
 
       <Refreshable loading={loading} hasData={rows.length > 0}
-                   skeleton={<TableSkeleton cols={6} rows={5}
-                                            widths={["14ch", "20ch", "12ch", "10ch", "12ch", "10ch"]} />}>
+                   skeleton={<TableSkeleton cols={7} rows={5}
+                                            headers={["Delivery", "Supplier", "Against", "Packs",
+                                                      "At cost", "Paperwork", ""]}
+                                            widths={["14ch", "20ch", "12ch", "10ch", "12ch", "10ch", "6ch"]} />}>
         <div className="dt-scroll">
           {/* WIDTHS THAT ADD UP TO THE SCREEN.
               Declared on the header, because a fixed layout sizes from the

@@ -243,15 +243,19 @@ export default function Deliveries() {
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
+      {/* The search comes before the ghost table rather than inside
+          it: the field and its placeholder are the same on every visit
+          and can be typed into before a row has landed. Only the count
+          beside them is fetched. */}
+      <TableSearch ready={!loading} value={q} onChange={setQ}
+                     placeholder="Find a waybill, a recipient, an address or a driver…"
+                     shown={shown.length} total={list.length} />
       <Refreshable
         loading={loading}
         hasData={list.length > 0}
         skeleton={<TableSkeleton cols={8} rows={8} rowHeight={65}
           widths={["12ch", "18ch", "26ch", "12ch", "16ch", "18ch"]} />}
       >
-        <TableSearch value={q} onChange={setQ}
-                     placeholder="Find a waybill, a recipient, an address or a driver…"
-                     shown={shown.length} total={list.length} />
         <div className="dt-scroll">
           <table className="dt dt-wider">
             <thead>

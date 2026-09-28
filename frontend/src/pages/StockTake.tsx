@@ -395,17 +395,15 @@ export default function StockTake() {
     }
   }
 
-  // "Loading…" in the middle of an empty card is the placeholder a skeleton
-  // replaces: it says nothing about what is coming and the page jumps when it
-  // does.
-  if (loading) {
-    return (
-      <div className="card">
-        <TableSkeleton cols={5} rows={5}
-          widths={["22ch", "10ch", "10ch", "10ch", "12ch"]} />
-      </div>
-    );
-  }
+  /* THE SCREEN IS NOT REPLACED WHILE IT LOADS.
+   *
+   * There was a branch here that returned one card holding a five column grey
+   * table, so the page title, the sentence under it, the count sheet button,
+   * the "Start a count" heading and its paragraph, and the Department and
+   * Shelf field labels were all absent on arrival and appeared together. None
+   * of them is fetched. Everything below reads through `take?`, so the frame
+   * is drawn at once and only the count pulses.
+   */
 
   return (
     <>
@@ -427,7 +425,19 @@ export default function StockTake() {
         take={<ExportButton dataset="count-sheet" label="Count sheet" />}
       />
 
-      {!take ? (
+      {/* THREE STATES, AND "WE HAVE NOT LOOKED YET" IS ONE OF THEM.
+          Before this, `!take` meant "no count is open" and was also what a
+          page that had not asked yet looked like, so for a moment the screen
+          offered to start a count that was already running. The wait has its
+          own arm now, with the count table's real headings on it, because
+          those are written down either way. */}
+      {loading ? (
+        <div className="card">
+          <TableSkeleton cols={6} rows={5}
+            headers={["Product", "Counted", "System", "Variance", "At cost", "Note"]}
+            widths={["22ch", "10ch", "10ch", "10ch", "12ch", "14ch"]} />
+        </div>
+      ) : !take ? (
         <div className="card">
           <h3>Start a count</h3>
           <p className="muted">

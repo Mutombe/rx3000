@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import TermSelect from "../components/TermSelect";
 import RecordPage from "../components/RecordPage";
@@ -49,11 +49,17 @@ export default function PatientDetail() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [clinical, setClinical] =
     useState<{ allergies: string; chronic_conditions: string } | null>(null);
-  const [scripts, setScripts] = useState<Prescription[]>([]);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [history, setHistory] = useState<HistoryLine[]>([]);
+  /* NULL UNTIL THE ANSWER LANDS, RATHER THAN EMPTY FROM THE START.
+   *
+   *  An empty array is a claim: it says this patient has no prescriptions, has
+   *  bought nothing, has never been dispensed to. These start as nothing at
+   *  all, so the tabs below can tell "we have not been told" apart from "there
+   *  is none", and only the second one is ever said out loud. */
+  const [scripts, setScripts] = useState<Prescription[] | null>(null);
+  const [sales, setSales] = useState<Sale[] | null>(null);
+  const [history, setHistory] = useState<HistoryLine[] | null>(null);
   const [tax, setTax] = useState<any>(null);
-  const [log, setLog] = useState<TimelineEntry[]>([]);
+  const [log, setLog] = useState<TimelineEntry[] | null>(null);
   const [logForm, setLogForm] = useState(
     { activity_type: "call", subject: "", body: "", due_at: "" });
   /* FIVE READS, NOT ONE OF THEM CAUGHT.
@@ -73,15 +79,15 @@ export default function PatientDetail() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "scripts", label: "Prescriptions",
-      count: missing.scripts ? undefined : scripts.length },
+      count: missing.scripts ? undefined : scripts?.length ?? null },
     { key: "history", label: "Dispensing history",
-      count: missing.history ? undefined : history.length },
+      count: missing.history ? undefined : history?.length ?? null },
     { key: "sales", label: "Purchases",
-      count: missing.sales ? undefined : sales.length },
+      count: missing.sales ? undefined : sales?.length ?? null },
     // Every conversation this pharmacy has had with them. The record of the
     // medicine was here; the record of the phone calls about it was not, so
     // "I rang her twice about that repeat" lived in one person's memory.
-    { key: "contact", label: "Contact log", count: log.length },
+    { key: "contact", label: "Contact log", count: log?.length ?? null },
     { key: "tax", label: "Tax statement" },
     // On the patient record, because that is where somebody stands when they
     // say "stop sending me those" — not buried in a settings screen.
@@ -112,14 +118,19 @@ export default function PatientDetail() {
       </div>
     );
 
-  if (!patient) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Patients", to: "/patients" }, { label: "Loading" }]}
-        eyebrow="Patient"
-        tabs={["Prescriptions", "Dispensing history", "Purchases", "Tax statement"]}
-        cards={3}
-        avatar
-        table={5}
-      />;
+  /* THE PAGE USED TO WAIT ON THE PATIENT BEFORE DRAWING ANY OF ITSELF.
+   *
+   * A `DetailSkeleton` stood here and threw the whole screen away until the
+   * record came back: the trail, the word Patient, the six tab names, the
+   * identifier labels, the three buttons, the heading of every card and the
+   * column heads of all four tables. None of that is an answer from the
+   * server. Every one of those words is written a few lines below this and is
+   * the same for every patient who has ever been opened, so withholding them
+   * bought nothing and cost the reader the one thing the screen could have
+   * told them for free: what they were waiting for.
+   *
+   * So the render below runs with `patient` possibly null. Only the values
+   * pulse. */
 
   function loadLog() {
     api.get<TimelineEntry[]>(`/api/crm/timeline?patient_id=${id}`)
@@ -263,11 +274,14 @@ export default function PatientDetail() {
 
   return (
     <RecordPage
+      loading={!patient}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Patients", to: "/patients" },
-              { label: `${patient.first_name} ${patient.last_name}` }]}
+              { label: patient
+                  ? `${patient.first_name} ${patient.last_name}`
+                  : "Opening the record" }]}
       eyebrow="Patient"
-      title={`${patient.first_name} ${patient.last_name}`}
+      title={patient ? `${patient.first_name} ${patient.last_name}` : null}
       /* WAS ONE GREY LINE WITH DOTS BETWEEN FIVE DIFFERENT KINDS OF FACT.
          "PT260900073 · DOB 03 Mar, 1979 · 07719116611 · AHSS Zimbabwe
          #HD-1166 · 0 loyalty pts" is a sentence to be read, not a set of
@@ -275,26 +289,33 @@ export default function PatientDetail() {
          number, so the eye had to parse the format of each one to find out.
          A counter assistant reads this header to quote a number down a
          telephone. */
+      /* The optional identifiers keep their labels while the record is on its
+         way. Which of them this patient carries is an answer; that a patient
+         record has a profile number and an ID number is not. */
       meta={[
-        ...(patient.profile_number
-          ? [{ label: "Profile", value: patient.profile_number, mono: true }]
+        ...(!patient || patient.profile_number
+          ? [{ label: "Profile", value: patient?.profile_number ?? "", mono: true }]
           : []),
-        ...(patient.id_number
-          ? [{ label: "ID number", value: patient.id_number, mono: true }]
+        ...(!patient || patient.id_number
+          ? [{ label: "ID number", value: patient?.id_number ?? "", mono: true }]
           : []),
-        { label: "Date of birth", value: fmtDate(patient.date_of_birth) },
+        { label: "Date of birth",
+          value: patient ? fmtDate(patient.date_of_birth) : "" },
         { label: "Phone",
-          value: patient.phone
+          value: !patient ? ""
+            : patient.phone
             ? <a href={`tel:${patient.phone}`}>{patient.phone}</a>
             : <span className="muted">Not on file</span> },
         // Plain text: there is no scheme record to open. Every other kind on
         // this header has a page behind it, and inventing a link that goes
         // nowhere is worse than a name that does not pretend to be one.
         { label: "Medical aid",
-          value: patient.medical_aid
+          value: !patient ? ""
+            : patient.medical_aid
             ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
             : <span className="muted">Private patient</span> },
-        { label: "Loyalty", value: `${patient.loyalty_points} pts` },
+        { label: "Loyalty",
+          value: patient ? `${patient.loyalty_points} pts` : "" },
       ]}
       actions={
         <>
@@ -302,7 +323,8 @@ export default function PatientDetail() {
               so pressing it from somebody's record opened an empty dispensary
               and the first thing you did was search for the person you had
               just been reading about. */}
-          <Link to={`/dispense?patient=${patient.id}`} className="btn primary">
+          <Link to={patient ? `/dispense?patient=${patient.id}` : "/dispense"}
+                className="btn primary">
             New script
           </Link>
           <button className="btn secondary" onClick={viewAsPatient}>
@@ -317,7 +339,7 @@ export default function PatientDetail() {
       {/* Registered although they matched somebody already on file. Said on the
           record itself, so whoever next opens either one can check, and a merge
           review has somewhere to start. */}
-      {patient.possible_duplicate_of_id && (
+      {patient?.possible_duplicate_of_id && (
         <div className="alert warn dup-flag" role="note">
           <span>
             Registered as a different person from a patient they matched.{" "}
@@ -332,7 +354,12 @@ export default function PatientDetail() {
           small icon on the list page, and once the list rows became links,
           clicking a patient took you here, to a screen that showed the allergy
           and gave you no way to correct it. */}
-      {(patient.allergies || patient.chronic_conditions) ? (
+      {!patient ? (
+        /* Whether somebody is allergic to anything is the single worst thing
+           on this screen to be wrong about, so the line holds its place and
+           says nothing at all until the record is actually in. */
+        <p className="muted"><Figure ready={false} w="38ch">{null}</Figure></p>
+      ) : (patient.allergies || patient.chronic_conditions) ? (
         <div className="error-banner">
           {patient.allergies && <>⚠ Allergies: <b>{patient.allergies}</b>&nbsp;&nbsp;</>}
           {patient.chronic_conditions && <>· Chronic: {patient.chronic_conditions}</>}
@@ -345,7 +372,7 @@ export default function PatientDetail() {
         </p>
       )}
 
-      {clinical && (
+      {clinical && patient && (
         <div className="modal-backdrop" onClick={() => setClinical(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{patient.first_name} {patient.last_name}</h2>
@@ -397,15 +424,31 @@ export default function PatientDetail() {
 
       {tab === "scripts" && (
         <div className="card">
+          {/* Read before said: could not be read, then not told yet, then
+              genuinely none. A screen that has not been answered must never
+              report that there is nothing. */}
           {missing.scripts ? (
             <div className="empty">
               The prescriptions could not be read. This is not a statement that
               they have none on file.
             </div>
+          ) : !scripts ? (
+            <table style={{ marginTop: 6 }}>
+              <thead><tr>
+                <Th>Medication</Th>
+                <Th className="wrap">Dosage</Th>
+                <Th className="num rx-qty">Qty</Th>
+                <Th className="rx-repeats">Repeats</Th>
+                <Th className="num">Worth</Th>
+                <Th className="rx-next">Next repeat</Th>
+                <Th className="rx-refill">Auto-refill</Th>
+              </tr></thead>
+              <GhostRows cols={7} rows={3} />
+            </table>
           ) : scripts.length === 0 && (
             <div className="empty">No prescriptions on file</div>
           )}
-          {scripts.map((rx) => (
+          {(scripts ?? []).map((rx) => (
             <div key={rx.id} style={{ marginBottom: 18 }}>
               {/* The number was plain text on the one screen where somebody is
                   looking at a patient's scripts and wants to open one. Every
@@ -489,6 +532,7 @@ export default function PatientDetail() {
         <div className="card">
           <table>
             <thead><tr><Th>Date</Th><Th>Medication</Th><Th className="num">Qty</Th><Th>Dosage</Th><Th>Type</Th><Th>Script</Th><Th>By</Th></tr></thead>
+            {!history ? <GhostRows cols={7} rows={3} /> : (
             <tbody>
               {history.map((h, i) => (
                 // Every name in this row is a record. They were all printed as
@@ -520,13 +564,14 @@ export default function PatientDetail() {
                 </RowLink>
               ))}
             </tbody>
+            )}
           </table>
           {missing.history ? (
             <div className="empty">
               The dispensing history could not be read. Do not treat this as a
               patient who has had nothing; reload before dispensing.
             </div>
-          ) : history.length === 0 && (
+          ) : history?.length === 0 && (
             <div className="empty">Nothing dispensed yet</div>
           )}
         </div>
@@ -536,6 +581,7 @@ export default function PatientDetail() {
         <div className="card">
           <table>
             <thead><tr><Th>Date</Th><Th>Invoice</Th><Th>Items</Th><Th>Payment</Th><Th className="num">Total</Th><Th>Status</Th></tr></thead>
+            {!sales ? <GhostRows cols={6} rows={3} /> : (
             <tbody>
               {sales.map((s) => (
                 <tr key={s.id}>
@@ -550,34 +596,42 @@ export default function PatientDetail() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
           {missing.sales ? (
             <div className="empty">
               The purchases could not be read, so this is not a statement that
               they have bought nothing.
             </div>
-          ) : sales.length === 0 && (
+          ) : sales?.length === 0 && (
             <div className="empty">No purchases yet</div>
           )}
         </div>
       )}
 
-      {tab === "tax" && !tax && missing.tax && (
+      {tab === "tax" && missing.tax && (
         <div className="empty">
           The tax statement could not be produced. Nothing here is a figure
           about what they have spent.
         </div>
       )}
-      {tab === "tax" && tax && (
+      {tab === "tax" && !missing.tax && (
         <div className="card">
-          <h3>Medical expense statement, tax year {tax.tax_year}</h3>
+          {/* The statement's own words, the three tile labels and the six
+              column heads are the same on every patient's tax year. Only the
+              year and the figures are an answer. */}
+          <h3>
+            Medical expense statement, tax year{" "}
+            <Figure ready={!!tax} w="4ch">{tax?.tax_year}</Figure>
+          </h3>
           <div className="grid cols-3" style={{ margin: "14px 0" }}>
-            <div className="card stat"><div className="label">Total spent</div><div className="value">{money(tax.total_spent)}</div></div>
-            <div className="card stat"><div className="label">Medical aid paid</div><div className="value">{money(tax.total_medical_aid_paid)}</div></div>
-            <div className="card stat"><div className="label">Out of pocket</div><div className="value accent">{money(tax.total_out_of_pocket)}</div></div>
+            <div className="card stat"><div className="label">Total spent</div><div className="value"><Figure ready={!!tax} w="9ch">{tax && money(tax.total_spent)}</Figure></div></div>
+            <div className="card stat"><div className="label">Medical aid paid</div><div className="value"><Figure ready={!!tax} w="9ch">{tax && money(tax.total_medical_aid_paid)}</Figure></div></div>
+            <div className="card stat"><div className="label">Out of pocket</div><div className="value accent"><Figure ready={!!tax} w="9ch">{tax && money(tax.total_out_of_pocket)}</Figure></div></div>
           </div>
           <table>
             <thead><tr><Th>Date</Th><Th>Invoice</Th><Th>Items</Th><Th className="num">Total</Th><Th className="num">Aid paid</Th><Th className="num">Out of pocket</Th></tr></thead>
+            {!tax ? <GhostRows cols={6} rows={3} /> : (
             <tbody>
               {tax.lines.map((l: any, i: number) => (
                 <tr key={i}>
@@ -589,9 +643,11 @@ export default function PatientDetail() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
           <div style={{ marginTop: 12 }}>
-            <button className="secondary" onClick={printTaxStatement}>
+            <button className="secondary" disabled={!tax}
+                    onClick={printTaxStatement}>
               Print statement
             </button>
           </div>
@@ -658,7 +714,9 @@ export default function PatientDetail() {
 
           <div className="card">
             <h3>Everything said to this patient</h3>
-            {log.length === 0 && (
+            {/* "Nobody has ever rung her" is a strong thing to tell somebody,
+                and it waits until the timeline has actually come back. */}
+            {log?.length === 0 && (
               <div className="empty">
                 Nobody has recorded a conversation with this patient. Calls about
                 a late repeat, a counselling point, a complaint. None of it is
@@ -666,6 +724,7 @@ export default function PatientDetail() {
               </div>
             )}
             <table className="dt">
+              {!log ? <GhostRows cols={3} rows={3} widths={["30%", "70%", "40%"]} /> : (
               <tbody>
                 {log.map((t) => (
                   <tr key={t.id}>
@@ -699,6 +758,7 @@ export default function PatientDetail() {
                   </tr>
                 ))}
               </tbody>
+              )}
             </table>
           </div>
         </>

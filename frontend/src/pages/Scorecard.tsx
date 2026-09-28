@@ -17,7 +17,7 @@ import { ArrowClockwise, Info, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
-import { TableSkeleton } from "../components/Skeleton";
+import { Block, Figure } from "../components/Skeleton";
 import { rateTone } from "../tone";
 import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
@@ -69,10 +69,11 @@ function pct(value: number | null, good = 90): JSX.Element {
 }
 
 export default function Scorecard() {
+  /* `data` being null IS "there is nothing on screen yet", so there is no
+     separate loading flag any more: the bands read it directly and pulse the
+     figure they are still waiting for. `spinning` is a different thing, the
+     deliberate half-second on the Refresh button. */
   const [data, setData] = useState<Card | null>(null);
-  /* Distinct from `spinning`, which is the deliberate half-second on the
-     Refresh button. This one is "there is nothing on screen yet". */
-  const [loading, setLoading] = useState(true);
   const [days, setDays] = useState("30");
   const [error, setError] = useState("");
   const [spinning, setSpinning] = useState(false);
@@ -83,7 +84,6 @@ export default function Scorecard() {
       .then((d) => { setData(d); setError(""); })
       .catch((e) => setError(errorText(e, "The scorecard could not be loaded.")))
       .finally(() => {
-        setLoading(false);
         window.setTimeout(() => setSpinning(false), 350);
       });
   }, [days]);
@@ -112,49 +112,107 @@ export default function Scorecard() {
 
       {error && <div className="alert error">{error}</div>}
 
-      {/* Twelve columns of figures a group manager compares across branches.
-          An empty frame while they arrive reads as a group with no trade. */}
-      {loading && !data && (
-        <TableSkeleton cols={7} rows={4}
-          widths={["18ch", "12ch", "8ch", "16ch", "12ch", "12ch", "12ch"]} />
-      )}
+      {/* SCOPED LOADING.
+       *
+       * The whole page used to sit behind `data &&`, with a seven column table
+       * skeleton standing in for it. What that withheld was not figures: it was
+       * the seven band labels, the heading "How the money arrived" and the
+       * three payment labels under it, none of which are fetched. They say the
+       * same thing on every visit, and a manager opening this screen on a slow
+       * morning was shown grey bars instead of being told what the page was
+       * about to compare.
+       *
+       * So the bands and their words are unconditional and only the figures
+       * pulse. One `data` flag for all of them, because they all come out of
+       * the one request. */}
+      <div className="wc-bands">
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="9ch">{money(t.sales_value ?? 0)}</Figure></b>
+          <span>Taken, all branches</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="4ch">{t.sales_count ?? 0}</Figure></b>
+          <span>Sales</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="9ch">{money(t.stock_at_cost ?? 0)}</Figure></b>
+          <span>Stock at cost</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="4ch">{t.claims_raised ?? 0}</Figure></b>
+          <span>Claims raised</span>
+        </div>
+        {/* The warning tones are held back until the figure behind them is
+            real. A band cannot be flagged stale on the strength of a nought
+            nobody has counted yet. */}
+        <div className={`wl-stat${(t.repeats_overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
+          <b><Figure ready={!!data} w="3ch">{t.repeats_overdue ?? 0}</Figure></b>
+          <span>Repeats overdue</span>
+        </div>
+        <div className="wl-stat">
+          <b><Figure ready={!!data} w="3ch">{t.orders_raised ?? 0}</Figure></b>
+          <span>Orders raised</span>
+        </div>
+        <div className={`wl-stat${(t.portal_waiting ?? 0) > 0 ? " wc-stale" : ""}`}>
+          <b><Figure ready={!!data} w="3ch">{t.portal_waiting ?? 0}</Figure></b>
+          <span>Portal scripts waiting</span>
+        </div>
+      </div>
 
-      {data && (
-        <>
-          <div className="wc-bands">
-            <div className="wl-stat"><b>{money(t.sales_value ?? 0)}</b><span>Taken, all branches</span></div>
-            <div className="wl-stat"><b>{t.sales_count ?? 0}</b><span>Sales</span></div>
-            <div className="wl-stat"><b>{money(t.stock_at_cost ?? 0)}</b><span>Stock at cost</span></div>
-            <div className="wl-stat"><b>{t.claims_raised ?? 0}</b><span>Claims raised</span></div>
-            <div className={`wl-stat${(t.repeats_overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
-              <b>{t.repeats_overdue ?? 0}</b><span>Repeats overdue</span>
-            </div>
-            <div className="wl-stat"><b>{t.orders_raised ?? 0}</b><span>Orders raised</span></div>
-            <div className={`wl-stat${(t.portal_waiting ?? 0) > 0 ? " wc-stale" : ""}`}>
-              <b>{t.portal_waiting ?? 0}</b><span>Portal scripts waiting</span>
-            </div>
+      {/* How the money arrived across the group. A shop taking everything in
+          cash and a shop taking half on mobile are different businesses to
+          run, and the difference is invisible in a takings total. */}
+      <div className="card">
+        <h3>How the money arrived</h3>
+        <div className="wc-bands">
+          <div className="wl-stat">
+            <b><Figure ready={!!data} w="9ch">{money(t.cash ?? 0)}</Figure></b>
+            <span>Cash</span>
           </div>
-
-          {/* How the money arrived across the group. A shop taking everything in
-              cash and a shop taking half on mobile are different businesses to
-              run, and the difference is invisible in a takings total. */}
-          <div className="card">
-            <h3>How the money arrived</h3>
-            <div className="wc-bands">
-              <div className="wl-stat"><b>{money(t.cash ?? 0)}</b><span>Cash</span></div>
-              <div className="wl-stat"><b>{money(t.card ?? 0)}</b><span>Card</span></div>
-              <div className="wl-stat"><b>{money(t.mobile_money ?? 0)}</b><span>Mobile money</span></div>
-            </div>
+          <div className="wl-stat">
+            <b><Figure ready={!!data} w="9ch">{money(t.card ?? 0)}</Figure></b>
+            <span>Card</span>
           </div>
+          <div className="wl-stat">
+            <b><Figure ready={!!data} w="9ch">{money(t.mobile_money ?? 0)}</Figure></b>
+            <span>Mobile money</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Twelve columns of figures across one row is not a comparison,
-              it is a wall. Every value truncated mid-word, and the branch
-              names clipped to "RX5000 …". One card per branch instead, ordered
-              by takings, with the numbers grouped the way somebody actually
-              reads them: what came in, what it cost, who did it, and what went
-              wrong. The detail is a page of its own. */}
-          <div className="bp-grid">
-            {rows.map((b) => (
+      {/* Twelve columns of figures across one row is not a comparison,
+          it is a wall. Every value truncated mid-word, and the branch
+          names clipped to "RX5000 …". One card per branch instead, ordered
+          by takings, with the numbers grouped the way somebody actually
+          reads them: what came in, what it cost, who did it, and what went
+          wrong. The detail is a page of its own. */}
+      <div className="bp-grid">
+        {/* A branch card is nothing but its branch: the name, the takings and
+            the findings are all fetched, so there are no words here to keep.
+            Three cards of the right shape hold the grid open instead, and the
+            "no branches on file" answer below waits until the answer is
+            actually in hand. */}
+        {!data
+          ? Array.from({ length: 3 }).map((_, i) => (
+              <article key={i} className="card bp-card" aria-busy="true">
+                <header className="bp-head">
+                  <div style={{ display: "grid", gap: "var(--s2)" }}>
+                    <Block w="14ch" h={17} />
+                    <Block w="10ch" h={11} />
+                  </div>
+                </header>
+                <div className="bp-headline">
+                  <Block w="9ch" h={22} />
+                  <Block w="26ch" h={12} />
+                </div>
+                <div className="bp-figures">
+                  {Array.from({ length: 8 }).map((__, j) => (
+                    <div key={j}><Block w="60%" h={11} /><Block w="7ch" h={13} /></div>
+                  ))}
+                </div>
+              </article>
+            ))
+          : rows.map((b) => (
               <article key={b.branch_id}
                        className={`card bp-card${b.active ? "" : " bp-closed"}`}>
                 <header className="bp-head">
@@ -241,19 +299,19 @@ export default function Scorecard() {
                 )}
               </article>
             ))}
+      </div>
+      {data && rows.length === 0 && (
+        <div className="card">
+          <div className="empty">
+            <b>This pharmacy has no branches on file</b>
+            <p>Every figure on this page is grouped by branch, so there is
+               nothing to compare until there is more than one.</p>
           </div>
-          {rows.length === 0 && (
-            <div className="card">
-              <div className="empty">
-                <b>This pharmacy has no branches on file</b>
-                <p>Every figure on this page is grouped by branch, so there is
-                   nothing to compare until there is more than one.</p>
-              </div>
-            </div>
-          )}
+        </div>
+      )}
 
-          {/* Said in words rather than shown as nought. */}
-          {data.not_measured.length > 0 && (
+      {/* Said in words rather than shown as nought. */}
+      {data && data.not_measured.length > 0 && (
             <div className="card">
               <h3><Info size={15} /> What this screen does not measure</h3>
               <p className="muted">
@@ -274,8 +332,6 @@ export default function Scorecard() {
               </table>
             </div>
           )}
-        </>
-      )}
     </>
   );
 }

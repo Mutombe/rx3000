@@ -1075,6 +1075,7 @@ export default function POS() {
             loading={pendingLoading}
             hasData={pending.length > 0}
             skeleton={<TableSkeleton cols={5} rows={5}
+              headers={["Sale", "Customer", "Raised", "Due", ""]}
               widths={["14ch", "20ch", "16ch", "10ch", "12ch"]} />}
           >
           <table>
@@ -1190,6 +1191,7 @@ export default function POS() {
             loading={historyLoading}
             hasData={history.length > 0}
             skeleton={<TableSkeleton cols={5} rows={6}
+              headers={["Invoice", "Customer", "Taken", "How", "Total"]}
               widths={["14ch", "20ch", "16ch", "12ch", "10ch"]} />}
           >
           <table className="dt">

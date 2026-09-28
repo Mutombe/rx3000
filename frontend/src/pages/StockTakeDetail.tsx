@@ -22,6 +22,7 @@ import { ArrowLeft } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import Th from "../components/Th";
 
 interface Line {
@@ -96,77 +97,98 @@ export default function StockTakeDetail() {
           tone: row.variance_value < 0 ? "bad" : undefined },
       ] : []}
     >
-      {row && (
-        <>
-          <Panel title="The count">
-            <dl className="kv">
-              <dt>Status</dt>
-              <dd><span className="badge muted">{sentence(row.status)}</span></dd>
+      {/* Both panel headings, the four field labels and the six column heads
+          belong to the shape of a stock take rather than to any one count, so
+          they are true before the request is sent. Withholding them meant the
+          page arrived empty and then jumped to full height in one step, which
+          made a slow count look like a broken screen. */}
+      <Panel title="The count">
+        <dl className="kv">
+          <dt>Status</dt>
+          <dd>
+            <Figure ready={!!row} w="10ch">
+              {row && <span className="badge muted">{sentence(row.status)}</span>}
+            </Figure>
+          </dd>
 
-              <dt>Covered</dt>
-              <dd>{scope}</dd>
+          <dt>Covered</dt>
+          <dd><Figure ready={!!row} w="24ch">{row && scope}</Figure></dd>
 
-              <dt>Opened</dt>
-              <dd>{row.opened_at ? fmtDateTime(row.opened_at)
-                                 : <span className="muted">Not recorded</span>}</dd>
+          <dt>Opened</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && (row.opened_at
+                ? fmtDateTime(row.opened_at)
+                : <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
 
-              <dt>Closed</dt>
-              <dd>{row.closed_at
+          <dt>Closed</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && (row.closed_at
                 ? fmtDateTime(row.closed_at)
-                : <span className="muted">still open, nothing adjusted yet</span>}</dd>
-            </dl>
-          </Panel>
+                : <span className="muted">still open, nothing adjusted yet</span>)}
+            </Figure>
+          </dd>
+        </dl>
+      </Panel>
 
-          <Panel
-            title="What each line found"
-            count={row.lines.length}
-            empty="Nothing was counted on this take."
-          >
-            <div className="table-wrap">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Medicine</Th>
-                    <Th className="num">Expected</Th>
-                    <Th className="num">Counted</Th>
-                    <Th className="num">Out by</Th>
-                    <Th className="num">Worth</Th>
-                    <Th>Note</Th>
+      {/* The reason a count has no lines is only sayable once the count is in
+          hand; a screen still waiting must not claim the shelves were skipped. */}
+      <Panel
+        title="What each line found"
+        count={row?.lines.length}
+        empty={row ? "Nothing was counted on this take." : undefined}
+      >
+        <div className="table-wrap">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Medicine</Th>
+                <Th className="num">Expected</Th>
+                <Th className="num">Counted</Th>
+                <Th className="num">Out by</Th>
+                <Th className="num">Worth</Th>
+                <Th>Note</Th>
+              </tr>
+            </thead>
+            {!row ? (
+              <GhostRows cols={6} rows={3}
+                         widths={["80%", "40%", "40%", "40%", "50%", "70%"]} />
+            ) : (
+              <tbody>
+                {row.lines.map((l) => (
+                  <tr key={l.product_id}>
+                    <td>
+                      <EntityLink to={`/products/${l.product_id}`}>
+                        {l.product}
+                      </EntityLink>
+                    </td>
+                    <td className="num">{l.expected}</td>
+                    <td className="num">{l.counted}</td>
+                    <td className="num">
+                      {l.variance === 0
+                        ? <span className="muted">None</span>
+                        : <span className={l.variance < 0 ? "neg" : "pos"}>
+                            {l.variance > 0 ? `+${l.variance}` : l.variance}
+                          </span>}
+                    </td>
+                    <td className="num">
+                      {l.value === 0
+                        ? <span className="muted">None</span>
+                        : <span className={l.value < 0 ? "neg" : undefined}>
+                            {money(l.value)}
+                          </span>}
+                    </td>
+                    <td className="muted small wrap">{l.note}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {row.lines.map((l) => (
-                    <tr key={l.product_id}>
-                      <td>
-                        <EntityLink to={`/products/${l.product_id}`}>
-                          {l.product}
-                        </EntityLink>
-                      </td>
-                      <td className="num">{l.expected}</td>
-                      <td className="num">{l.counted}</td>
-                      <td className="num">
-                        {l.variance === 0
-                          ? <span className="muted">None</span>
-                          : <span className={l.variance < 0 ? "neg" : "pos"}>
-                              {l.variance > 0 ? `+${l.variance}` : l.variance}
-                            </span>}
-                      </td>
-                      <td className="num">
-                        {l.value === 0
-                          ? <span className="muted">None</span>
-                          : <span className={l.value < 0 ? "neg" : undefined}>
-                              {money(l.value)}
-                            </span>}
-                      </td>
-                      <td className="muted small wrap">{l.note}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
-      )}
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

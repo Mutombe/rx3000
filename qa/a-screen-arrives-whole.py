@@ -79,6 +79,45 @@ ROUTES = [
     "/system", "/stock-categories", "/insights", "/pos",
 ]
 
+#: RECORD PAGES, WHICH IS WHERE THIS WAS REPORTED WORST.
+#:
+#: A record page is the shape most likely to swap itself for a grey stand-in,
+#: because it genuinely does not know the record's name until the answer comes
+#: back, and it is tempting to conclude it knows nothing. It knows the panel
+#: titles, the identifier labels and every column head.
+#:
+#: The ids are read from the API at startup rather than written down, because
+#: a route that 404s falls through to the dashboard and this would compare a
+#: screen with itself and call it a pass. Resolved in `record_routes()`.
+RECORD_PATHS = [
+    ("/api/patients?limit=1", "/patients/{id}"),
+    ("/api/products?limit=1", "/inventory/{id}"),
+    ("/api/suppliers?limit=1", "/suppliers/{id}"),
+    ("/api/prescriptions?limit=1", "/scripts/{id}"),
+]
+
+
+def record_routes() -> list[str]:
+    """One real record of each kind, or none rather than a guess."""
+    out = []
+    try:
+        tok = token()
+    except Exception:
+        return out
+    for path, shape in RECORD_PATHS:
+        try:
+            req = urllib.request.Request(API + path)
+            req.add_header("Authorization", "Bearer " + tok)
+            with urllib.request.urlopen(req, timeout=60) as f:
+                body = json.loads(f.read())
+            rows = body if isinstance(body, list) else (
+                body.get("items") or body.get("rows") or [])
+            if rows and isinstance(rows[0], dict) and rows[0].get("id"):
+                out.append(shape.format(id=rows[0]["id"]))
+        except Exception:
+            continue
+    return out
+
 #: Chrome that genuinely only exists once the data says so, with the reason.
 #: A line here is a claim that the text below it is NOT a fixed part of the
 #: screen, and it should be short enough to check.
@@ -198,6 +237,15 @@ def look(routes):
             for s in after["said"]:
                 if s in had:
                     had.remove(s)
+                elif "#" in had:
+                    # A chrome element that was NOTHING BUT a ghost has
+                    # declared itself dynamic, and is allowed to become
+                    # anything. A record page's `<h1>` is the case that
+                    # matters: the patient's name is fetched, so ghosting the
+                    # whole heading is right, and "#" is what this reads it as.
+                    # An element that was absent entirely, like a panel title,
+                    # leaves no "#" behind and is still caught.
+                    had.remove("#")
                 elif s not in ALLOWED:
                     withheld.append(s)
             grew = after["height"] - before["height"]
@@ -288,4 +336,4 @@ if __name__ == "__main__":
     if "--plant" in sys.argv:
         sys.exit(plant())
     only = [a for a in sys.argv[1:] if a.startswith("/")]
-    sys.exit(report(only or ROUTES))
+    sys.exit(report(only or (ROUTES + record_routes())))

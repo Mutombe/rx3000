@@ -26,6 +26,7 @@ import { Link, useParams } from "react-router-dom";
 import { CheckCircle, Warning, XCircle } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import RecordPage, { Fact, Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { EntityLink } from "../components/Filters";
 import Th from "../components/Th";
 
@@ -113,11 +114,18 @@ export default function FiscalDay() {
       loading={loading}
       error={failed}
     >
+      {/* The gate that stood here kept four card headings, three table heads
+          and the five labels of the Z-report card off the screen until the
+          day came back. A fiscal day is the same document every time: taken
+          by currency, taxed by treatment, a Z-report reference, a chain of
+          hashes. Those words describe the statutory form, not the answer, so
+          they are drawn at once and only the figures wait. */}
+
+      {/* A day closed with receipts the authority never took is filed
+          short. The totals look complete because they count every receipt
+          written, filed or not, so this has to be said, not inferred. */}
       {day && (
         <>
-          {/* A day closed with receipts the authority never took is filed
-              short. The totals look complete because they count every receipt
-              written, filed or not, so this has to be said, not inferred. */}
           {day.not_filed.length > 0 && (
             <div className={day.closed_at ? "alert error" : "alert warn"}>
               <Warning size={16} weight="fill" />
@@ -151,100 +159,126 @@ export default function FiscalDay() {
               <span><b>The authority refused this day.</b> {day.error}</span>
             </div>
           )}
+        </>
+      )}
 
-          <div className="grid cols-2">
-            <Panel title="What was taken">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Currency</Th><Th className="num">Receipts</Th>
-                    <Th className="num">Sales</Th><Th className="num">VAT</Th>
-                    <Th className="num">Credited</Th>
+      <div className="grid cols-2">
+        <Panel title="What was taken">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Currency</Th><Th className="num">Receipts</Th>
+                <Th className="num">Sales</Th><Th className="num">VAT</Th>
+                <Th className="num">Credited</Th>
+              </tr>
+            </thead>
+            {/* Three arms in the order that keeps the page honest: waiting,
+                then nothing taken, then what was taken. The middle sentence
+                is a finding about the day and cannot be reached before the
+                day has been read. */}
+            {!day ? (
+              <GhostRows cols={5} rows={3}
+                         widths={["40%", "30%", "55%", "50%", "50%"]} />
+            ) : (
+              <tbody>
+                {day.by_currency.length === 0 ? (
+                  <tr><td colSpan={5} className="muted">
+                    Nothing was rung up on this day.
+                  </td></tr>
+                ) : day.by_currency.map((c) => (
+                  <tr key={c.currency}>
+                    <td className="mono">{c.currency}</td>
+                    <td className="num">{c.receipts}</td>
+                    <td className="num">{money(c.sales)}</td>
+                    <td className="num muted">{money(c.vat)}</td>
+                    <td className="num">
+                      {c.credit_notes ? money(c.credit_notes)
+                        : <span className="muted">None</span>}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {day.by_currency.length === 0 ? (
-                    <tr><td colSpan={5} className="muted">
-                      Nothing was rung up on this day.
-                    </td></tr>
-                  ) : day.by_currency.map((c) => (
-                    <tr key={c.currency}>
-                      <td className="mono">{c.currency}</td>
-                      <td className="num">{c.receipts}</td>
-                      <td className="num">{money(c.sales)}</td>
-                      <td className="num muted">{money(c.vat)}</td>
-                      <td className="num">
-                        {c.credit_notes ? money(c.credit_notes)
-                          : <span className="muted">None</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </Panel>
 
-            <Panel title="How it is taxed">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Treatment</Th><Th className="num">Receipts</Th>
-                    <Th className="num">Total</Th><Th className="num">VAT</Th>
+        <Panel title="How it is taxed">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Treatment</Th><Th className="num">Receipts</Th>
+                <Th className="num">Total</Th><Th className="num">VAT</Th>
+              </tr>
+            </thead>
+            {!day ? (
+              <GhostRows cols={4} rows={3}
+                         widths={["70%", "30%", "55%", "50%"]} />
+            ) : (
+              <tbody>
+                {day.by_rate.map((r) => (
+                  <tr key={r.label}>
+                    <td>{r.label}</td>
+                    <td className="num">{r.receipts}</td>
+                    <td className="num">{money(r.total)}</td>
+                    <td className="num">
+                      {r.vat ? money(r.vat) : <span className="muted">None</span>}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {day.by_rate.map((r) => (
-                    <tr key={r.label}>
-                      <td>{r.label}</td>
-                      <td className="num">{r.receipts}</td>
-                      <td className="num">{money(r.total)}</td>
-                      <td className="num">
-                        {r.vat ? money(r.vat) : <span className="muted">None</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {/* Stated rather than guessed at. Zero-rated and exempt are
-                  different things in a return, and nothing on a receipt says
-                  which one a VAT-free line is. */}
-              <p className="muted small">
-                Receipts carrying no VAT are reported as charged nothing, not as
-                zero-rated or exempt: those are different in a return and
-                nothing on the receipt distinguishes them.
-              </p>
-            </Panel>
-          </div>
+                ))}
+              </tbody>
+            )}
+          </table>
+          {/* Stated rather than guessed at. Zero-rated and exempt are
+              different things in a return, and nothing on a receipt says
+              which one a VAT-free line is. */}
+          <p className="muted small">
+            Receipts carrying no VAT are reported as charged nothing, not as
+            zero-rated or exempt: those are different in a return and
+            nothing on the receipt distinguishes them.
+          </p>
+        </Panel>
+      </div>
 
-          <Panel title="What the authority's record should show">
-            <dl className="kv">
-              <dt>Z-report reference</dt>
-              <dd>
-                {day.response_ref
-                  ? <span className="mono">{day.response_ref}</span>
-                  : open ? <span className="muted">The day is still open</span>
-                    : <span className="cu-diff">not filed</span>}
-              </dd>
-              <dt>Filed</dt>
-              <dd>{day.submitted_at ? fmtDateTime(day.submitted_at)
-                : <span className="muted">None</span>}</dd>
-              <dt>Global counters</dt>
-              <dd className="mono">
-                {day.first_counter === null
-                  ? <span className="muted">No receipts filed</span>
-                  : `${day.first_counter}. ${day.last_counter}`}
-              </dd>
-              <dt>Opening hash</dt>
-              <dd className="mono small" title={day.opening_hash}>
-                {shortHash(day.opening_hash)}
-              </dd>
-              <dt>Closing hash</dt>
-              <dd className="mono small" title={day.closing_hash}>
-                {shortHash(day.closing_hash)}
-              </dd>
-            </dl>
-          </Panel>
+      <Panel title="What the authority's record should show">
+        <dl className="kv">
+          <dt>Z-report reference</dt>
+          <dd>
+            <Figure ready={!!day} w="16ch">
+              {day && (day.response_ref
+                ? <span className="mono">{day.response_ref}</span>
+                : open ? <span className="muted">The day is still open</span>
+                  : <span className="cu-diff">not filed</span>)}
+            </Figure>
+          </dd>
+          <dt>Filed</dt>
+          <dd>
+            <Figure ready={!!day} w="16ch">
+              {day && (day.submitted_at ? fmtDateTime(day.submitted_at)
+                : <span className="muted">None</span>)}
+            </Figure>
+          </dd>
+          <dt>Global counters</dt>
+          <dd className="mono">
+            <Figure ready={!!day} w="14ch">
+              {day && (day.first_counter === null
+                ? <span className="muted">No receipts filed</span>
+                : `${day.first_counter}. ${day.last_counter}`)}
+            </Figure>
+          </dd>
+          <dt>Opening hash</dt>
+          <dd className="mono small" title={day?.opening_hash}>
+            <Figure ready={!!day} w="18ch">{day && shortHash(day.opening_hash)}</Figure>
+          </dd>
+          <dt>Closing hash</dt>
+          <dd className="mono small" title={day?.closing_hash}>
+            <Figure ready={!!day} w="18ch">{day && shortHash(day.closing_hash)}</Figure>
+          </dd>
+        </dl>
+      </Panel>
 
-          {day.not_filed.length > 0 && (
+      {/* Most days have nothing outstanding, so this card is not part of the
+          frame: it appears because there is something wrong to report. */}
+      {day && day.not_filed.length > 0 && (
             <Panel title="Not filed" count={day.not_filed.length}>
               <table className="dt">
                 <thead>
@@ -274,9 +308,11 @@ export default function FiscalDay() {
             </Panel>
           )}
 
-          <Panel title="Receipts, in the order they were written"
-                 count={day.receipts.length}
-                 empty="Nothing was rung up on this day.">
+      <Panel title="Receipts, in the order they were written"
+             count={day?.receipts.length}
+             /* Said only once the day has answered. A register nobody has
+                read yet is not a register with nothing in it. */
+             empty={day ? "Nothing was rung up on this day." : undefined}>
             <div className="dt-scroll">
               <table className="dt">
                 <thead>
@@ -287,6 +323,11 @@ export default function FiscalDay() {
                     <Th>Hash</Th>
                   </tr>
                 </thead>
+                {!day ? (
+                  <GhostRows cols={9} rows={3}
+                             widths={["30%", "35%", "70%", "45%", "50%",
+                                      "40%", "45%", "40%", "70%"]} />
+                ) : (
                 <tbody>
                   {day.receipts.map((r) => (
                     <tr key={r.id}
@@ -328,16 +369,15 @@ export default function FiscalDay() {
                     </tr>
                   ))}
                 </tbody>
+                )}
               </table>
             </div>
-          </Panel>
+      </Panel>
 
-          <p className="muted small">
-            <Link to="/fiscal">Back to fiscalisation</Link>. The trading day,
-            the queue, and the chain across the whole register.
-          </p>
-        </>
-      )}
+      <p className="muted small">
+        <Link to="/fiscal">Back to fiscalisation</Link>. The trading day,
+        the queue, and the chain across the whole register.
+      </p>
     </RecordPage>
   );
 }

@@ -7,8 +7,7 @@ import { Avatar } from "../components/record";
 import { Company, Contact, CrmDashboard, Deal } from "../types";
 import Select from "../components/Select";
 import { XCircle } from "@phosphor-icons/react";
-import { TableSkeleton } from "../components/Skeleton";
-import { Block } from "../components/Skeleton";
+import { Block, Figure } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 
@@ -117,6 +116,10 @@ export default function Pipeline() {
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
   const byStage = (s: string) => deals.filter((d) => d.stage === s);
   const grandTotal = deals.reduce((s, d) => s + d.value, 0);
+  /* Whether the board is showing an answer or waiting for one. A stage total
+     of nought is a fact about the pipeline once the deals are in hand and a
+     guess before that, and the two must not look alike. */
+  const arrived = !loading;
 
   return (
     <>
@@ -133,51 +136,64 @@ export default function Pipeline() {
         }
       />
 
-      {stats && (
-        <div className="grid cols-4">
-          <div className="card stat hero">
-            <div className="label">Open pipeline</div>
-            <div className="value">{money(stats.pipeline_value)}</div>
-            <div className="hint">{stats.open_deals} open deals</div>
+      {/* SCOPED LOADING.
+       *
+       * The four tiles waited behind `stats &&`, so opening this page showed
+       * no "Open pipeline", no "Weighted forecast" and no "Win rate" until the
+       * dashboard call came back, and then dropped a 96px row of cards on top
+       * of the board somebody had already started reading. Those four labels
+       * and three of the four hints are written here and never change.
+       *
+       * They are drawn at once and only the money, the counts and the rate
+       * pulse. The `catch` on the dashboard sets `stats` back to null, so a
+       * failed read leaves the labels standing with nothing claimed under
+       * them, which is the truthful reading of it. */}
+      <div className="grid cols-4">
+        <div className="card stat hero">
+          <div className="label">Open pipeline</div>
+          <div className="value">
+            <Figure ready={!!stats} w="9ch">{stats && money(stats.pipeline_value)}</Figure>
           </div>
-          <div className="card stat">
-            <div className="label">Weighted forecast</div>
-            <div className="value">{money(stats.weighted_value)}</div>
-            <div className="hint">by stage probability</div>
-          </div>
-          <div className="card stat">
-            <div className="label">Won</div>
-            <div className="value">{money(stats.won_value)}</div>
-            <div className="hint">{stats.won_count} deals</div>
-          </div>
-          <div className="card stat">
-            <div className="label">Win rate</div>
-            <div className="value">{stats.win_rate}%</div>
-            <div className="hint">of closed deals</div>
+          <div className="hint">
+            <Figure ready={!!stats} w="3ch">{stats?.open_deals}</Figure> open deals
           </div>
         </div>
-      )}
+        <div className="card stat">
+          <div className="label">Weighted forecast</div>
+          <div className="value">
+            <Figure ready={!!stats} w="9ch">{stats && money(stats.weighted_value)}</Figure>
+          </div>
+          <div className="hint">by stage probability</div>
+        </div>
+        <div className="card stat">
+          <div className="label">Won</div>
+          <div className="value">
+            <Figure ready={!!stats} w="9ch">{stats && money(stats.won_value)}</Figure>
+          </div>
+          <div className="hint">
+            <Figure ready={!!stats} w="3ch">{stats?.won_count}</Figure> deals
+          </div>
+        </div>
+        <div className="card stat">
+          <div className="label">Win rate</div>
+          <div className="value">
+            <Figure ready={!!stats} w="4ch">{stats && `${stats.win_rate}%`}</Figure>
+          </div>
+          <div className="hint">of closed deals</div>
+        </div>
+      </div>
 
       {/* A board of empty columns is what an opportunity pipeline with no deals
           looks like, so while it loads the columns carry ghosts rather than
           nothing. Otherwise the page says "no pipeline" for as long as the
-          request takes. */}
-      {/* The ghost board REPLACES the real one rather than sitting above it.
-          Both were rendering at once while the deals loaded, so the screen
-          showed a board of ghosts stacked directly on a board of empty
-          columns — two boards, no gap, and the second one saying there is no
-          pipeline while the first one said it was still loading. */}
-      {loading && deals.length === 0 ? (
-        <div className="kanban">
-          {STAGES.map((stage) => (
-            <div key={stage.key} className="kanban-col">
-              <div className="kanban-head">{stage.label}</div>
-              <Block w="100%" h={64} round="md" />
-              <Block w="100%" h={64} round="md" />
-            </div>
-          ))}
-        </div>
-      ) : (
+          request takes.
+
+          There is one board now rather than two. The ghost board used to be a
+          separate copy of the columns, which meant the stage names were the
+          only thing it could show and the count, the stage total and the share
+          bar all appeared from nowhere when the deals landed. The real board
+          is always the board; the deals are what pulse, and "Drop deals here"
+          waits until the pipeline has actually been counted. */}
       <div className="kanban">
         {STAGES.map((stage) => {
           const items = byStage(stage.key);
@@ -197,12 +213,22 @@ export default function Pipeline() {
             >
               <div className="kanban-head">
                 <span>{stage.label}</span>
-                <span className="badge muted">{items.length}</span>
+                <span className="badge muted">
+                  <Figure ready={arrived} w="2ch">{items.length}</Figure>
+                </span>
               </div>
-              <div className="kanban-total">{money(total)}</div>
+              <div className="kanban-total">
+                <Figure ready={arrived} w="8ch">{money(total)}</Figure>
+              </div>
               <div className="kanban-share">
-                <div style={{ width: `${grandTotal ? (total / grandTotal) * 100 : 0}%` }} />
+                <div style={{ width: `${arrived && grandTotal ? (total / grandTotal) * 100 : 0}%` }} />
               </div>
+              {!arrived && (
+                <>
+                  <Block w="100%" h={64} round="md" />
+                  <Block w="100%" h={64} round="md" />
+                </>
+              )}
               {items.map((d) => {
                 const age = ageDays(d.created_at);
                 const stale = age > 30 && !["won", "lost"].includes(d.stage);
@@ -239,12 +265,15 @@ export default function Pipeline() {
                   </div>
                 );
               })}
-              {items.length === 0 && <div className="muted" style={{ fontSize: 12, padding: "10px 2px" }}>Drop deals here</div>}
+              {arrived && items.length === 0 && (
+                <div className="muted" style={{ fontSize: 12, padding: "10px 2px" }}>
+                  Drop deals here
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      )}
 
       {showForm && (
         <div className="modal-backdrop" onClick={() => setShowForm(false)}>

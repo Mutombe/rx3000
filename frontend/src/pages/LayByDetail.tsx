@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -170,57 +171,69 @@ export default function LayByDetail() {
           hint: overdue ? "past its date" : undefined },
       ] : undefined}
     >
-      {d && (
-        <>
-          {overdue && (
-            <div className="alert warn">
-              This lay-by passed its date on {fmtDate(d.due_date!)} and still has{" "}
-              <b>{money(d.balance)}</b> outstanding.
-            </div>
-          )}
-
-          <Panel title="What is being held" count={d.items.length}
-                 empty="Nothing is recorded against this lay-by.">
-            <table className="dt">
-              <thead>
-                <tr><Th>Item</Th><Th className="num">Qty</Th><Th className="num">Unit</Th><Th className="num">Value</Th></tr>
-              </thead>
-              <tbody>
-                {d.items.map((i, n) => (
-                  <tr key={`${i.product_id}-${n}`}>
-                    <td>
-                      <EntityLink kind="product" id={i.product_id}>{i.product}</EntityLink>
-                    </td>
-                    <td className="num">{i.quantity}</td>
-                    <td className="num">{money(i.unit_price)}</td>
-                    <td className="num">{money(i.unit_price * i.quantity)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-
-          <Panel title="Payments" count={payments.length}
-                 empty="Nothing has been paid against this lay-by yet.">
-            <table className="dt">
-              <thead>
-                <tr><Th>When</Th><Th>Method</Th><Th>Reference</Th><Th className="num">Amount</Th></tr>
-              </thead>
-              <tbody>
-                {payments.map((p, n) => (
-                  <tr key={p.id ?? n}>
-                    <td>{p.paid_at || p.created_at
-                      ? fmtDateTime((p.paid_at || p.created_at)!) : "No date"}</td>
-                    <td>{p.method || "none"}</td>
-                    <td className="mono">{p.reference || "none"}</td>
-                    <td className="num">{money(p.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-        </>
+      {/* The gate that stood here withheld both card headings and all eight
+          column names until the lay-by came back. A lay-by always holds items
+          and always takes payments, and the person at the counter asking
+          about their daughter's inhaler can see what they are waiting for.
+          Only the items and the payments themselves pulse. */}
+      {d && overdue && (
+        <div className="alert warn">
+          This lay-by passed its date on {fmtDate(d.due_date!)} and still has{" "}
+          <b>{money(d.balance)}</b> outstanding.
+        </div>
       )}
+
+      <Panel title="What is being held" count={d?.items.length}
+             empty={d ? "Nothing is recorded against this lay-by." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr><Th>Item</Th><Th className="num">Qty</Th><Th className="num">Unit</Th><Th className="num">Value</Th></tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={4} rows={3} widths={["75%", "30%", "50%", "50%"]} />
+          ) : (
+            <tbody>
+              {d.items.map((i, n) => (
+                <tr key={`${i.product_id}-${n}`}>
+                  <td>
+                    <EntityLink kind="product" id={i.product_id}>{i.product}</EntityLink>
+                  </td>
+                  <td className="num">{i.quantity}</td>
+                  <td className="num">{money(i.unit_price)}</td>
+                  <td className="num">{money(i.unit_price * i.quantity)}</td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
+
+      <Panel title="Payments" count={d ? payments.length : undefined}
+             /* Telling somebody they have paid nothing is the kind of thing
+                that starts an argument at the counter, so it waits until the
+                lay-by has actually answered. */
+             empty={d ? "Nothing has been paid against this lay-by yet." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr><Th>When</Th><Th>Method</Th><Th>Reference</Th><Th className="num">Amount</Th></tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={4} rows={3} widths={["60%", "40%", "50%", "45%"]} />
+          ) : (
+            <tbody>
+              {payments.map((p, n) => (
+                <tr key={p.id ?? n}>
+                  <td>{p.paid_at || p.created_at
+                    ? fmtDateTime((p.paid_at || p.created_at)!) : "No date"}</td>
+                  <td>{p.method || "none"}</td>
+                  <td className="mono">{p.reference || "none"}</td>
+                  <td className="num">{money(p.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
     </RecordPage>
   );
 }

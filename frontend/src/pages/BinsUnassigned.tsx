@@ -152,7 +152,8 @@ export default function BinsUnassigned() {
             }
           >
             <Refreshable loading={rows === null} hasData={shown.length > 0}
-                         skeleton={<TableSkeleton cols={4} rows={8} />}>
+                         skeleton={<TableSkeleton cols={5} rows={8}
+                           headers={["", "Line", "Code", "On hand", "Worth"]} />}>
               <div className="dt-scroll">
                 <table className="dt dt-wide">
                   <thead>

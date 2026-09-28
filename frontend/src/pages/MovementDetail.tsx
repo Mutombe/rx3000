@@ -27,6 +27,7 @@ import { Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import Th from "../components/Th";
 
 interface Neighbour {
@@ -147,118 +148,163 @@ export default function MovementDetail() {
           hint: row.user_role || (row.user ? "" : "written by the system") },
       ] : []}
     >
-      {row && (
-        <>
-          {/* THE ARITHMETIC, SAID OUT LOUD.
-              A stored balance can disagree with the movement that produced
-              it, and when stock is wrong that disagreement is the whole
-              answer. It was previously left for the reader to spot by
-              subtracting two numbers in two rows of a table. */}
-          {!row.balance_agrees && (
-            <div className="alert error">
-              <Warning size={15} weight="fill" /> The balance on this movement
-              does not follow from the one before it. It should read{" "}
-              <b>{row.balance_expected}</b> and it reads{" "}
-              <b>{row.balance_after}</b>. Something changed this figure outside
-              the movement history, so the running balance from here on is
-              carrying that difference.
-            </div>
-          )}
+      {/* THE ARITHMETIC, SAID OUT LOUD.
+          A stored balance can disagree with the movement that produced
+          it, and when stock is wrong that disagreement is the whole
+          answer. It was previously left for the reader to spot by
+          subtracting two numbers in two rows of a table.
 
-          <Panel title="What this was">
-            <dl className="kv">
-              <dt>Medicine</dt>
-              <dd>
-                <EntityLink to={`/products/${row.product_id}`}>
-                  {row.product || "unnamed"}
-                </EntityLink>
-                {row.schedule >= 3 && (
-                  <span className="badge sched">{sched(row.schedule)}</span>
-                )}
-              </dd>
-
-              <dt>When</dt>
-              <dd>{row.created_at ? fmtDateTime(row.created_at)
-                                  : <span className="muted">Not recorded</span>}</dd>
-
-              <dt>Type</dt>
-              <dd><span className="badge muted">{row.movement_type}</span></dd>
-
-              <dt>Reason</dt>
-              <dd>
-                {row.reason
-                  ? <span className="badge">{row.reason}</span>
-                  : <span className="muted">
-                      none chosen, which is ordinary for a sale or a receipt
-                    </span>}
-              </dd>
-
-              <dt>Note</dt>
-              <dd>{row.notes || <span className="muted">None</span>}</dd>
-
-              <dt>Reference</dt>
-              <dd className="mono">{row.reference || <span className="muted">None</span>}</dd>
-
-              <dt>Who</dt>
-              <dd>
-                {row.user
-                  ? <>{row.user}{row.user_role && <span className="muted"> · {row.user_role}</span>}</>
-                  : <span className="muted">written by the system, not by a person</span>}
-              </dd>
-
-              <dt>Where</dt>
-              <dd>{row.branch || <span className="muted">Not recorded</span>}</dd>
-
-              {row.prescription_id ? (
-                <>
-                  <dt>Script</dt>
-                  <dd>
-                    <EntityLink to={`/prescriptions/${row.prescription_id}`}>
-                      {row.rx_number || `#${row.prescription_id}`}
-                    </EntityLink>
-                  </dd>
-                </>
-              ) : null}
-            </dl>
-          </Panel>
-
-          <Panel
-            title="Either side of it"
-            count={row.before.length + row.after.length}
-            empty="Nothing else has moved on this medicine."
-            aside={
-              <Link className="btn secondary small"
-                    to={`/stock?tab=movements&product=${row.product_id}`}>
-                All movements for this medicine
-              </Link>
-            }
-          >
-            <div className="table-wrap">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>When</Th><Th>Type</Th>
-                    <th className="num">Δ Qty</th>
-                    <Th className="num">Balance</Th>
-                    <Th>Reference</Th><th className="actions" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {row.before.map((m) => line(m))}
-                  {line({
-                    id: row.id, created_at: row.created_at,
-                    movement_type: row.movement_type,
-                    quantity_delta: row.quantity_delta,
-                    balance_after: row.balance_after,
-                    reference: row.reference,
-                  }, true)}
-                  {row.after.map((m) => line(m))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
+          This one really does wait for the answer: an accusation cannot be
+          made before the figures that support it have arrived. */}
+      {row && !row.balance_agrees && (
+        <div className="alert error">
+          <Warning size={15} weight="fill" /> The balance on this movement
+          does not follow from the one before it. It should read{" "}
+          <b>{row.balance_expected}</b> and it reads{" "}
+          <b>{row.balance_after}</b>. Something changed this figure outside
+          the movement history, so the running balance from here on is
+          carrying that difference.
+        </div>
       )}
+
+      {/* Both panel headings, the eight field labels and the six column heads
+          of the neighbour table describe every stock movement there is, so
+          none of them was ever waiting on this one. Behind the gate the page
+          showed nothing at all and then unfolded in a single jump, which on a
+          page somebody opens because a figure is wrong is the wrong first
+          impression. Only the values pulse now. */}
+      <Panel title="What this was">
+        <dl className="kv">
+          <dt>Medicine</dt>
+          <dd>
+            <Figure ready={!!row} w="20ch">
+              {row && (
+                <>
+                  <EntityLink to={`/products/${row.product_id}`}>
+                    {row.product || "unnamed"}
+                  </EntityLink>
+                  {row.schedule >= 3 && (
+                    <span className="badge sched">{sched(row.schedule)}</span>
+                  )}
+                </>
+              )}
+            </Figure>
+          </dd>
+
+          <dt>When</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && (row.created_at
+                ? fmtDateTime(row.created_at)
+                : <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Type</dt>
+          <dd>
+            <Figure ready={!!row} w="10ch">
+              {row && <span className="badge muted">{row.movement_type}</span>}
+            </Figure>
+          </dd>
+
+          <dt>Reason</dt>
+          <dd>
+            <Figure ready={!!row} w="24ch">
+              {row && (row.reason
+                ? <span className="badge">{row.reason}</span>
+                : <span className="muted">
+                    none chosen, which is ordinary for a sale or a receipt
+                  </span>)}
+            </Figure>
+          </dd>
+
+          <dt>Note</dt>
+          <dd>
+            <Figure ready={!!row} w="30ch">
+              {row && (row.notes || <span className="muted">None</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Reference</dt>
+          <dd className="mono">
+            <Figure ready={!!row} w="14ch">
+              {row && (row.reference || <span className="muted">None</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Who</dt>
+          <dd>
+            <Figure ready={!!row} w="18ch">
+              {row && (row.user
+                ? <>{row.user}{row.user_role && <span className="muted"> · {row.user_role}</span>}</>
+                : <span className="muted">written by the system, not by a person</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Where</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && (row.branch || <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
+
+          {/* Only movements that came off a script carry this pair, so whether
+              the row exists at all is genuinely part of the answer. */}
+          {row?.prescription_id ? (
+            <>
+              <dt>Script</dt>
+              <dd>
+                <EntityLink to={`/prescriptions/${row.prescription_id}`}>
+                  {row.rx_number || `#${row.prescription_id}`}
+                </EntityLink>
+              </dd>
+            </>
+          ) : null}
+        </dl>
+      </Panel>
+
+      <Panel
+        title="Either side of it"
+        count={row ? row.before.length + row.after.length : undefined}
+        /* Said only once the neighbours have been counted. A page that has not
+           heard back cannot know whether this medicine has ever moved. */
+        empty={row ? "Nothing else has moved on this medicine." : undefined}
+        aside={row ? (
+          <Link className="btn secondary small"
+                to={`/stock?tab=movements&product=${row.product_id}`}>
+            All movements for this medicine
+          </Link>
+        ) : undefined}
+      >
+        <div className="table-wrap">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>When</Th><Th>Type</Th>
+                <th className="num">Δ Qty</th>
+                <Th className="num">Balance</Th>
+                <Th>Reference</Th><th className="actions" />
+              </tr>
+            </thead>
+            {!row ? (
+              <GhostRows cols={6} rows={3}
+                         widths={["70%", "50%", "30%", "40%", "60%", "40%"]} />
+            ) : (
+              <tbody>
+                {row.before.map((m) => line(m))}
+                {line({
+                  id: row.id, created_at: row.created_at,
+                  movement_type: row.movement_type,
+                  quantity_delta: row.quantity_delta,
+                  balance_after: row.balance_after,
+                  reference: row.reference,
+                }, true)}
+                {row.after.map((m) => line(m))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

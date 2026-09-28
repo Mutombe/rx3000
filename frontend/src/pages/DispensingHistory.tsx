@@ -252,6 +252,8 @@ export default function DispensingHistory() {
               // Nine columns, because the table has nine. It claimed seven, so
               // even where it did render the page moved when the data landed.
               skeleton={<TableSkeleton cols={9} rows={9} rowHeight={72}
+                headers={["When", "Script", "Patient", "Medicine", "Qty",
+                          "Checked by", "Money", "Collected", ""]}
                 widths={["13ch", "11ch", "16ch", "18ch", "4ch", "12ch", "9ch",
                          "11ch", "3ch"]}
                 // Script, Patient, Money and Collected each carry a second

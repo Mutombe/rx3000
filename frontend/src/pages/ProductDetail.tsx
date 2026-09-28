@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useScheduleCodes } from "../schedules";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure } from "../components/Skeleton";
 import { EntityLink } from "../components/Filters";
 import ProductDispensings from "../components/ProductDispensings";
 import RecordPage from "../components/RecordPage";
@@ -125,16 +125,22 @@ export default function ProductDetail() {
         </p>
       </div>
     );
-  if (!data) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Stock", to: "/stock" }, { label: "Loading" }]}
-        eyebrow="Product"
-        tabs={["Batches on hand", "Movement history"]}
-        cards={1}
-      />;
-  const p = data.product;
+  /* A `DetailSkeleton` used to stand here and hold back the entire product
+   * page until the fetch returned. What it withheld was the trail, the word
+   * Product, the labels beside the stock code and the barcode, the two header
+   * buttons, the seven shelf-figure labels, the details list, the six tab
+   * names and the column heads of four tables. Not one of those is something
+   * the server tells us; they are written below and are the same for every
+   * product in the shop. The render runs with `data` null now, and only the
+   * figures pulse. */
+  const p = data?.product;
   // Absent from an older server, and the page still renders: the figures
   // below fall back to what the record itself holds.
-  const shelf = data.shelf;
+  const shelf = data?.shelf;
+  /* The route knows which product this is before anything is fetched, so the
+     panels that go and read their own slice of it can start at once rather
+     than waiting on a record they do not use. */
+  const pid = Number(id);
 
   const batchCols: Column<StockBatch>[] = [
     { key: "batch_number", header: "Batch", sortable: true, render: (b) => <b className="mono">{b.batch_number}</b> },
@@ -216,34 +222,41 @@ export default function ProductDetail() {
 
   return (
     <RecordPage
+      loading={!data}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Inventory", to: "/stock" },
-              { label: `${p.name}${p.strength ? ` ${p.strength}` : ""}` }]}
+              { label: p
+                  ? `${p.name}${p.strength ? ` ${p.strength}` : ""}`
+                  : "Opening the record" }]}
       eyebrow="Product"
-      title={`${p.name}${p.strength ? ` ${p.strength}` : ""}`}
+      title={p ? `${p.name}${p.strength ? ` ${p.strength}` : ""}` : null}
       /* NO AVATAR. It was an initial in a coloured circle beside the name of
          a box of tablets, which is the device this design uses for people.
          It also indented the title 58px further in than the breadcrumb above
          it and the card below it, so nothing on the page shared a left edge. */
-      subtitle={
+      subtitle={p && (
         <>
           {p.dosage_form || "form not recorded"} · {p.category.replace(/_/g, " ")}
           {p.schedule > 0 && <> · <span className="badge sched">{sched(p.schedule)}</span></>}
         </>
-      }
+      )}
       /* The numbers somebody reads this header out loud from: a code down the
          telephone to a wholesaler, a barcode checked against a box. */
+      /* The three code labels stay up while the record is on its way. Which
+         codes this line actually carries is an answer; that a product is the
+         sort of thing that has a stock code is not. */
       meta={[
-        ...(p.stock_code
-          ? [{ label: "Stock code", value: p.stock_code, mono: true }] : []),
-        ...(p.nappi_code
-          ? [{ label: "AHFoZ code", value: p.nappi_code, mono: true }] : []),
-        ...(p.barcode
-          ? [{ label: "Barcode", value: p.barcode, mono: true }] : []),
-        { label: "Pack size", value: p.pack_size || "Not recorded" },
+        ...(!p || p.stock_code
+          ? [{ label: "Stock code", value: p?.stock_code ?? "", mono: true }] : []),
+        ...(!p || p.nappi_code
+          ? [{ label: "AHFoZ code", value: p?.nappi_code ?? "", mono: true }] : []),
+        ...(!p || p.barcode
+          ? [{ label: "Barcode", value: p?.barcode ?? "", mono: true }] : []),
+        { label: "Pack size", value: p ? p.pack_size || "Not recorded" : "" },
         { label: "Department",
-          value: departments.find((d) => d.id === p.category_id)?.name
-            ?? <span className="muted">Not filed</span> },
+          value: !p ? ""
+            : departments.find((d) => d.id === p.category_id)?.name
+              ?? <span className="muted">Not filed</span> },
       ]}
       /* THE DEPARTMENT DROPDOWN IS NOT HERE ANY MORE.
          A form control sitting inside the title block is the one thing a
@@ -254,10 +267,10 @@ export default function ProductDetail() {
          department as a fact like the others. */
       actions={
         <>
-          <Link to={`/stock-take?product=${p.id}`} className="btn secondary">
+          <Link to={`/stock-take?product=${pid}`} className="btn secondary">
             Count it
           </Link>
-          <Link to={`/stock?tab=movements&product=${p.id}`} className="btn secondary">
+          <Link to={`/stock?tab=movements&product=${pid}`} className="btn secondary">
             Its movements
           </Link>
         </>
@@ -270,7 +283,18 @@ export default function ProductDetail() {
             answers the question this page is opened with, which is one of "have
             I got any", "what did it really cost me" and "when do I run out".
             The incumbent's stock screen is full of these for the same reason. */}
-        <Highlights items={shelf ? [
+        {/* THE LABELS ARE NOT AN ANSWER. "Days of cover" is going to say days
+            of cover whatever the shelf turns out to hold, so the strip is
+            drawn at once and the seven figures in it are what pulse. */}
+        <Highlights items={!data ? [
+          { label: "On this shelf", value: <Figure ready={false} w="4ch">{null}</Figure> },
+          { label: "Packs", value: <Figure ready={false} w="4ch">{null}</Figure> },
+          { label: "Days of cover", value: <Figure ready={false} w="4ch">{null}</Figure> },
+          { label: "Average cost", value: <Figure ready={false} w="8ch">{null}</Figure> },
+          { label: "Markup", value: <Figure ready={false} w="5ch">{null}</Figure> },
+          { label: "Earned in a year", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "On order", value: <Figure ready={false} w="3ch">{null}</Figure> },
+        ] : shelf ? [
           { label: "On this shelf", value: String(shelf.here),
             hint: shelf.here_undated > 0
               ? `${shelf.here_undated} more with no expiry recorded`
@@ -303,17 +327,18 @@ export default function ProductDetail() {
           { label: "On order", value: String(shelf.on_order),
             hint: shelf.on_order > 0 ? "Not yet received" : "Nothing outstanding" },
         ] : [
-          { label: "On hand", value: String(p.quantity_on_hand),
-            hint: p.quantity_on_hand <= p.reorder_level ? "at or below reorder level" : `reorder at ${p.reorder_level}` },
-          { label: "Stock value", value: money(data.stock_value), hint: `${money(p.cost_price)} cost` },
-          { label: "Selling price", value: money(p.unit_price), hint: `VAT ${Math.round(p.vat_rate * 100)}%` },
+          { label: "On hand", value: String(p!.quantity_on_hand),
+            hint: p!.quantity_on_hand <= p!.reorder_level ? "at or below reorder level" : `reorder at ${p!.reorder_level}` },
+          { label: "Stock value", value: money(data.stock_value), hint: `${money(p!.cost_price)} cost` },
+          { label: "Selling price", value: money(p!.unit_price), hint: `VAT ${Math.round(p!.vat_rate * 100)}%` },
         ]} />
 
         {/* Correcting the count, from the screen it is read on. The same dialog
             the dispensary uses, so a correction made here and one made at the
             counter are the same act with the same record behind it. */}
         <div className="pd-shelf-act">
-          <button type="button" className="btn secondary" onClick={() => setAdjusting(p)}>
+          <button type="button" className="btn secondary" disabled={!p}
+                  onClick={() => p && setAdjusting(p)}>
             Adjust the count
           </button>
           {shelf && (shelf.here + shelf.here_undated) <= shelf.reorder_level && (
@@ -343,7 +368,7 @@ export default function ProductDetail() {
               {" "}{shelf.here + shelf.here_undated} at this branch. Count it.
             </span>
           )}
-          {shelf && (
+          {data && shelf && (
             <span className="muted small">
               {money(shelf.at_cost)} at cost · {money(shelf.at_retail)} at retail
               {" · "}{data.units_dispensed} dispensed, {data.units_sold} sold
@@ -365,9 +390,9 @@ export default function ProductDetail() {
             <dt>Department</dt>
             <dd>
               <Select
-                value={p.category_id == null ? "" : String(p.category_id)}
+                value={p?.category_id == null ? "" : String(p.category_id)}
                 onChange={file}
-                disabled={filing}
+                disabled={filing || !p}
                 ariaLabel="Department"
                 options={[{ value: "", label: "Not filed" },
                           ...departments.map((d) => ({
@@ -378,13 +403,17 @@ export default function ProductDetail() {
           <div>
             <dt>Bin</dt>
             <dd>
-              {p.bin_location
-                ? <EntityLink to={`/bins/${p.bin_location}`}>{p.bin_location}</EntityLink>
-                : <span className="muted">No shelf</span>}
+              {/* "No shelf" is a finding about this product, so it waits for
+                  the product. */}
+              <Figure ready={!!p} w="10ch">
+                {p && (p.bin_location
+                  ? <EntityLink to={`/bins/${p.bin_location}`}>{p.bin_location}</EntityLink>
+                  : <span className="muted">No shelf</span>)}
+              </Figure>
               {/* Where else it is kept. The stock is valued at the first,
                   so the others are places to walk rather than piles to
                   price. */}
-              {(p.bin_location_2 || p.bin_location_3) && (
+              {p && (p.bin_location_2 || p.bin_location_3) && (
                 <span className="muted small">
                   {" also in "}
                   {[p.bin_location_2, p.bin_location_3].filter(Boolean).join(" and ")}
@@ -393,7 +422,7 @@ export default function ProductDetail() {
               {/* The last move, next to the bin itself. "Why is this not on
                   the shelf the label says" is asked while looking at the
                   shelf, not on a history tab two clicks away. */}
-              {data.bin_history && data.bin_history.length > 0 && (
+              {data?.bin_history && data.bin_history.length > 0 && (
                 <div className="muted small pd-binmove">
                   {data.bin_history[0].says}
                   {data.bin_history[0].by ? ` by ${data.bin_history[0].by}` : ""}
@@ -403,20 +432,23 @@ export default function ProductDetail() {
               )}
             </dd>
           </div>
-          <div><dt>Ingredient</dt><dd>{p.active_ingredient
-            || <span className="muted">Not recorded</span>}</dd></div>
-          <div><dt>Manufacturer</dt><dd>{p.manufacturer
-            || <span className="muted">Not recorded</span>}</dd></div>
-          <div><dt>Reorder quantity</dt><dd>{p.reorder_quantity}</dd></div>
+          <div><dt>Ingredient</dt><dd><Figure ready={!!p} w="18ch">
+            {p && (p.active_ingredient
+              || <span className="muted">Not recorded</span>)}</Figure></dd></div>
+          <div><dt>Manufacturer</dt><dd><Figure ready={!!p} w="18ch">
+            {p && (p.manufacturer
+              || <span className="muted">Not recorded</span>)}</Figure></dd></div>
+          <div><dt>Reorder quantity</dt><dd><Figure ready={!!p} w="3ch">
+            {p?.reorder_quantity}</Figure></dd></div>
         </dl>
         {/* The rest of the family: other products holding the same molecule. */}
-        <Variants productId={p.id} />
+        <Variants productId={pid} />
       </div>
 
       {/* Every code that finds this product, and the way to take a wrong one
           off. A code learned against the wrong medicine is silent and, until
           now, permanent. */}
-      <ProductBarcodes productId={p.id} />
+      <ProductBarcodes productId={pid} />
 
       {/* What to say when this is handed over.
           The endpoint has written these since it was added and nothing could
@@ -428,15 +460,19 @@ export default function ProductDetail() {
           medicine. Expanded here, because a product page is opened on purpose
           and has room; folded at the counter, where four of them would bury
           the fields being typed into. */}
-      <CounsellingPoints productId={p.id}
-        name={`${p.name} ${p.strength ?? ""}`.trim()} />
+      <CounsellingPoints productId={pid}
+        name={p ? `${p.name} ${p.strength ?? ""}`.trim() : ""} />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
       {tab === "batches" && (
         <DataTable
           columns={batchCols}
-          rows={data.batches}
+          /* `loading` is what keeps "No stock on hand" off a table nobody has
+             answered yet. An empty shelf and an unanswered one are different
+             findings and only one of them is fixed by ordering. */
+          loading={!data}
+          rows={data?.batches ?? []}
           rowKey={(b) => b.id}
           /* The lot record: what came in on it, what is left, and where it
              went. Named on this row and unreachable from it. */
@@ -468,9 +504,9 @@ export default function ProductDetail() {
         />
       )}
 
-      {tab === "usage" && <Usage productId={p.id} />}
+      {tab === "usage" && <Usage productId={pid} />}
 
-      {tab === "dispensings" && <ProductDispensings productId={p.id} />}
+      {tab === "dispensings" && <ProductDispensings productId={pid} />}
 
       {tab === "pricing" && (
         <>
@@ -482,7 +518,8 @@ export default function ProductDetail() {
           </p>
           <DataTable
             columns={priceCols}
-            rows={data.price_history ?? []}
+            loading={!data}
+            rows={data?.price_history ?? []}
             rowKey={(r) => r.id}
             initialSort={{ key: "at", dir: "desc" }}
             empty="No price change has been recorded for this line yet"
@@ -492,7 +529,7 @@ export default function ProductDetail() {
 
       {tab === "buying" && (
         <>
-          {data.sourcing && data.sourcing.suppliers.length > 0 && (
+          {data?.sourcing && data.sourcing.suppliers.length > 0 && (
             <section className="card pd-source">
               <h3>Where to buy it</h3>
               {/* The reason is stated so somebody can disagree with it. A
@@ -526,15 +563,21 @@ export default function ProductDetail() {
                             <span className="badge warn">Short deliveries</span>
                           )}
                         </td>
+                        {/* A rule was never bought from, so say that. A dash
+                            in a money column reads as a figure somebody has
+                            not finished typing. */}
                         <td className="num">
-                          {sp.last_cost !== null ? money(sp.last_cost) : "\u2014"}
+                          {sp.last_cost !== null ? money(sp.last_cost)
+                            : <span className="muted">Never bought</span>}
                         </td>
                         <td className="num muted">
-                          {sp.best_cost !== null ? money(sp.best_cost) : "\u2014"}
+                          {sp.best_cost !== null ? money(sp.best_cost)
+                            : <span className="muted">No price seen</span>}
                         </td>
                         <td className="pd-source-record">{sp.record}</td>
                         <td className="num">
-                          {sp.avg_days !== null ? sp.avg_days : "\u2014"}
+                          {sp.avg_days !== null ? sp.avg_days
+                            : <span className="muted">Not known</span>}
                         </td>
                       </tr>
                     ))}
@@ -549,7 +592,8 @@ export default function ProductDetail() {
           </p>
           <DataTable
             columns={buyCols}
-            rows={data.buying ?? []}
+            loading={!data}
+            rows={data?.buying ?? []}
             rowKey={(r) => r.order_id}
             rowHref={(r) => `/orders/${r.order_id}`}
             initialSort={{ key: "at", dir: "desc" }}
@@ -561,7 +605,8 @@ export default function ProductDetail() {
       {tab === "movements" && (
         <DataTable
           columns={moveCols}
-          rows={data.movements}
+          loading={!data}
+          rows={data?.movements ?? []}
           rowKey={(m) => m.id}
           /* A movement listed here led nowhere, so the one question it
              raises, "what was that and who did it", had to be answered by

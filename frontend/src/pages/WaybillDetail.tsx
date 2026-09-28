@@ -11,12 +11,13 @@
  *  that. `GET /api/waybills/{id}` has returned all of it since waybills were
  *  written and nothing asked for it.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -48,14 +49,20 @@ const TONE: Record<string, string> = {
  *  dispatched" is the answer to "where is it", and an absent row answers
  *  nothing.
  */
-function Step({ label, at, who, note, done }: {
-  label: string; at?: string | null; who?: string; note?: string; done: boolean;
+function Step({ label, at, who, note, done, ready = true }: {
+  label: ReactNode; at?: string | null; who?: string; note?: string; done: boolean;
+  /** False while the waybill is still on its way here. "Not yet" is an answer
+   *  about the delivery, so it must not be given by a page that has not been
+   *  told anything: until then the time pulses instead. */
+  ready?: boolean;
 }) {
   return (
     <li className={`wb-step${done ? " is-done" : ""}`}>
       <span className="wb-step-label">{label}</span>
       <span className="wb-step-when">
-        {at ? fmtDateTime(at) : <span className="muted">Not yet</span>}
+        <Figure ready={ready} w="16ch">
+          {at ? fmtDateTime(at) : <span className="muted">Not yet</span>}
+        </Figure>
       </span>
       {who && <span className="wb-step-who">{who}</span>}
       {note && <span className="wb-step-note muted">{note}</span>}
@@ -214,86 +221,121 @@ export default function WaybillDetail() {
               </span>
             </div>
           )}
+        </>
+      )}
 
-          <Panel title="Chain of custody"
-                 aside={<span className="muted small">
-                   Who had it, and when it changed hands
-                 </span>}>
-            <ul className="wb-steps">
-              <Step label="Raised" at={w.created_at} who={w.created_by} done />
-              <Step label="Left the pharmacy" at={w.dispatched_at}
-                    who={w.driver || undefined}
-                    note={w.driver ? undefined : "No driver recorded"}
-                    done={!!w.dispatched_at} />
-              <Step label={w.status === "failed" ? "Did not arrive" : "Handed over"}
-                    at={w.delivered_at}
-                    who={w.received_by || undefined}
-                    note={w.status === "failed" ? w.failure_reason : undefined}
-                    done={!!w.delivered_at || w.status === "failed"} />
-            </ul>
-          </Panel>
+      {/* A waybill is the same chain of custody whichever one you open, and the
+          three panel headings and the seven labels under them say what that
+          chain is. Held behind the fetch, somebody chasing a parcel under
+          pressure got a header and a blank page. Now the questions stand still
+          and the answers arrive into them. */}
+      <Panel title="Chain of custody"
+             aside={<span className="muted small">
+               Who had it, and when it changed hands
+             </span>}>
+        <ul className="wb-steps">
+          <Step label="Raised" at={w?.created_at} who={w?.created_by}
+                done={!!w} ready={!!w} />
+          <Step label="Left the pharmacy" at={w?.dispatched_at}
+                who={w?.driver || undefined}
+                note={w && !w.driver ? "No driver recorded" : undefined}
+                done={!!w?.dispatched_at} ready={!!w} />
+          {/* The last leg is named by what became of it, so its label is part
+              of the answer rather than part of the frame. */}
+          <Step label={<Figure ready={!!w} w="12ch">
+                         {w && (w.status === "failed" ? "Did not arrive" : "Handed over")}
+                       </Figure>}
+                at={w?.delivered_at}
+                who={w?.received_by || undefined}
+                note={w?.status === "failed" ? w.failure_reason : undefined}
+                done={!!w?.delivered_at || w?.status === "failed"} ready={!!w} />
+        </ul>
+      </Panel>
 
-          <div className="grid cols-2">
-            <Panel title="Where it was going">
-              <dl className="kv">
-                <dt>Recipient</dt>
-                <dd>
+      <div className="grid cols-2">
+        <Panel title="Where it was going">
+          <dl className="kv">
+            <dt>Recipient</dt>
+            <dd>
+              <Figure ready={!!w} w="20ch">
+                {w && (
                   <EntityLink kind="patient" id={w.patient_id}>
                     {w.recipient || "none"}
                   </EntityLink>
-                </dd>
-                <dt>Address</dt>
-                <dd className="wrap">{w.address || <span className="muted">None given</span>}</dd>
-                <dt>Telephone</dt>
-                <dd>
-                  {w.phone
-                    ? <a href={`tel:${w.phone}`} className="row-link">
-                        <Phone size={13} /> {w.phone}
-                      </a>
-                    : <span className="muted">No number</span>}
-                </dd>
-                <dt>Instructions</dt>
-                <dd className="wrap">
-                  {w.instructions || <span className="muted">None</span>}
-                </dd>
-              </dl>
-            </Panel>
+                )}
+              </Figure>
+            </dd>
+            <dt>Address</dt>
+            <dd className="wrap">
+              <Figure ready={!!w} w="34ch">
+                {w && (w.address || <span className="muted">None given</span>)}
+              </Figure>
+            </dd>
+            <dt>Telephone</dt>
+            <dd>
+              <Figure ready={!!w} w="14ch">
+                {w && (w.phone
+                  ? <a href={`tel:${w.phone}`} className="row-link">
+                      <Phone size={13} /> {w.phone}
+                    </a>
+                  : <span className="muted">No number</span>)}
+              </Figure>
+            </dd>
+            <dt>Instructions</dt>
+            <dd className="wrap">
+              <Figure ready={!!w} w="34ch">
+                {w && (w.instructions || <span className="muted">None</span>)}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
 
-            <Panel title="What it was for">
-              <dl className="kv">
-                <dt>Sale</dt>
-                <dd>
+        <Panel title="What it was for">
+          <dl className="kv">
+            <dt>Sale</dt>
+            <dd>
+              <Figure ready={!!w} w="8ch">
+                {w && (
                   <EntityLink kind="sale" id={w.sale_id}>
                     {w.sale_id ? `#${w.sale_id}` : "none"}
                   </EntityLink>
-                </dd>
-                <dt>Patient</dt>
-                <dd>
+                )}
+              </Figure>
+            </dd>
+            <dt>Patient</dt>
+            <dd>
+              <Figure ready={!!w} w="20ch">
+                {w && (
                   <EntityLink kind="patient" id={w.patient_id}>
                     {w.patient_id ? w.recipient : "none"}
                   </EntityLink>
-                </dd>
-                <dt>Identity seen</dt>
-                <dd>{w.id_number_seen || <span className="muted">Not recorded</span>}</dd>
-              </dl>
-            </Panel>
+                )}
+              </Figure>
+            </dd>
+            <dt>Identity seen</dt>
+            <dd>
+              <Figure ready={!!w} w="16ch">
+                {w && (w.id_number_seen || <span className="muted">Not recorded</span>)}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
 
-            {/* The signature taken at the door. Shown rather than described,
-                because a claim is argued from the mark itself and "signed:
-                yes" is not evidence of anything. */}
-            {w.signature && (
-              <Panel title="Signed for at the door">
-                <img className="wb-signature" src={w.signature}
-                     alt={`Signature of ${w.received_by || "the recipient"}`} />
-                <p className="muted small">
-                  {w.received_by || "The recipient"} signed on the driver's
-                  phone{w.delivered_at ? ` on ${fmtDateTime(w.delivered_at)}` : ""}.
-                </p>
-              </Panel>
-            )}
-          </div>
-        </>
-      )}
+        {/* The signature taken at the door. Shown rather than described,
+            because a claim is argued from the mark itself and "signed:
+            yes" is not evidence of anything. Whether there is one at all is
+            part of the answer, so this card still waits for it. */}
+        {w?.signature && (
+          <Panel title="Signed for at the door">
+            <img className="wb-signature" src={w.signature}
+                 alt={`Signature of ${w.received_by || "the recipient"}`} />
+            <p className="muted small">
+              {w.received_by || "The recipient"} signed on the driver's
+              phone{w.delivered_at ? ` on ${fmtDateTime(w.delivered_at)}` : ""}.
+            </p>
+          </Panel>
+        )}
+      </div>
     </RecordPage>
   );
 }

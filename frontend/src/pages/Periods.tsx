@@ -199,7 +199,9 @@ export default function Periods() {
         <Refreshable
           loading={loading}
           hasData={periods.length > 0}
-          skeleton={<TableSkeleton cols={6} rows={5} />}
+          skeleton={<TableSkeleton cols={7} rows={5}
+            headers={["Period", "Runs", "Status", "Sales", "Transactions",
+                      "Closed by", ""]} />}
         >
         {/* No forced width. `dt-wider` pinned this to 78rem, which is wider than
             the content area on a 1440 screen, so the table scrolled sideways and

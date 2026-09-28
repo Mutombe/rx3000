@@ -11,6 +11,7 @@ import { useScheduleCodes } from "../schedules";
 import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import StaffPlacement from "../components/StaffPlacement";
 import { useAsk, useConfirm } from "../components/Confirm";
@@ -188,75 +189,90 @@ export default function StaffDetail() {
         { label: "Role", value: d.role },
       ] : undefined}
     >
-      {d && (
-        <>
-          {/* Which shop they work in, before what they have done in it: an
-              administrator opening this page is usually here to place or move
-              somebody, and the work history is the reference underneath. */}
-          <StaffPlacement userId={d.id} name={d.full_name} onChanged={load} />
-          <Panel title="Recently dispensed" count={d.dispensings.length}
-                 empty="This person has not dispensed anything.">
-            <div className="dt-scroll" style={{ maxHeight: "46vh" }}>
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>When</Th><Th>Medicine</Th><Th>Patient</Th>
-                    <Th>Script</Th><Th className="num">Qty</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.dispensings.map((r) => (
-                    <tr key={r.id}>
-                      <td>{fmtDateTime(r.dispensed_at)}</td>
-                      <td>
-                        <EntityLink kind="product" id={r.product_id}>
-                          {r.product || "none"}
-                        </EntityLink>
-                        {r.schedule >= 5 && <span className="badge sched">{sched(r.schedule)}</span>}
-                      </td>
-                      <td>
-                        <EntityLink kind="patient" id={r.patient.id}><Person name={r.patient.name} /></EntityLink>
-                      </td>
-                      <td className="mono">
-                        <EntityLink kind="prescription" id={r.prescription_id}>
-                          {r.rx_number || "none"}
-                        </EntityLink>
-                      </td>
-                      <td className="num">{r.quantity}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+      {/* Which shop they work in, before what they have done in it: an
+          administrator opening this page is usually here to place or move
+          somebody, and the work history is the reference underneath.
 
-          <Panel title="Till sessions" count={d.shifts.length}
-                 empty="This person has not run a till.">
-            <table className="dt">
-              <thead>
-                <tr><Th>Opened</Th><Th>Closed</Th><Th>Status</Th><Th className="num">Variance</Th></tr>
-              </thead>
+          The placement card is the one thing here that cannot be drawn early,
+          since it is asked for by staff id and there is no id until the person
+          arrives. */}
+      {d && <StaffPlacement userId={d.id} name={d.full_name} onChanged={load} />}
+
+      {/* Both panel headings and both sets of column heads are the same for
+          every member of staff in the building. Held behind the fetch, the
+          page opened as a bare header and then grew two tables in one step.
+          The empty lines stay behind it, because "has not dispensed anything"
+          is a finding about a person and not about a page that is still
+          waiting to hear. */}
+      <Panel title="Recently dispensed" count={d?.dispensings.length}
+             empty={d ? "This person has not dispensed anything." : undefined}>
+        <div className="dt-scroll" style={{ maxHeight: "46vh" }}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>When</Th><Th>Medicine</Th><Th>Patient</Th>
+                <Th>Script</Th><Th className="num">Qty</Th>
+              </tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={5} rows={3} widths={["70%", "80%", "65%", "55%", "30%"]} />
+            ) : (
               <tbody>
-                {d.shifts.map((s) => (
-                  <tr key={s.id}>
+                {d.dispensings.map((r) => (
+                  <tr key={r.id}>
+                    <td>{fmtDateTime(r.dispensed_at)}</td>
                     <td>
-                      <EntityLink kind="shift" id={s.id}>{fmtDateTime(s.opened_at)}</EntityLink>
+                      <EntityLink kind="product" id={r.product_id}>
+                        {r.product || "none"}
+                      </EntityLink>
+                      {r.schedule >= 5 && <span className="badge sched">{sched(r.schedule)}</span>}
                     </td>
-                    <td>{s.closed_at ? fmtDateTime(s.closed_at)
-                      : <span className="muted">Still open</span>}</td>
-                    <td><span className="badge">{sentence(s.status)}</span></td>
-                    <td className="num">
-                      {Math.abs(s.variance) < 0.005
-                        ? <span className="muted">Balanced</span>
-                        : money(s.variance)}
+                    <td>
+                      <EntityLink kind="patient" id={r.patient.id}><Person name={r.patient.name} /></EntityLink>
                     </td>
+                    <td className="mono">
+                      <EntityLink kind="prescription" id={r.prescription_id}>
+                        {r.rx_number || "none"}
+                      </EntityLink>
+                    </td>
+                    <td className="num">{r.quantity}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </Panel>
-        </>
-      )}
+            )}
+          </table>
+        </div>
+      </Panel>
+
+      <Panel title="Till sessions" count={d?.shifts.length}
+             empty={d ? "This person has not run a till." : undefined}>
+        <table className="dt">
+          <thead>
+            <tr><Th>Opened</Th><Th>Closed</Th><Th>Status</Th><Th className="num">Variance</Th></tr>
+          </thead>
+          {!d ? (
+            <GhostRows cols={4} rows={3} widths={["70%", "70%", "45%", "40%"]} />
+          ) : (
+            <tbody>
+              {d.shifts.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <EntityLink kind="shift" id={s.id}>{fmtDateTime(s.opened_at)}</EntityLink>
+                  </td>
+                  <td>{s.closed_at ? fmtDateTime(s.closed_at)
+                    : <span className="muted">Still open</span>}</td>
+                  <td><span className="badge">{sentence(s.status)}</span></td>
+                  <td className="num">
+                    {Math.abs(s.variance) < 0.005
+                      ? <span className="muted">Balanced</span>
+                      : money(s.variance)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
     </RecordPage>
   );
 }

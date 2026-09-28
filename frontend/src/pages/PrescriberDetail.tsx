@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -137,58 +138,72 @@ export default function PrescriberDetail() {
         { label: "Email", value: d.email || "none" },
       ] : undefined}
     >
-      {d && (
-        <>
-          <Panel title="What they prescribe most" count={d.most_prescribed.length}
-                 empty="No script from this prescriber has been captured.">
-            <table className="dt">
-              <thead><tr><Th>Medicine</Th><Th className="num">Times</Th></tr></thead>
+      {/* A prescriber page always has these two panels and always has these
+          column heads: what changes between one doctor and the next is the
+          rows. Holding the headings back until the fetch returned meant the
+          reader could not even see what they were waiting for. Now the words
+          "What they prescribe most" and "Scripts" are on the screen from the
+          first frame, and only the rows beneath them pulse.
+
+          Both empty lines sit after the ghost arm on purpose: nothing has come
+          in from this prescriber is a finding, and a page that has not been
+          told anything is in no position to report it. */}
+      <Panel title="What they prescribe most" count={d?.most_prescribed.length}
+             empty={d ? "No script from this prescriber has been captured." : undefined}>
+        <table className="dt">
+          <thead><tr><Th>Medicine</Th><Th className="num">Times</Th></tr></thead>
+          {!d ? (
+            <GhostRows cols={2} rows={3} widths={["80%", "30%"]} />
+          ) : (
+            <tbody>
+              {d.most_prescribed.map((m) => (
+                <tr key={m.product_id}>
+                  <td>
+                    <EntityLink kind="product" id={m.product_id}>{m.product}</EntityLink>
+                  </td>
+                  <td className="num">{m.times}</td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
+
+      <Panel title="Scripts" count={d?.prescriptions.length}
+             empty={d ? "Nothing has come in from this prescriber." : undefined}
+             aside={d && d.script_count > d.prescriptions.length
+               ? <span className="muted small">
+                   showing the most recent {d.prescriptions.length} of {d.script_count}
+                 </span>
+               : undefined}>
+        <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
+          <table className="dt">
+            <thead>
+              <tr><Th>Script</Th><Th>Patient</Th><Th>Written</Th><Th>Status</Th></tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={4} rows={3} widths={["60%", "70%", "50%", "40%"]} />
+            ) : (
               <tbody>
-                {d.most_prescribed.map((m) => (
-                  <tr key={m.product_id}>
-                    <td>
-                      <EntityLink kind="product" id={m.product_id}>{m.product}</EntityLink>
+                {d.prescriptions.map((p) => (
+                  <tr key={p.id}>
+                    <td className="mono">
+                      <EntityLink kind="prescription" id={p.id}>
+                        {p.rx_number || `#${p.id}`}
+                      </EntityLink>
                     </td>
-                    <td className="num">{m.times}</td>
+                    <td>
+                      <EntityLink kind="patient" id={p.patient.id}><Person name={p.patient.name} /></EntityLink>
+                    </td>
+                    <td>{fmtDate(p.date_prescribed)}</td>
+                    <td><span className="badge">{sentence(p.status)}</span></td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </Panel>
-
-          <Panel title="Scripts" count={d.prescriptions.length}
-                 empty="Nothing has come in from this prescriber."
-                 aside={d.script_count > d.prescriptions.length
-                   ? <span className="muted small">
-                       showing the most recent {d.prescriptions.length} of {d.script_count}
-                     </span>
-                   : undefined}>
-            <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
-              <table className="dt">
-                <thead>
-                  <tr><Th>Script</Th><Th>Patient</Th><Th>Written</Th><Th>Status</Th></tr>
-                </thead>
-                <tbody>
-                  {d.prescriptions.map((p) => (
-                    <tr key={p.id}>
-                      <td className="mono">
-                        <EntityLink kind="prescription" id={p.id}>
-                          {p.rx_number || `#${p.id}`}
-                        </EntityLink>
-                      </td>
-                      <td>
-                        <EntityLink kind="patient" id={p.patient.id}><Person name={p.patient.name} /></EntityLink>
-                      </td>
-                      <td>{fmtDate(p.date_prescribed)}</td>
-                      <td><span className="badge">{sentence(p.status)}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
-      )}
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

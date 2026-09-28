@@ -21,6 +21,7 @@ import { Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import MatchToBill, { Candidate } from "../components/MatchToBill";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -219,93 +220,120 @@ export default function GoodsReceiptDetail() {
         <MatchToBill delivery={row} onClose={() => setMatching(false)}
                      onMatched={(inv) => void putOn(inv)} />
       )}
-      {row && (
-        <>
-          {row.status === "open" && (
-            <div className="alert warn">
-              <Warning size={15} weight="fill" /> This delivery is still open.
-              Somebody is scanning it, or it was never signed for.
-            </div>
-          )}
-
-          <Panel title="The paperwork">
-            <dl className="kv">
-              <dt>Supplier</dt>
-              <dd>
-                {row.supplier_id
-                  ? <EntityLink to={`/suppliers/${row.supplier_id}`}>{row.supplier}</EntityLink>
-                  : <span className="muted">Not recorded</span>}
-              </dd>
-
-              <dt>Against order</dt>
-              <dd>
-                {row.order_id
-                  ? <EntityLink to={`/orders/${row.order_id}`}>
-                      {row.order_number || `#${row.order_id}`}
-                    </EntityLink>
-                  : <span className="muted">none, booked in without an order</span>}
-              </dd>
-
-              <dt>Delivery note</dt>
-              <dd className="mono">
-                {row.delivery_note || <span className="muted">None given</span>}
-              </dd>
-
-              <dt>Invoice</dt>
-              <dd className="mono">
-                {row.invoice_number || <span className="muted">Not billed yet</span>}
-              </dd>
-
-              <dt>Received</dt>
-              <dd>{row.received_at ? fmtDateTime(row.received_at)
-                                   : <span className="muted">Not recorded</span>}</dd>
-
-              <dt>Note</dt>
-              <dd>{row.notes || <span className="muted">None</span>}</dd>
-            </dl>
-          </Panel>
-
-          {/* Damaged first: it is what a credit claim is built from, and the
-              reason anybody opens a delivery in a hurry. */}
-          {damaged.length > 0 && (
-            <Panel title="Arrived damaged" count={damaged.length}>
-              <div className="table-wrap">
-                <table className="dt">
-                  <thead>
-                    <tr>
-                      <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
-                      <Th className="num">Packs</Th>
-                      <Th className="num">Unit cost</Th>
-                      <Th className="num">Value</Th>
-                    </tr>
-                  </thead>
-                  <tbody>{itemRows(damaged)}</tbody>
-                </table>
-              </div>
-            </Panel>
-          )}
-
-          <Panel
-            title="What came off the van"
-            count={good.length}
-            empty="Nothing was booked in against this delivery."
-          >
-            <div className="table-wrap">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
-                    <Th className="num">Packs</Th>
-                    <Th className="num">Unit cost</Th>
-                    <Th className="num">Value</Th>
-                  </tr>
-                </thead>
-                <tbody>{itemRows(good)}</tbody>
-              </table>
-            </div>
-          </Panel>
-        </>
+      {/* The gate that stood here withheld both card headings, the six labels
+          of the paperwork card and the head of the goods table until the
+          delivery came back. Every delivery is asked the same six questions
+          and the table always has the same six columns; a person hunting a
+          delivery note in a hurry can start reading before the van's contents
+          arrive. Only the answers pulse. */}
+      {row?.status === "open" && (
+        <div className="alert warn">
+          <Warning size={15} weight="fill" /> This delivery is still open.
+          Somebody is scanning it, or it was never signed for.
+        </div>
       )}
+
+      <Panel title="The paperwork">
+        <dl className="kv">
+          <dt>Supplier</dt>
+          <dd>
+            <Figure ready={!!row} w="18ch">
+              {row && (row.supplier_id
+                ? <EntityLink to={`/suppliers/${row.supplier_id}`}>{row.supplier}</EntityLink>
+                : <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Against order</dt>
+          <dd>
+            <Figure ready={!!row} w="14ch">
+              {row && (row.order_id
+                ? <EntityLink to={`/orders/${row.order_id}`}>
+                    {row.order_number || `#${row.order_id}`}
+                  </EntityLink>
+                : <span className="muted">none, booked in without an order</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Delivery note</dt>
+          <dd className="mono">
+            <Figure ready={!!row} w="14ch">
+              {row && (row.delivery_note || <span className="muted">None given</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Invoice</dt>
+          <dd className="mono">
+            <Figure ready={!!row} w="14ch">
+              {row && (row.invoice_number || <span className="muted">Not billed yet</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Received</dt>
+          <dd>
+            <Figure ready={!!row} w="16ch">
+              {row && (row.received_at ? fmtDateTime(row.received_at)
+                                       : <span className="muted">Not recorded</span>)}
+            </Figure>
+          </dd>
+
+          <dt>Note</dt>
+          <dd>
+            <Figure ready={!!row} w="30ch">
+              {row && (row.notes || <span className="muted">None</span>)}
+            </Figure>
+          </dd>
+        </dl>
+      </Panel>
+
+      {/* Damaged first: it is what a credit claim is built from, and the
+          reason anybody opens a delivery in a hurry. Most deliveries arrive
+          intact, so this card is not part of the frame and has nothing to
+          hold open while the van's contents load. */}
+      {damaged.length > 0 && (
+        <Panel title="Arrived damaged" count={damaged.length}>
+          <div className="table-wrap">
+            <table className="dt">
+              <thead>
+                <tr>
+                  <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
+                  <Th className="num">Packs</Th>
+                  <Th className="num">Unit cost</Th>
+                  <Th className="num">Value</Th>
+                </tr>
+              </thead>
+              <tbody>{itemRows(damaged)}</tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+
+      <Panel
+        title="What came off the van"
+        count={row?.items ? good.length : undefined}
+        /* Only once the delivery has answered. "Nothing was booked in" is a
+           serious claim about a van that has already been unloaded. */
+        empty={row ? "Nothing was booked in against this delivery." : undefined}
+      >
+        <div className="table-wrap">
+          <table className="dt">
+            <thead>
+              <tr>
+                <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
+                <Th className="num">Packs</Th>
+                <Th className="num">Unit cost</Th>
+                <Th className="num">Value</Th>
+              </tr>
+            </thead>
+            {!row ? (
+              <GhostRows cols={6} rows={3}
+                         widths={["75%", "50%", "55%", "30%", "50%", "50%"]} />
+            ) : (
+              <tbody>{itemRows(good)}</tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
     </RecordPage>
   );
 }

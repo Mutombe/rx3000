@@ -26,6 +26,7 @@ import { ArrowCounterClockwise, CloudArrowUp, DownloadSimple, Warning }
   from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import RecordPage, { Fact, Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -202,142 +203,180 @@ export default function ComplianceDocument() {
         </>
       ) : undefined}
     >
-      {doc && (
-        <>
-          {/* A document opened from an old link, when a newer one exists.
-              Said before anything else on the page: somebody reading an expiry
-              here and acting on it would be acting on last year's. */}
-          {doc.replaced_by && (
-            <div className="alert warn">
-              <Warning size={16} weight="fill" />
-              <span>
-                <b>This is not the current {doc.name}.</b> It was replaced by{" "}
-                <Link to={`/compliance/documents/${doc.replaced_by.id}`}>
-                  {doc.replaced_by.reference || "a later certificate"}
-                </Link>
-                {doc.replaced_by.expires_on && <>, which expires {fmtDate(doc.replaced_by.expires_on)}</>}.
-                It is kept because it is the proof the branch was licensed for
-                the period it covered.
-              </span>
-            </div>
-          )}
-
-          {doc.state === "expired" && doc.critical && !doc.replaced_by && (
-            <div className="alert error">
-              <Warning size={16} weight="fill" />
-              <span>
-                <b>This has lapsed and nothing has replaced it.</b> {doc.why}
-              </span>
-            </div>
-          )}
-
-          {!doc.has_file && (
-            <div className="alert warn">
-              <Warning size={16} weight="fill" />
-              <span>
-                <b>The certificate itself is not on file.</b> The dates here are
-                a claim; an inspector asks to see the licence. Record a renewal
-                with the scan attached, or add the file to this one.
-              </span>
-            </div>
-          )}
-
-          <div className="grid cols-2">
-            <Panel title="What this permits">
-              <p className="prose">{doc.why}</p>
-              <dl className="kv">
-                <dt>Issued by</dt>
-                <dd>
-                  {doc.issuer || <span className="muted">Not recorded</span>}
-                  {doc.expected_issuer && doc.issuer
-                    && doc.issuer !== doc.expected_issuer && (
-                    <div className="muted small">
-                      usually {doc.expected_issuer}
-                    </div>
-                  )}
-                </dd>
-                <dt>Issued on</dt>
-                <dd>{doc.issued_on ? fmtDate(doc.issued_on)
-                  : <span className="muted">Not recorded</span>}</dd>
-                <dt>Expires</dt>
-                <dd>
-                  {doc.expires_on ? fmtDate(doc.expires_on)
-                    : <span className="muted">Does not expire</span>}
-                </dd>
-                <dt>Renewal cost</dt>
-                <dd>{doc.renewal_cost ? money(doc.renewal_cost)
-                  : <span className="muted">Not recorded</span>}</dd>
-              </dl>
-            </Panel>
-
-            <Panel title="The document">
-              <dl className="kv">
-                <dt>File</dt>
-                <dd>
-                  {doc.has_file ? (
-                    <>
-                      <button className="linkish" onClick={openFile}>
-                        {doc.file_name || "the certificate"}
-                      </button>
-                      <div className="muted small">
-                        {doc.file_type}{doc.file_bytes ? ` · ${bytes(doc.file_bytes)}` : ""}
-                      </div>
-                    </>
-                  ) : <span className="cu-diff">nothing attached</span>}
-                </dd>
-                <dt>Recorded by</dt>
-                <dd>
-                  {doc.uploaded_by || <span className="muted">None</span>}
-                  {doc.uploaded_at && (
-                    <div className="muted small">{fmtDateTime(doc.uploaded_at)}</div>
-                  )}
-                </dd>
-                <dt>On the register</dt>
-                <dd>
-                  {doc.is_current
-                    ? <span className="badge ok">The current one</span>
-                    : doc.active
-                      ? <span className="badge muted">Held, superseded</span>
-                      : <span className="badge muted">Taken off</span>}
-                </dd>
-              </dl>
-              {doc.notes.trim() && <p className="prose">{doc.notes.trim()}</p>}
-            </Panel>
-          </div>
-
-          {/* The chain. This is what makes the page worth opening. The
-              register can say what is current, and only this can say what was
-              current in March. */}
-          <Panel title="What this replaced" count={doc.replaced.length}
-                 empty="Nothing. This is the first of its kind on file for this branch.">
-            <table className="dt">
-              <thead>
-                <tr>
-                  <Th>Reference</Th><Th>Issued</Th><Th>Expired</Th>
-                  <Th>Recorded by</Th><Th className="num">Cost</Th><th />
-                </tr>
-              </thead>
-              <tbody>
-                {doc.replaced.map((r) => (
-                  <tr key={r.id}>
-                    <td className="mono">{r.reference || "none"}</td>
-                    <td>{r.issued_on ? fmtDate(r.issued_on) : "No date"}</td>
-                    <td>{r.expires_on ? fmtDate(r.expires_on) : "No date"}</td>
-                    <td className="muted">{r.uploaded_by || "none"}</td>
-                    <td className="num">{r.renewal_cost ? money(r.renewal_cost) : "none"}</td>
-                    <td>
-                      <Link to={`/compliance/documents/${r.id}`}
-                            className="muted small">
-                        <ArrowCounterClockwise size={12} /> open it
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel>
-        </>
+      {/* The gate that stood here kept all three card headings, their eleven
+          labels and the head of the chain table off the screen until the
+          certificate had been read. Every licence on the register answers the
+          same questions — who issued it, when, when it lapses, what it cost —
+          and those questions are written here. Only the answers wait.
+          The three warnings below stay behind the document, because each of
+          them asserts something about a certificate nobody has read yet. */}
+      {/* A document opened from an old link, when a newer one exists.
+          Said before anything else on the page: somebody reading an expiry
+          here and acting on it would be acting on last year's. */}
+      {doc?.replaced_by && (
+        <div className="alert warn">
+          <Warning size={16} weight="fill" />
+          <span>
+            <b>This is not the current {doc.name}.</b> It was replaced by{" "}
+            <Link to={`/compliance/documents/${doc.replaced_by.id}`}>
+              {doc.replaced_by.reference || "a later certificate"}
+            </Link>
+            {doc.replaced_by.expires_on && <>, which expires {fmtDate(doc.replaced_by.expires_on)}</>}.
+            It is kept because it is the proof the branch was licensed for
+            the period it covered.
+          </span>
+        </div>
       )}
+
+      {doc && doc.state === "expired" && doc.critical && !doc.replaced_by && (
+        <div className="alert error">
+          <Warning size={16} weight="fill" />
+          <span>
+            <b>This has lapsed and nothing has replaced it.</b> {doc.why}
+          </span>
+        </div>
+      )}
+
+      {doc && !doc.has_file && (
+        <div className="alert warn">
+          <Warning size={16} weight="fill" />
+          <span>
+            <b>The certificate itself is not on file.</b> The dates here are
+            a claim; an inspector asks to see the licence. Record a renewal
+            with the scan attached, or add the file to this one.
+          </span>
+        </div>
+      )}
+
+      <div className="grid cols-2">
+        <Panel title="What this permits">
+          <p className="prose"><Figure ready={!!doc} w="40ch">{doc?.why}</Figure></p>
+          <dl className="kv">
+            <dt>Issued by</dt>
+            <dd>
+              <Figure ready={!!doc} w="18ch">
+                {doc && (
+                  <>
+                    {doc.issuer || <span className="muted">Not recorded</span>}
+                    {doc.expected_issuer && doc.issuer
+                      && doc.issuer !== doc.expected_issuer && (
+                      <div className="muted small">
+                        usually {doc.expected_issuer}
+                      </div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>Issued on</dt>
+            <dd>
+              <Figure ready={!!doc} w="11ch">
+                {doc && (doc.issued_on ? fmtDate(doc.issued_on)
+                  : <span className="muted">Not recorded</span>)}
+              </Figure>
+            </dd>
+            <dt>Expires</dt>
+            <dd>
+              <Figure ready={!!doc} w="11ch">
+                {doc && (doc.expires_on ? fmtDate(doc.expires_on)
+                  : <span className="muted">Does not expire</span>)}
+              </Figure>
+            </dd>
+            <dt>Renewal cost</dt>
+            <dd>
+              <Figure ready={!!doc} w="9ch">
+                {doc && (doc.renewal_cost ? money(doc.renewal_cost)
+                  : <span className="muted">Not recorded</span>)}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
+
+        <Panel title="The document">
+          <dl className="kv">
+            <dt>File</dt>
+            <dd>
+              <Figure ready={!!doc} w="20ch">
+                {doc && (doc.has_file ? (
+                  <>
+                    <button className="linkish" onClick={openFile}>
+                      {doc.file_name || "the certificate"}
+                    </button>
+                    <div className="muted small">
+                      {doc.file_type}{doc.file_bytes ? ` · ${bytes(doc.file_bytes)}` : ""}
+                    </div>
+                  </>
+                ) : <span className="cu-diff">nothing attached</span>)}
+              </Figure>
+            </dd>
+            <dt>Recorded by</dt>
+            <dd>
+              <Figure ready={!!doc} w="16ch">
+                {doc && (
+                  <>
+                    {doc.uploaded_by || <span className="muted">None</span>}
+                    {doc.uploaded_at && (
+                      <div className="muted small">{fmtDateTime(doc.uploaded_at)}</div>
+                    )}
+                  </>
+                )}
+              </Figure>
+            </dd>
+            <dt>On the register</dt>
+            <dd>
+              <Figure ready={!!doc} w="12ch">
+                {doc && (doc.is_current
+                  ? <span className="badge ok">The current one</span>
+                  : doc.active
+                    ? <span className="badge muted">Held, superseded</span>
+                    : <span className="badge muted">Taken off</span>)}
+              </Figure>
+            </dd>
+          </dl>
+          {doc && doc.notes.trim() && <p className="prose">{doc.notes.trim()}</p>}
+        </Panel>
+      </div>
+
+      {/* The chain. This is what makes the page worth opening. The
+          register can say what is current, and only this can say what was
+          current in March. */}
+      <Panel title="What this replaced" count={doc?.replaced.length}
+             /* "This is the first of its kind" is a finding about the
+                register, so it waits for the register to answer. */
+             empty={doc
+               ? "Nothing. This is the first of its kind on file for this branch."
+               : undefined}>
+        <table className="dt">
+          <thead>
+            <tr>
+              <Th>Reference</Th><Th>Issued</Th><Th>Expired</Th>
+              <Th>Recorded by</Th><Th className="num">Cost</Th><th />
+            </tr>
+          </thead>
+          {!doc ? (
+            <GhostRows cols={6} rows={3}
+                       widths={["60%", "55%", "55%", "60%", "40%", "45%"]} />
+          ) : (
+            <tbody>
+              {doc.replaced.map((r) => (
+                <tr key={r.id}>
+                  <td className="mono">{r.reference || "none"}</td>
+                  <td>{r.issued_on ? fmtDate(r.issued_on) : "No date"}</td>
+                  <td>{r.expires_on ? fmtDate(r.expires_on) : "No date"}</td>
+                  <td className="muted">{r.uploaded_by || "none"}</td>
+                  <td className="num">{r.renewal_cost ? money(r.renewal_cost) : "none"}</td>
+                  <td>
+                    <Link to={`/compliance/documents/${r.id}`}
+                          className="muted small">
+                      <ArrowCounterClockwise size={12} /> open it
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+      </Panel>
     </RecordPage>
   );
 }

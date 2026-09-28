@@ -73,6 +73,8 @@ export default function AccountLedger() {
         hasData={!!view?.lines.length}
         skeleton={
           <TableSkeleton cols={7} rows={8}
+            headers={["Entry", "Date", "Description", "Party", "Debit", "Credit",
+                      "Balance"]}
             widths={["12ch", "10ch", "24ch", "12ch", "9ch", "9ch", "10ch"]} />
         }
       >

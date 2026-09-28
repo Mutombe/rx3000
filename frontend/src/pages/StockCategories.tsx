@@ -141,8 +141,10 @@ export default function StockCategories() {
         <Refreshable
           loading={list.loading}
           hasData={rows.length > 0}
-          skeleton={<TableSkeleton cols={7} rows={5}
-            widths={["20ch", "8ch", "10ch", "10ch", "10ch", "14ch", "12ch"]} />}
+          skeleton={<TableSkeleton cols={8} rows={5}
+            headers={["Department", "Lines", "With stock", "At cost",
+                      "Target margin", "Warn (days)", "In the dispensary", ""]}
+            widths={["20ch", "8ch", "10ch", "10ch", "10ch", "14ch", "12ch", "6ch"]} />}
         >
         <table className="dt dt-wider">
           <thead>

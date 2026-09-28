@@ -210,7 +210,9 @@ export default function Pharmacies() {
           loading={list.loading}
           hasData={rows.length > 0}
           skeleton={<TableSkeleton cols={7} rows={7} rowHeight={66}
-                                   widths={["22ch", "14ch", "8ch", "10ch", "10ch"]} />}
+                                   headers={["Pharmacy", "City", "Branches", "People",
+                                             "Since", "State", ""]}
+                                   widths={["22ch", "14ch", "8ch", "10ch", "10ch", "10ch", "6ch"]} />}
         >
         <table className="dt dt-wide">
           <thead>

@@ -235,7 +235,8 @@ export default function DriverDetail() {
             Each round this driver has brought back and paid over
           </span>
         </div>
-        {handIns === null ? <TableSkeleton cols={4} rows={3} />
+        {handIns === null ? <TableSkeleton cols={4} rows={3}
+                              headers={["When", "Deliveries", "Amount", "Into till"]} />
           : handInsUnknown ? (
             <div className="empty">
               <p>
@@ -284,7 +285,9 @@ export default function DriverDetail() {
           </span>
         </div>
         <Refreshable loading={loading} hasData={driver.waybills.length > 0}
-          skeleton={<TableSkeleton cols={6} rows={5} />}>
+          skeleton={<TableSkeleton cols={7} rows={5}
+                      headers={["Waybill", "To", "Status", "Fee", "To collect",
+                                "Collected", "When"]} />}>
           <div className="dt-scroll">
             <table className="dt">
               <thead>

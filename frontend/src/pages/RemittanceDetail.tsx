@@ -17,6 +17,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure, GhostRows } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Th from "../components/Th";
@@ -121,6 +122,8 @@ export default function RemittanceDetail() {
           hint: open.length ? `${open.length} lines` : undefined },
       ] : undefined}
     >
+      {/* The accusation waits for the figures, because a page that has not
+          heard back cannot say anybody paid for something we never sent. */}
       {advice && (
         <>
           {advice.unmatched > 0 && (
@@ -135,177 +138,208 @@ export default function RemittanceDetail() {
               </span>
             </div>
           )}
+        </>
+      )}
 
-          <div className="grid cols-2">
-            <Panel title="The payment">
-              <dl className="kv">
-                <dt>Funder</dt><dd>{advice.funder_id}</dd>
-                <dt>Paid on</dt>
-                <dd>{advice.payment_date ? fmtDate(advice.payment_date) : "No date"}</dd>
-                <dt>Their reference</dt>
-                <dd className="mono">{advice.payment_reference || "none"}</dd>
-                <dt>Currency</dt><dd>{advice.currency_code}</dd>
-                <dt>Lines</dt><dd>{advice.line_count}</dd>
-                <dt>State</dt>
-                <dd>
+      {/* Three panel headings, six field labels and eleven column heads, all of
+          them true of any advice from any funder and none of them fetched.
+          Behind the gate a reader chasing a shortfall waited on a blank page
+          and then had the whole advice land at once. The words stay put now
+          and only the money pulses. */}
+      <div className="grid cols-2">
+        <Panel title="The payment">
+          <dl className="kv">
+            <dt>Funder</dt>
+            <dd><Figure ready={!!advice} w="14ch">{advice?.funder_id}</Figure></dd>
+            <dt>Paid on</dt>
+            <dd>
+              <Figure ready={!!advice} w="11ch">
+                {advice && (advice.payment_date ? fmtDate(advice.payment_date) : "No date")}
+              </Figure>
+            </dd>
+            <dt>Their reference</dt>
+            <dd className="mono">
+              <Figure ready={!!advice} w="14ch">
+                {advice && (advice.payment_reference || "none")}
+              </Figure>
+            </dd>
+            <dt>Currency</dt>
+            <dd><Figure ready={!!advice} w="4ch">{advice?.currency_code}</Figure></dd>
+            <dt>Lines</dt>
+            <dd><Figure ready={!!advice} w="3ch">{advice?.line_count}</Figure></dd>
+            <dt>State</dt>
+            <dd>
+              <Figure ready={!!advice} w="10ch">
+                {advice && (
                   <span className={`badge ${advice.status === "settled" ? "ok"
                     : advice.status === "rejected" ? "danger" : "warn"}`}>
                     {advice.status}
                   </span>
-                </dd>
-              </dl>
-            </Panel>
+                )}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
 
-            <Panel title="Why they held money back" count={advice.by_reason.length}
-                   empty="Every line paid in full.">
-              {/* Ranked, because the top one or two reasons are usually the
-                  whole story and are what goes back to the funder. */}
-              <table className="dt">
-                <thead>
-                  <tr><Th>Reason</Th><Th className="num">Lines</Th><Th className="num">Amount</Th></tr>
-                </thead>
-                <tbody>
-                  {advice.by_reason.map((r) => (
-                    <tr key={r.reason_code}>
-                      <td>
-                        <span className="mono small">{r.reason_code}</span>
-                        <div className="muted small">{r.reason}</div>
-                      </td>
-                      <td className="num">{r.lines}</td>
-                      <td className="num">{money(r.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Panel>
-          </div>
-
-          <Panel title="Every line on the advice" count={advice.lines.length}>
-            <div className="dt-scroll">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <th>#</th><Th>Claim</Th><Th>Member</Th>
-                    <Th className="num">Claimed</Th><Th className="num">Paid</Th>
-                    <Th className="num">Short</Th><Th>What happened</Th>
-                    <th className="actions" />
+        {/* "Every line paid in full" is the best news on this page and the
+            worst thing to say before the lines have been read. */}
+        <Panel title="Why they held money back" count={advice?.by_reason.length}
+               empty={advice ? "Every line paid in full." : undefined}>
+          {/* Ranked, because the top one or two reasons are usually the
+              whole story and are what goes back to the funder. */}
+          <table className="dt">
+            <thead>
+              <tr><Th>Reason</Th><Th className="num">Lines</Th><Th className="num">Amount</Th></tr>
+            </thead>
+            {!advice ? (
+              <GhostRows cols={3} rows={3} widths={["80%", "30%", "45%"]} secondLine={[0]} />
+            ) : (
+              <tbody>
+                {advice.by_reason.map((r) => (
+                  <tr key={r.reason_code}>
+                    <td>
+                      <span className="mono small">{r.reason_code}</span>
+                      <div className="muted small">{r.reason}</div>
+                    </td>
+                    <td className="num">{r.lines}</td>
+                    <td className="num">{money(r.amount)}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {advice.lines.map((l) => {
-                    const settled = l.written_off || l.patient_billed;
-                    const owed = (l.status === "short_paid" || l.status === "rejected")
-                                 && !settled;
-                    return (
-                      <tr key={l.id} className={owed ? "row-flag" : ""}>
-                        <td className="muted">{l.line_number}</td>
-                        <td className="mono">
-                          {l.claim_id
-                            ? <EntityLink kind="claim" id={l.claim_id}>{l.claim_reference}</EntityLink>
-                            : (l.claim_reference || "none")}
-                        </td>
-                        <td>
-                          {l.member_name || <span className="muted">None</span>}
-                          {l.policy_number && (
-                            <div className="muted small mono">{l.policy_number}</div>
-                          )}
-                        </td>
-                        <td className="num">{money(l.amount_claimed)}</td>
-                        <td className="num">{money(l.amount_paid)}</td>
-                        <td className={`num${l.variance > 0.005 ? " cu-diff" : ""}`}>
-                          {l.variance > 0.005 ? money(l.variance) : "none"}
-                        </td>
-                        <td>
-                          <span className={`badge ${TONE[l.status] ?? ""}`}>
-                            {STATE[l.status] ?? l.status}
-                          </span>
-                          {l.reason && <div className="muted small">{l.reason}</div>}
-                          {/* Kept apart from the funder's own words, so a line
-                              resolved twice does not rewrite what they said. */}
-                          {l.resolution_note && (
-                            <div className="muted small">{l.resolution_note}</div>
-                          )}
-                          {l.patient_billed && <span className="badge">Billed on</span>}
-                          {l.written_off && <span className="badge">Written off</span>}
-                        </td>
-                        <td className="actions">
-                          {owed ? (
-                            <>
-                              <button className="btn small"
-                                      onClick={() => { setWhy(""); setAsking({ line: l, action: "bill_patient" }); }}>
-                                Bill patient
-                              </button>
-                              <button className="btn small ghost"
-                                      onClick={() => { setWhy(""); setAsking({ line: l, action: "write_off" }); }}>
-                                Write off
-                              </button>
-                            </>
-                          ) : settled ? (
-                            <BusyButton className="btn small ghost"
-                                        disabled={busy === l.id}
-                                        onClick={() => resolve(l, "reopen")}>
-                              Reopen
-                            </BusyButton>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </Panel>
+      </div>
 
-          {asking && (
-            <div className="modal-backdrop" onClick={() => setAsking(null)}>
-              <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <h2>
-                  {asking.action === "bill_patient" ? "Bill this to the patient"
-                                                    : "Write this off"}
-                </h2>
-                <p className="muted">
-                  {asking.action === "bill_patient" ? (
-                    <>
-                      {money(asking.line.variance)} the funder did not pay goes
-                      onto <b>{asking.line.member_name || "the patient"}</b>&rsquo;s
-                      account. Right when it is their levy or co-payment. They
-                      always owed it.
-                    </>
-                  ) : (
-                    <>
-                      The pharmacy absorbs {money(asking.line.variance)}. Right
-                      when the money was never claimable, and wrong when it was
-                      the patient&rsquo;s levy. Writing those off is how a
-                      pharmacy ends up paying its patients&rsquo; co-payments
-                      for them.
-                    </>
-                  )}
-                </p>
-                <p className="muted small">
-                  {asking.line.claim_reference}
-                  {asking.line.reason ? `: ${asking.line.reason}` : ""}
-                </p>
-                <label className="field">
-                  Why
-                  <input value={why} onChange={(e) => setWhy(e.target.value)}
-                         placeholder="so the next person reading this knows"
-                         autoFocus />
-                </label>
-                <div className="modal-actions">
-                  <button className="btn ghost" onClick={() => setAsking(null)}>
-                    Cancel
-                  </button>
-                  <BusyButton
-                    disabled={busy === asking.line.id}
-                    onClick={() => resolve(asking.line, asking.action, why.trim())}
-                  >
-                    {asking.action === "bill_patient" ? "Bill it on" : "Write it off"}
-                  </BusyButton>
-                </div>
-              </div>
+      <Panel title="Every line on the advice" count={advice?.lines.length}>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>#</th><Th>Claim</Th><Th>Member</Th>
+                <Th className="num">Claimed</Th><Th className="num">Paid</Th>
+                <Th className="num">Short</Th><Th>What happened</Th>
+                <th className="actions" />
+              </tr>
+            </thead>
+            {!advice ? (
+              <GhostRows cols={8} rows={3} secondLine={[2, 6]}
+                         widths={["20%", "70%", "70%", "45%", "45%", "45%", "60%", "40%"]} />
+            ) : (
+              <tbody>
+                {advice.lines.map((l) => {
+                  const settled = l.written_off || l.patient_billed;
+                  const owed = (l.status === "short_paid" || l.status === "rejected")
+                               && !settled;
+                  return (
+                    <tr key={l.id} className={owed ? "row-flag" : ""}>
+                      <td className="muted">{l.line_number}</td>
+                      <td className="mono">
+                        {l.claim_id
+                          ? <EntityLink kind="claim" id={l.claim_id}>{l.claim_reference}</EntityLink>
+                          : (l.claim_reference || "none")}
+                      </td>
+                      <td>
+                        {l.member_name || <span className="muted">None</span>}
+                        {l.policy_number && (
+                          <div className="muted small mono">{l.policy_number}</div>
+                        )}
+                      </td>
+                      <td className="num">{money(l.amount_claimed)}</td>
+                      <td className="num">{money(l.amount_paid)}</td>
+                      <td className={`num${l.variance > 0.005 ? " cu-diff" : ""}`}>
+                        {l.variance > 0.005 ? money(l.variance) : "none"}
+                      </td>
+                      <td>
+                        <span className={`badge ${TONE[l.status] ?? ""}`}>
+                          {STATE[l.status] ?? l.status}
+                        </span>
+                        {l.reason && <div className="muted small">{l.reason}</div>}
+                        {/* Kept apart from the funder's own words, so a line
+                            resolved twice does not rewrite what they said. */}
+                        {l.resolution_note && (
+                          <div className="muted small">{l.resolution_note}</div>
+                        )}
+                        {l.patient_billed && <span className="badge">Billed on</span>}
+                        {l.written_off && <span className="badge">Written off</span>}
+                      </td>
+                      <td className="actions">
+                        {owed ? (
+                          <>
+                            <button className="btn small"
+                                    onClick={() => { setWhy(""); setAsking({ line: l, action: "bill_patient" }); }}>
+                              Bill patient
+                            </button>
+                            <button className="btn small ghost"
+                                    onClick={() => { setWhy(""); setAsking({ line: l, action: "write_off" }); }}>
+                              Write off
+                            </button>
+                          </>
+                        ) : settled ? (
+                          <BusyButton className="btn small ghost"
+                                      disabled={busy === l.id}
+                                      onClick={() => resolve(l, "reopen")}>
+                            Reopen
+                          </BusyButton>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
+
+      {asking && (
+        <div className="modal-backdrop" onClick={() => setAsking(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>
+              {asking.action === "bill_patient" ? "Bill this to the patient"
+                                                : "Write this off"}
+            </h2>
+            <p className="muted">
+              {asking.action === "bill_patient" ? (
+                <>
+                  {money(asking.line.variance)} the funder did not pay goes
+                  onto <b>{asking.line.member_name || "the patient"}</b>&rsquo;s
+                  account. Right when it is their levy or co-payment. They
+                  always owed it.
+                </>
+              ) : (
+                <>
+                  The pharmacy absorbs {money(asking.line.variance)}. Right
+                  when the money was never claimable, and wrong when it was
+                  the patient&rsquo;s levy. Writing those off is how a
+                  pharmacy ends up paying its patients&rsquo; co-payments
+                  for them.
+                </>
+              )}
+            </p>
+            <p className="muted small">
+              {asking.line.claim_reference}
+              {asking.line.reason ? `: ${asking.line.reason}` : ""}
+            </p>
+            <label className="field">
+              Why
+              <input value={why} onChange={(e) => setWhy(e.target.value)}
+                     placeholder="so the next person reading this knows"
+                     autoFocus />
+            </label>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setAsking(null)}>
+                Cancel
+              </button>
+              <BusyButton
+                disabled={busy === asking.line.id}
+                onClick={() => resolve(asking.line, asking.action, why.trim())}
+              >
+                {asking.action === "bill_patient" ? "Bill it on" : "Write it off"}
+              </BusyButton>
             </div>
-          )}
-        </>
+          </div>
+        </div>
       )}
     </RecordPage>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DetailSkeleton } from "../components/Skeleton";
+import { Figure } from "../components/Skeleton";
 import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDateTime, money } from "../api";
@@ -172,12 +172,12 @@ export default function SaleDetail() {
         </p>
       </div>
     );
-  if (!sale) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Point of sale", to: "/pos" }, { label: "Loading" }]}
-        eyebrow="Sale"
-        cards={1}
-        table={4}
-      />;
+  /* A `DetailSkeleton` stood here and replaced the receipt with two grey
+   * cards. What it hid was the trail, the word Sale, the labels Taken, Paid
+   * by and Customer, the Front Shop link, the six figure labels in the strip
+   * and the five column heads of the lines table. A till receipt has the same
+   * shape every time; none of that shape is an answer from the server. It is
+   * all drawn at once now and only the figures wait. */
 
   const cols: Column<SaleItem>[] = [
     { key: "description", header: "Item", sortable: true,
@@ -190,20 +190,22 @@ export default function SaleDetail() {
       total: (i) => i.line_total, totalRender: (n) => money(n) },
   ];
 
-  const tender = sale.payment_method.replace("_", " ");
+  const tender = sale ? sale.payment_method.replace("_", " ") : "";
 
   return (
     <RecordPage
+      loading={!sale}
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Point of sale", to: "/pos" },
-              { label: sale.sale_number }]}
+              { label: sale ? sale.sale_number : "Opening the receipt" }]}
       eyebrow="Sale"
-      title={<span className="mono">{sale.sale_number}</span>}
+      title={sale ? <span className="mono">{sale.sale_number}</span> : null}
       meta={[
-        { label: "Taken", value: fmtDateTime(sale.created_at) },
+        { label: "Taken", value: sale ? fmtDateTime(sale.created_at) : "" },
         { label: "Paid by", value: tender },
         { label: "Customer",
-          value: sale.patient
+          value: !sale ? ""
+            : sale.patient
             ? <EntityLink to={`/patients/${sale.patient_id}`}>
                 {sale.patient.first_name} {sale.patient.last_name}
               </EntityLink>
@@ -211,8 +213,9 @@ export default function SaleDetail() {
       ]}
       actions={
         <>
-          <button className="secondary" onClick={() => printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
-          {sale.status === "pending" && !sale.transferred_at && (
+          <button className="secondary" disabled={!sale}
+                  onClick={() => sale && printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
+          {sale?.status === "pending" && !sale.transferred_at && (
             <button className="btn secondary" onClick={toAccount}>
               <UserCircle size={14} weight="bold" /> Put on account
             </button>
@@ -223,12 +226,15 @@ export default function SaleDetail() {
               and rang three up again. New receipt number, claim reversed,
               loyalty earned twice. It was done on paper instead, and the
               stock drifted. */}
-          {!reversed && sale.status === "paid" && (sale.items?.length ?? 0) > 0 && (
+          {!reversed && sale?.status === "paid" && (sale.items?.length ?? 0) > 0 && (
             <button className="btn secondary" onClick={() => setReturning(true)}>
               <ArrowUUpLeft size={13} weight="bold" /> Return part
             </button>
           )}
-          {!reversed && (
+          {/* Which reversal is legal depends on whether this was filed, so the
+              button waits for the sale rather than guessing at its own
+              label. */}
+          {sale && !reversed && (
             <button className="btn danger" onClick={reverse}>
               <ArrowUUpLeft size={13} weight="bold" />
               {filed ? " Credit note" : " Void this sale"}
@@ -239,7 +245,7 @@ export default function SaleDetail() {
       }
     >
 
-      {sale.transferred_at && (
+      {sale?.transferred_at && (
         // A transferred sale is still `pending`, because it is still unpaid.
         // Without this the record shows the same amber badge as a COD nobody
         // has chased, and the two need different action.
@@ -256,7 +262,16 @@ export default function SaleDetail() {
       )}
 
       <div className="card record-hero">
-        <Highlights items={[
+        {/* Six labels that are the same on every receipt this till has ever
+            printed, so they are printed at once and the figures alone wait. */}
+        <Highlights items={!sale ? [
+          { label: "Total", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "Tendered", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "Rung up by", value: <Figure ready={false} w="16ch">{null}</Figure> },
+          { label: "Payment taken by", value: <Figure ready={false} w="16ch">{null}</Figure> },
+          { label: "Status", value: <Figure ready={false} w="7ch">{null}</Figure> },
+          { label: "Loyalty", value: <Figure ready={false} w="6ch">{null}</Figure> },
+        ] : [
           { label: "Total", value: money(sale.total), hint: `incl. VAT ${money(sale.vat_amount)}` },
           { label: "Tendered", value: money(sale.amount_tendered),
             hint: sale.change_due ? `change ${money(sale.change_due)}` : tender },
@@ -274,7 +289,7 @@ export default function SaleDetail() {
             hint: sale.loyalty_points_redeemed ? `${sale.loyalty_points_redeemed} redeemed` : "earned on this sale" },
         ]} />
 
-        {sale.payment_method === "card" && (
+        {sale?.payment_method === "card" && (
           <dl className="detail-fields" style={{ marginTop: 14 }}>
             <div><dt>Auth code</dt>
               <dd>{sale.card_auth_code
@@ -287,7 +302,7 @@ export default function SaleDetail() {
           </dl>
         )}
 
-        {sale.claim && (
+        {sale?.claim && (
           <div className={sale.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 14 }}>
             Claim {sale.claim.claim_number}: <b>{sale.claim.status.toUpperCase()}</b>. {sale.claim.response_message}
             {sale.claim.patient_liable > 0 && <> Shortfall <b>{money(sale.claim.patient_liable)}</b>.</>}
@@ -343,7 +358,10 @@ export default function SaleDetail() {
         </div>
       )}
 
-      <DataTable columns={cols} rows={sale.items} rowKey={(i) => i.id} totals
+      {/* "This sale has no lines" is a finding about a receipt, so it waits
+          until there is a receipt to find it in. */}
+      <DataTable columns={cols} loading={!sale} rows={sale?.items ?? []}
+        rowKey={(i) => i.id} totals
         empty="This sale has no lines" />
       {returning && sale && (
         <ReturnLines saleId={sale.id} items={sale.items ?? []}

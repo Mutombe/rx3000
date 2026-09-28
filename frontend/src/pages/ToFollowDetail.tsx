@@ -15,6 +15,7 @@ import { api, errorText, fmtDate, fmtDateTime } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useNavigate, useParams } from "react-router-dom";
 import Person from "../components/Person";
@@ -100,6 +101,12 @@ export default function ToFollowDetail() {
         { label: "Status", value: owed.status },
       ] : undefined}
     >
+      {/* The two panel headings and the seven field labels say what a to-follow
+          is, which is the same before the answer comes back as after it. They
+          used to sit behind the fetch with everything else, so the page opened
+          blank and then arrived whole. The three status alerts stay behind it,
+          because each of them is a claim about this particular obligation and
+          none can be made before the record has spoken. */}
       {owed && (
         <>
           {owed.status === "outstanding" && owed.overdue && (
@@ -123,37 +130,67 @@ export default function ToFollowDetail() {
               Handed over in full{owed.settled_at ? ` on ${fmtDate(owed.settled_at)}` : ""}.
             </div>
           )}
+        </>
+      )}
 
-          <div className="grid cols-2">
-            <Panel title="What is owed">
-              <dl className="kv">
-                <dt>Reference</dt><dd className="mono">{owed.reference}</dd>
-                <dt>Medicine</dt>
-                <dd>
+      <div className="grid cols-2">
+        <Panel title="What is owed">
+          <dl className="kv">
+            <dt>Reference</dt>
+            <dd className="mono">
+              <Figure ready={!!owed} w="12ch">{owed?.reference}</Figure>
+            </dd>
+            <dt>Medicine</dt>
+            <dd>
+              <Figure ready={!!owed} w="20ch">
+                {owed && (
                   <EntityLink kind="product" id={owed.product_id}>
                     {owed.product_name}
                   </EntityLink>
-                </dd>
-                <dt>Owed</dt><dd>{owed.quantity_owed}</dd>
-                <dt>Given so far</dt><dd>{owed.quantity_settled}</dd>
-                <dt>Still owed</dt><dd><b>{owed.quantity_outstanding}</b></dd>
-                <dt>From sale</dt>
-                <dd className="mono">
+                )}
+              </Figure>
+            </dd>
+            <dt>Owed</dt>
+            <dd><Figure ready={!!owed} w="3ch">{owed?.quantity_owed}</Figure></dd>
+            <dt>Given so far</dt>
+            <dd><Figure ready={!!owed} w="3ch">{owed?.quantity_settled}</Figure></dd>
+            <dt>Still owed</dt>
+            <dd>
+              <Figure ready={!!owed} w="3ch">
+                {owed && <b>{owed.quantity_outstanding}</b>}
+              </Figure>
+            </dd>
+            <dt>From sale</dt>
+            <dd className="mono">
+              <Figure ready={!!owed} w="8ch">
+                {owed && (
                   <EntityLink kind="sale" id={owed.sale_id}>
                     {owed.sale_id ? `#${owed.sale_id}` : "none"}
                   </EntityLink>
-                </dd>
-                <dt>Recorded</dt>
-                <dd>
-                  {fmtDateTime(owed.created_at)}
-                  {owed.created_by && <div className="muted small">{owed.created_by}</div>}
-                </dd>
-              </dl>
-              {owed.notes && <p className="prose">{owed.notes}</p>}
-            </Panel>
+                )}
+              </Figure>
+            </dd>
+            <dt>Recorded</dt>
+            <dd>
+              <Figure ready={!!owed} w="16ch">
+                {owed && (
+                  <>
+                    {fmtDateTime(owed.created_at)}
+                    {owed.created_by && <div className="muted small">{owed.created_by}</div>}
+                  </>
+                )}
+              </Figure>
+            </dd>
+          </dl>
+          {owed?.notes && <p className="prose">{owed.notes}</p>}
+        </Panel>
 
-            <Panel title="What happens next">
-              {owed.status !== "outstanding" ? (
+        <Panel title="What happens next">
+          {/* Nothing here can be offered, or refused, until the record says
+              what state it is in, so the whole answer pulses as one. */}
+          <Figure ready={!!owed} w="36ch">
+            {owed && (
+              owed.status !== "outstanding" ? (
                 <div className="empty">
                   <p>Nothing. This one is {owed.status}.</p>
                 </div>
@@ -206,14 +243,14 @@ export default function ToFollowDetail() {
                     </button>
                   </p>
                 </>
-              )}
-            </Panel>
-          </div>
+              )
+            )}
+          </Figure>
+        </Panel>
+      </div>
 
-          {owed.patient_phone && (
-            <p className="muted"><Phone size={13} /> {owed.patient_phone}</p>
-          )}
-        </>
+      {owed?.patient_phone && (
+        <p className="muted"><Phone size={13} /> {owed.patient_phone}</p>
       )}
     </RecordPage>
   );

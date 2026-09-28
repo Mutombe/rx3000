@@ -225,6 +225,8 @@ export default function Bins() {
 
         <Refreshable loading={busy} hasData={lines.length > 0}
                      skeleton={<TableSkeleton cols={5} rows={8}
+                                              headers={["", "Medicine", "Code", "On hand",
+                                                        "Value at cost"]}
                                               widths={["3ch", "34ch", "12ch", "10ch", "12ch"]} />}>
           <div className="dt-scroll">
             <table className="dt">

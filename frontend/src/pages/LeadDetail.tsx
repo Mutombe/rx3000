@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Figure } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
@@ -142,58 +143,78 @@ export default function LeadDetail() {
         { label: "Source", value: d.source || "none" },
       ] : undefined}
     >
-      {d && (
-        <>
-          {d.status === "disqualified" && d.disqualified_reason && (
-            <div className="alert warn">
-              <b>Disqualified</b>: {d.disqualified_reason}
-            </div>
-          )}
+      {/* The gate that stood here withheld both card headings and the eleven
+          labels under them until the lead came back. Every lead is asked the
+          same eleven questions, and those words are written here rather than
+          fetched. Only the answers beside them pulse. */}
+      {d && d.status === "disqualified" && d.disqualified_reason && (
+        <div className="alert warn">
+          <b>Disqualified</b>: {d.disqualified_reason}
+        </div>
+      )}
 
-          {/* The whole point of keeping a converted lead: what it became. */}
-          {d.converted_at && (
-            <div className="alert ok">
-              Converted on {fmtDateTime(d.converted_at)} into{" "}
-              <EntityLink kind="account" id={d.converted_company_id}>the account</EntityLink>,{" "}
-              <EntityLink kind="contact" id={d.converted_contact_id}>the contact</EntityLink>
-              {d.converted_deal_id && <> and{" "}
-                <EntityLink kind="deal" id={d.converted_deal_id}>the opportunity</EntityLink></>}.
-            </div>
-          )}
+      {/* The whole point of keeping a converted lead: what it became. */}
+      {d?.converted_at && (
+        <div className="alert ok">
+          Converted on {fmtDateTime(d.converted_at)} into{" "}
+          <EntityLink kind="account" id={d.converted_company_id}>the account</EntityLink>,{" "}
+          <EntityLink kind="contact" id={d.converted_contact_id}>the contact</EntityLink>
+          {d.converted_deal_id && <> and{" "}
+            <EntityLink kind="deal" id={d.converted_deal_id}>the opportunity</EntityLink></>}.
+        </div>
+      )}
 
-          <div className="grid cols-2">
-            <Panel title="Who they are">
-              <dl className="kv">
-                <dt>Name</dt><dd>{name || "none"}</dd>
-                <dt>Company</dt><dd>{d.company_name || "none"}</dd>
-                <dt>Role</dt><dd>{d.job_title || "none"}</dd>
-                <dt>Telephone</dt><dd>{d.phone || "none"}</dd>
-                <dt>Email</dt><dd>{d.email || "none"}</dd>
-                <dt>Marketing</dt>
-                <dd>{d.marketing_opt_in ? "opted in" : "Not opted in"}</dd>
-              </dl>
-            </Panel>
+      <div className="grid cols-2">
+        <Panel title="Who they are">
+          <dl className="kv">
+            <dt>Name</dt>
+            <dd><Figure ready={!!d} w="18ch">{d && (name || "none")}</Figure></dd>
+            <dt>Company</dt>
+            <dd><Figure ready={!!d} w="20ch">{d && (d.company_name || "none")}</Figure></dd>
+            <dt>Role</dt>
+            <dd><Figure ready={!!d} w="16ch">{d && (d.job_title || "none")}</Figure></dd>
+            <dt>Telephone</dt>
+            <dd><Figure ready={!!d} w="14ch">{d && (d.phone || "none")}</Figure></dd>
+            <dt>Email</dt>
+            <dd><Figure ready={!!d} w="24ch">{d && (d.email || "none")}</Figure></dd>
+            <dt>Marketing</dt>
+            <dd>
+              <Figure ready={!!d} w="12ch">
+                {d && (d.marketing_opt_in ? "opted in" : "Not opted in")}
+              </Figure>
+            </dd>
+          </dl>
+        </Panel>
 
-            <Panel title="Where it came from">
-              <dl className="kv">
-                <dt>Source</dt><dd>{d.source || "none"}</dd>
-                <dt>Interest</dt><dd>{d.interest || "none"}</dd>
-                <dt>Campaign</dt>
-                <dd>
+        <Panel title="Where it came from">
+          <dl className="kv">
+            <dt>Source</dt>
+            <dd><Figure ready={!!d} w="14ch">{d && (d.source || "none")}</Figure></dd>
+            <dt>Interest</dt>
+            <dd><Figure ready={!!d} w="20ch">{d && (d.interest || "none")}</Figure></dd>
+            <dt>Campaign</dt>
+            <dd>
+              <Figure ready={!!d} w="10ch">
+                {d && (
                   <EntityLink kind="campaign" id={d.campaign_id}>
                     {d.campaign_id ? `#${d.campaign_id}` : "none"}
                   </EntityLink>
-                </dd>
-                <dt>Owner</dt>
-                <dd>
+                )}
+              </Figure>
+            </dd>
+            <dt>Owner</dt>
+            <dd>
+              <Figure ready={!!d} w="16ch">
+                {d && (
                   <EntityLink kind="staff" id={d.owner_id}>{owner || "unassigned"}</EntityLink>
-                </dd>
-                <dt>Created</dt><dd>{fmtDateTime(d.created_at)}</dd>
-              </dl>
-            </Panel>
-          </div>
-        </>
-      )}
+                )}
+              </Figure>
+            </dd>
+            <dt>Created</dt>
+            <dd><Figure ready={!!d} w="16ch">{d && fmtDateTime(d.created_at)}</Figure></dd>
+          </dl>
+        </Panel>
+      </div>
     </RecordPage>
   );
 }

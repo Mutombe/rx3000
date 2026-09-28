@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import Select from "./Select";
 import { toneClass } from "../entityTone";
 import { entityHref, type EntityKind } from "../entityRoutes";
+import { Figure } from "./Skeleton";
 
 export interface FilterState {
   q: string;
@@ -220,12 +221,25 @@ export function useSearch<T>(
 
 /** The control that goes with it, in the same shape as every other filter
  *  row in the product. */
-export function TableSearch({ value, onChange, placeholder, shown, total, children }: {
+export function TableSearch({ value, onChange, placeholder, shown, total,
+                             ready = true, children }: {
   value: string;
   onChange: (next: string) => void;
   placeholder: string;
   shown: number;
   total: number;
+  /** False while the rows are still on their way.
+   *
+   *  A search box is not a loading state. The field, its placeholder and the
+   *  Clear button are the same on every visit and a reader can start typing
+   *  into them before a single row has landed. The COUNT beside them is the
+   *  one part that is fetched, so it is the one part that waits.
+   *
+   *  This existed because these rows were sitting inside `<Refreshable>` at
+   *  most call sites, so the whole filter row was replaced by a ghost table
+   *  and the reader could not even narrow what they were waiting for. Hoist
+   *  the row out of the `Refreshable` and pass this instead. */
+  ready?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -243,7 +257,9 @@ export function TableSearch({ value, onChange, placeholder, shown, total, childr
       {/* Said always, not only when filtering: a list that shows 25 of 645
           without saying so is a list somebody reads as complete. */}
       <span className="dt-count muted">
-        {shown === total ? `${total}` : `${shown} of ${total}`}
+        <Figure ready={ready} w="4ch">
+          {shown === total ? `${total}` : `${shown} of ${total}`}
+        </Figure>
       </span>
     </div>
   );

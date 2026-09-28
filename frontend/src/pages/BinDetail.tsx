@@ -28,6 +28,7 @@ import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { GhostRows } from "../components/Skeleton";
 import { Units } from "./BinsUnassigned";
 import { useToast } from "../components/Toast";
 import Th from "../components/Th";
@@ -167,40 +168,48 @@ export default function BinDetail() {
           tone: data.short ? "warn" : undefined },
       ] : []}
     >
-      {data && (
-        <>
-          {data.lines.length === 0 && (
-            <div className="alert">
-              Nothing is recorded on this shelf. A line is put here from its
-              own page, or by moving it from another bin.
-            </div>
-          )}
+      {/* The gate that stood here withheld the card heading and all seven
+          column names until the shelf had been read. A bin's table has the
+          same columns whatever is on it, and a person doing a shelf walk on a
+          slow connection should be able to see what is coming. Only the lines
+          themselves pulse. The empty notice below stays behind the data,
+          because a shelf nobody has read yet is not an empty shelf. */}
+      {data && data.lines.length === 0 && (
+        <div className="alert">
+          Nothing is recorded on this shelf. A line is put here from its
+          own page, or by moving it from another bin.
+        </div>
+      )}
 
-          <Panel
-            title="What is on this shelf"
-            count={data.lines.length}
-            empty="Nothing is kept here."
-            aside={data.lines.length > 0 ? (
-              <button type="button" className="btn secondary small"
-                      onClick={clearShelf}>
-                <Eraser size={13} /> Clear the shelf
-              </button>
-            ) : undefined}
-          >
-            <div className="dt-scroll">
-              <table className="dt bin-table dt-wide">
-                <thead>
-                  <tr>
-                    <th className="bulk-tick" />
-                    <Th className="col-med">Line</Th>
-                    <Th className="mono col-code">Code</Th>
-                    <Th className="num">On hand</Th>
-                    <Th className="num">Reorder at</Th>
-                    <Th className="num">Worth</Th>
-                    <Th className="col-when">Also kept in</Th>
-                  </tr>
-                </thead>
-                <tbody>
+      <Panel
+        title="What is on this shelf"
+        count={data?.lines.length}
+        empty={data ? "Nothing is kept here." : undefined}
+        aside={data && data.lines.length > 0 ? (
+          <button type="button" className="btn secondary small"
+                  onClick={clearShelf}>
+            <Eraser size={13} /> Clear the shelf
+          </button>
+        ) : undefined}
+      >
+        <div className="dt-scroll">
+          <table className="dt bin-table dt-wide">
+            <thead>
+              <tr>
+                <th className="bulk-tick" />
+                <Th className="col-med">Line</Th>
+                <Th className="mono col-code">Code</Th>
+                <Th className="num">On hand</Th>
+                <Th className="num">Reorder at</Th>
+                <Th className="num">Worth</Th>
+                <Th className="col-when">Also kept in</Th>
+              </tr>
+            </thead>
+            {!data ? (
+              <GhostRows cols={7} rows={3}
+                         widths={["20%", "75%", "55%", "35%", "35%", "50%", "45%"]} />
+            ) : (
+              <tbody>
                   {data.lines.map((l) => (
                     <tr key={l.product_id}
                         className={l.short ? "row-flag" : undefined}>
@@ -248,49 +257,50 @@ export default function BinDetail() {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
 
-          {/* Acting on a selection, where the selection is. A shelf walk moves
-              a handful of lines at a time and doing it from each product's own
-              form is why the field stayed empty in the first place. */}
-          {chosen.length > 0 && (
-            <div className="card bin-foot">
-              <div>
-                <b>{chosen.length} line(s) chosen</b>
-                {worth > 0 && <span className="muted"> · {money(worth)}</span>}
-                <div className="muted small">
-                  Moving a line records where it went and who moved it.
-                </div>
-              </div>
-              <div className="bin-foot-acts">
-                <button type="button" className="btn secondary"
-                        onClick={() => setPicked(new Set())}>
-                  Clear the choice
-                </button>
-                <button type="button" className="btn primary"
-                        onClick={() => setMoving(true)}>
-                  <ArrowsLeftRight size={13} /> Move to another shelf
-                </button>
-              </div>
+      {/* Acting on a selection, where the selection is. A shelf walk moves
+          a handful of lines at a time and doing it from each product's own
+          form is why the field stayed empty in the first place. */}
+      {chosen.length > 0 && (
+        <div className="card bin-foot">
+          <div>
+            <b>{chosen.length} line(s) chosen</b>
+            {worth > 0 && <span className="muted"> · {money(worth)}</span>}
+            <div className="muted small">
+              Moving a line records where it went and who moved it.
             </div>
-          )}
+          </div>
+          <div className="bin-foot-acts">
+            <button type="button" className="btn secondary"
+                    onClick={() => setPicked(new Set())}>
+              Clear the choice
+            </button>
+            <button type="button" className="btn primary"
+                    onClick={() => setMoving(true)}>
+              <ArrowsLeftRight size={13} /> Move to another shelf
+            </button>
+          </div>
+        </div>
+      )}
 
-          {moving && (
-            <MoveLines from={shelf} ids={chosen}
-                       onClose={() => setMoving(false)}
-                       onDone={() => { setMoving(false); load(); }} />
-          )}
-          {renaming && (
-            <RenameShelf bin={shelf} onClose={() => setRenaming(false)}
-                         onDone={(to) => {
-                           setRenaming(false);
-                           go(`/bins/${encodeURIComponent(to)}`);
-                         }} />
-          )}
-        </>
+      {moving && (
+        <MoveLines from={shelf} ids={chosen}
+                   onClose={() => setMoving(false)}
+                   onDone={() => { setMoving(false); load(); }} />
+      )}
+      {/* Renaming is offered in the header whether or not the shelf has been
+          read, so the form it opens has to live outside the data as well. */}
+      {renaming && (
+        <RenameShelf bin={shelf} onClose={() => setRenaming(false)}
+                     onDone={(to) => {
+                       setRenaming(false);
+                       go(`/bins/${encodeURIComponent(to)}`);
+                     }} />
       )}
     </RecordPage>
   );
