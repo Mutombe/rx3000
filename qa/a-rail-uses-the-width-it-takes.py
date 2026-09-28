@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""A filter rail either fills the width it takes, or takes less of it.
+"""A strip of controls either fills the width it takes, or takes less of it.
 
 WHAT WAS REPORTED
 
@@ -29,21 +29,33 @@ The `.dt-filters` rails were already right, which is what made this worth
 measuring rather than reading: the fault was only ever on the pages that drop a
 bare `<input type="search">` into a `.toolbar`.
 
+Widening the same measurement past the rails found it a second time, in a place
+nobody had complained about yet. The tab strips — `.pill-tabs` and
+`.section-nav` — drew a sunk, bordered trough the full width of the page around
+tabs that ended a quarter of the way along it: lay-bys 271px of 1,190, the
+compliance nav 248px, twenty-two strips across the product. A segmented control
+is one object you choose a side of, and a trough with the object in one corner
+reads as a bar that failed to fill. Both are the size of their tabs now, and
+`.pill-tabs` still goes full width and scrolls the moment its tabs outgrow the
+page.
+
 WHAT THE RULE IS
 
-A rail is one instrument. Its controls must reach its right edge, and if there
-are not enough controls to reach it, the rail is the wrong width and should
-shrink to what it holds. Either way the distance from the last control to the
-rail's own right edge is small. Forty pixels is the allowance: it covers the
-padding the rail draws inside its border and the odd pixel of flex rounding,
-and it is well under the 686px that started this.
+A strip of controls is one instrument. Its controls must reach its right edge,
+and if there are not enough controls to reach it, the strip is the wrong width
+and should shrink to what it holds. Either way the distance from the last
+control to the strip's own right edge is small. Forty pixels is the allowance:
+it covers the padding drawn inside the border and the odd pixel of flex
+rounding, and it is well under the 686px that started this.
 
-A rail that wraps to a second row still passes on its first row, which is
-correct — the second row is a continuation, not dead space.
+A strip that wraps to a second row still passes on its first row, which is
+correct — the second row is a continuation, not dead space. A strip that
+scrolls passes too: its children run past its right edge rather than short of
+it.
 
 WHAT IT DOES NOT COVER
 
-Rails that only exist behind a tab or inside a modal, and rails narrower than
+Strips that only exist behind a tab or inside a modal, and strips narrower than
 100px, which are decorations rather than instruments.
 """
 from __future__ import annotations
@@ -63,18 +75,21 @@ SLACK = 40
 ROUTES = [
     "/suppliers", "/patients", "/scripts", "/dispensing-history", "/stock",
     "/orders", "/deliveries", "/drivers", "/register", "/laybys", "/claiming",
-    "/claims-held", "/payables", "/ledger", "/helpdesk", "/accounts",
-    "/marketing", "/reminders", "/branches", "/pharmacies", "/rfqs",
-    "/samples", "/recall", "/compounding", "/remittances", "/money-owed",
-    "/compliance", "/leads", "/to-follows", "/will-call", "/repeats",
-    "/stock-take", "/periods", "/fiscal", "/shifts", "/settlements",
+    "/claims-held", "/authorisations", "/payables", "/ledger", "/helpdesk",
+    "/accounts", "/marketing", "/reminders", "/branches", "/pharmacies",
+    "/rfqs", "/samples", "/recall", "/compounding", "/remittances",
+    "/money-owed", "/compliance", "/leads", "/to-follows", "/will-call",
+    "/repeats", "/stock-take", "/periods", "/fiscal", "/shifts",
+    "/settlements", "/head-office", "/reconciliation", "/stock-performance",
+    "/seasons", "/crm-reports", "/pipeline",
 ]
 
 PROBE = r"""
 (slack) => {
   const out = [];
   for (const bar of document.querySelectorAll(
-      "main .filter-bar, main .dt-filters, main .toolbar")) {
+      "main .filter-bar, main .dt-filters, main .toolbar," +
+      "main .pill-tabs, main .section-nav")) {
     const r = bar.getBoundingClientRect();
     if (r.width < 100 || !bar.offsetParent) continue;
     const kids = [...bar.children]
@@ -147,10 +162,10 @@ def report(routes) -> int:
               f"That is not a pass, it is a sweep that did not run.")
         return 1
     if not found:
-        print(f"\nok  {len(read)} screen(s): every filter rail reaches its own "
-              f"right edge")
+        print(f"\nok  {len(read)} screen(s): every rail and tab strip reaches "
+              f"its own right edge")
         return 0
-    print(f"\nFAIL  {len(found)} rail(s) drawing a border around empty space\n")
+    print(f"\nFAIL  {len(found)} strip(s) drawing a border around empty space\n")
     for route, r in sorted(found, key=lambda x: -x[1]["spare"]):
         print(f"  {route:<22} [{r['cls']}] {r['w']}px wide, {r['used']}px used, "
               f"{r['spare']}px of it empty")
@@ -162,29 +177,43 @@ def report(routes) -> int:
     return 1
 
 
+#: Each is (what it breaks, the CSS that breaks it, where to look for it).
+PLANTS = [
+    ("the 340px cap on a rail search is back",
+     '.toolbar input[type="search"] { max-width: 340px; }',
+     ["/suppliers", "/patients"]),
+    ("a tab strip is the width of the page again",
+     ".pill-tabs, .section-nav { width: auto; }",
+     ["/laybys", "/compliance"]),
+]
+
+
 def plant() -> int:
-    """Prove it by putting the cap back."""
+    """Prove it by putting each fault back, one at a time."""
+    import time
     sheet = ROOT / "frontend" / "src" / "styles.css"
     original = sheet.read_text(encoding="utf-8")
-    fault = original + (
-        "\n/* planted by a-rail-uses-the-width-it-takes.py --plant */\n"
-        ".toolbar input[type=\"search\"] { max-width: 340px; }\n")
-    import time
+    bad = 0
     try:
-        sheet.write_text(fault, encoding="utf-8")
-        # Long enough for vite to notice a 14,000-line stylesheet changed and
-        # re-transform it. Nine seconds reported a false all-clear once, on a
-        # machine that had just finished a full sweep; the same plant measured
-        # by hand a minute later was plainly there. Fourteen is the margin.
-        time.sleep(14)
-        found, _ = look(["/suppliers", "/patients"])
-        if not found:
-            print("FAIL  the search field was capped again and this said nothing")
-            return 1
-        route, r = found[0]
-        print(f"ok  planted fault caught: {route} rail {r['w']}px wide with "
-              f"{r['spare']}px of it empty")
-        return 0
+        for said, css, where in PLANTS:
+            sheet.write_text(
+                original + "\n/* planted by a-rail-uses-the-width-it-takes.py "
+                           "--plant */\n" + css + "\n", encoding="utf-8")
+            # Long enough for vite to notice a 14,000-line stylesheet changed
+            # and re-transform it. Nine seconds reported a false all-clear
+            # once, on a machine that had just finished a full sweep; the same
+            # plant measured by hand a minute later was plainly there.
+            # Fourteen is the margin.
+            time.sleep(14)
+            found, _ = look(where)
+            if not found:
+                print(f"FAIL  {said} and this said nothing")
+                bad += 1
+                continue
+            route, r = max(found, key=lambda x: x[1]["spare"])
+            print(f"ok  caught: {said}. {route} strip {r['w']}px wide with "
+                  f"{r['spare']}px of it empty")
+        return 1 if bad else 0
     finally:
         sheet.write_text(original, encoding="utf-8")
         time.sleep(3)

@@ -1683,6 +1683,19 @@ label > :is(input:not([type="checkbox"]):not([type="radio"]),
   display: flex; flex-wrap: nowrap; gap: 2px; margin-bottom: var(--s5);
   padding: 2px; background: var(--surface-sunk);
   border: 1px solid var(--line); border-radius: var(--r-md);
+  /* THE STRIP IS THE WIDTH OF ITS TABS.
+   *
+   * It used to be the width of the page. Lay-bys drew an 1,190px sunk bar
+   * around three pills that ended at 271px, so nine hundred pixels of it was
+   * an empty trough; claiming, drivers, reminders, helpdesk and a dozen more
+   * did the same. A segmented control is one object you choose a side of, and
+   * a trough with the object in one corner reads as a bar that failed to
+   * fill rather than a control that was placed.
+   *
+   * `fit-content` clamps at the `max-width` below, so the moment the tabs
+   * outgrow the page the strip is full width again and the scroller, the
+   * hairline scrollbar and the fade at its edge all work exactly as before. */
+  width: fit-content;
   max-width: 100%;
   overflow-x: auto; overflow-y: hidden;
   scroll-padding-inline: var(--s5);
@@ -7687,6 +7700,10 @@ table.dt.sub th { font-size: var(--t-xs); }
   margin-bottom: var(--s5);
   padding: 2px; background: var(--surface-sunk);
   border: 1px solid var(--line); border-radius: var(--r-md);
+  /* The size of the links in it, for the reason `.pill-tabs` is: compliance
+     drew an 1,190px trough around two links that ended at 248px. It wraps
+     rather than scrolls, so `max-width` is what keeps it on the page. */
+  width: fit-content; max-width: 100%;
 }
 .section-nav a {
   display: inline-flex; align-items: center; gap: var(--s2);
@@ -8028,6 +8045,17 @@ table.dt.sub th { font-size: var(--t-xs); }
 .filter-search {
   flex: 1 1 18rem; min-width: 12rem; max-width: 46rem;
   height: var(--control);
+}
+/* Unless the search is the only thing in the rail.
+ *
+ * The 46rem cap only earns its keep when there is something else in the row
+ * for the leftover width to belong to: on the order and lay-by rails the
+ * count sits in it, at the far right, and the rail reads as two things placed
+ * at its two ends. On authorisations there is nothing else, so the cap left a
+ * 1,148px bordered bar with the field stopping at 737px and 411px of empty
+ * bar after it. One control alone in a rail takes the rail. */
+:is(.filter-bar, .dt-filters, .toolbar) > .filter-search:only-child {
+  max-width: none;
 }
 /* A SEARCH IN A RAIL TAKES THE ROOM WHETHER OR NOT SOMEBODY NAMED IT.
  *
