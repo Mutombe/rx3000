@@ -8109,72 +8109,6 @@ table.dt.sub th { font-size: var(--t-xs); }
   .filter-dim > * { min-width: 0; width: 100%; }
 }
 
-/* ------------------------------------------------------------ the step trail
-   Where a dispense stands, across the top of the screen it belongs to.
-
-   Every colour and every background here is declared, never inherited. Each
-   step is a `<button>` for keyboard and screen-reader reasons and is not meant
-   to look like one, so it has to say so: `button, .btn` fills every button in
-   the product with the accent, and a control that sets only a text colour gets
-   its own ink on the primary fill. That is how the allergy picker shipped as
-   near-black on near-black. See qa/button-contrast.py and
-   qa/inherited-colour.py. */
-.trail {
-  display: flex; flex-wrap: wrap; gap: var(--s2);
-  list-style: none; margin: 0 0 var(--s4); padding: 0;
-}
-.trail-step { flex: 1 1 12rem; min-width: 0; margin: 0; }
-.trail-step button {
-  display: flex; align-items: flex-start; gap: var(--s2);
-  width: 100%; padding: var(--s3);
-  text-align: left; cursor: pointer;
-  border: 1px solid var(--line); border-radius: var(--r-md);
-  background: var(--surface); color: var(--ink-mid);
-  font: inherit; letter-spacing: 0; height: auto;
-  /* `button, .btn` sets `white-space: nowrap`, which is right for a control
-     holding a verb and wrong for one holding a sentence: the step's "Enter the
-     checking pharmacist's initials before dispensing" was forced onto a single
-     line, clipped by the card, and pushed the whole strip off the page. Same
-     shape as the colour faults — a global element rule imposing something the
-     component does not want, and only visible once real text is in it. */
-  white-space: normal;
-}
-.trail-step button:hover { background: var(--surface-sunk); }
-.trail-mark { flex: 0 0 auto; display: flex; margin-top: 1px; }
-.trail-text { min-width: 0; }
-.trail-text b {
-  display: block; font-size: var(--t-sm); font-weight: 600;
-  color: var(--ink); overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.trail-needs {
-  display: block; margin-top: 2px;
-  font-size: var(--t-xs); line-height: 1.35; color: var(--ink-soft);
-}
-
-/* Finished: stated quietly. A tick that shouts competes with the step that
-   still wants something, which is the only one worth looking at. */
-.trail-done .trail-mark { color: var(--ok); }
-.trail-done .trail-text b { color: var(--ink-mid); font-weight: 500; }
-
-/* The step being worked. The one thing on the strip meant to catch the eye. */
-.trail-now button {
-  border-color: var(--accent); background: var(--surface);
-}
-.trail-now .trail-mark { color: var(--accent); }
-.trail-now .trail-text b { color: var(--ink); font-weight: 700; }
-.trail-now .trail-needs { color: var(--ink-mid); }
-
-.trail-todo button { background: var(--surface-sunk); }
-.trail-todo .trail-mark { color: var(--line-strong); }
-.trail-todo .trail-text b { color: var(--ink-soft); font-weight: 500; }
-
-@media (max-width: 720px) {
-  /* Two up rather than four across, and the sentence still shown: on a narrow
-     screen a four-across strip is four truncated words. */
-  .trail-step { flex: 1 1 45%; }
-}
-
 /* -------------------------------------------------------------- margin tag
    What a line makes, on the line, while the script is being built.
 
@@ -8529,23 +8463,6 @@ table.dt.sub th { font-size: var(--t-xs); }
   border-left-style: dashed;
 }
 
-/* The trail chip takes its step's colour, which is what makes the mapping
-   teachable: the strip is not a legend to memorise, it is the same four
-   colours in the same order as the cards below it. */
-.trail-patient .trail-mark { color: var(--sec-patient); }
-.trail-items   .trail-mark { color: var(--sec-items); }
-.trail-check   .trail-mark { color: var(--sec-check); }
-.trail-go      .trail-mark { color: var(--sec-go); }
-
-.trail-now.trail-patient button { border-color: var(--sec-patient-line); }
-.trail-now.trail-items   button { border-color: var(--sec-items-line); }
-.trail-now.trail-check   button { border-color: var(--sec-check-line); }
-.trail-now.trail-go      button { border-color: var(--sec-go-line); }
-
-/* Done is done, in every stage. A finished step keeps the tick green because
-   that is the one thing on the strip that means a state rather than a place. */
-.trail-done .trail-mark { color: var(--ok); }
-
 /* ---------------------------------------------------------- the four colours
    A record wears its family's colour wherever it is named. That is the whole
    point: learn four colours once, read every screen faster afterwards.
@@ -8611,11 +8528,11 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 
 /* Everything down the dispensing screen shares one right edge.
-   The route tabs, the step trail and the cards were each laid out in their own
-   container, so the three finished at three different places and the eye read
-   the page as slightly broken without being able to say why. */
+   The route tabs and the cards were laid out in their own containers, so they
+   finished at different places and the eye read the page as slightly broken
+   without being able to say why. (The step trail was the third of these until
+   it was taken out; see Dispense.tsx.) */
 .disp-with-worklist > div > .pill-tabs,
-.disp-with-worklist > div > .trail,
 .disp-with-worklist > div > .disp-work { max-width: 78rem; }
 /* The route strip spans the screen it governs, and its three tabs share that
    width equally.
@@ -8981,14 +8898,6 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 .disp-dense .card.sec-items > h3 { padding-top: 2px; }
 .disp-dense .card.sec-items > input[type="search"] { margin-bottom: var(--s2); }
-
-/* The step trail duplicates the numbered section headings twelve pixels below
-   it, and costs 76 vertical pixels to do it. Where the screen is short it goes;
-   where it is tall it stays, because an overview is worth having when the space
-   is free. */
-@media (max-height: 950px) {
-  .disp-dense .disp-steps.disp-steps { display: none !important; }
-}
 
 /* The four ways in must survive a 1366 screen. They are the same buttons; the
    words go and the icons carry them, with the name still on hover and for a

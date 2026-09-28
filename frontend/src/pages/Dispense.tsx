@@ -70,7 +70,6 @@ import { TableSkeleton } from "../components/Skeleton";
 import AdjustStock from "../components/AdjustStock";
 import AlterScript from "../components/AlterScript";
 import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
-import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import { routeForSchedule, scheduleCode, useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
@@ -270,14 +269,6 @@ const PAY_CHOICES = [
   { key: "aid", label: "Medical aid",
     hint: "Claim from the scheme on the card and take the patient's shortfall here" },
 ];
-
-/** How many steps the trail ends on, given which middle ones are showing. */
-function steps_last_number(needsScript: boolean, needsCompliance: boolean): number {
-  // Medicine is always 1. A script adds the patient step, a controlled line
-  // adds the compliance one, and a counter sale adds the consultation.
-  return 1 + (needsScript ? 1 : 0) + (needsCompliance ? 1 : 0)
-    + (needsScript ? 0 : 1);
-}
 
 export default function Dispense() {
   const session = useSession();
@@ -3108,68 +3099,6 @@ export default function Dispense() {
     setDueNow(payHow === "aid" && aidHold ? gross : split ? split.patient_pays : gross);
   }, [items, split, payHow, aidHold]);
 
-  /** The same conditions again, as a trail across the top of the screen.
-   *
-   *  Read from the live state on every render rather than stored, so a card
-   *  edited after its step went green turns amber again. A stored cursor is
-   *  the thing that makes a wizard lie.
-   *
-   *  Derived from the same expressions the dispense button is disabled on —
-   *  `complianceReady`, `needsInitials`, `blockedBecause` — because a progress
-   *  display that can disagree with the button is worse than none: it tells
-   *  somebody they are finished while the one control they want stays grey.
-   */
-  /* THE MEDICINE IS ALWAYS FIRST NOW.
-   *
-   *  There were two trails, chosen by the tab. The script one opened on
-   *  "Patient & prescriber" and the counter one on "Medicine", which is the
-   *  same disagreement the tabs had: the screen could not know which it was
-   *  until it knew what was being supplied, and it was asking the dispenser to
-   *  say so before they had looked anything up.
-   *
-   *  So the medicine comes first and the rest of the trail grows from it. A
-   *  counter sale never grows a patient step; a script grows one the moment a
-   *  line calls for it. */
-  const steps: Step[] = [
-    { n: 1, title: "Medicine", anchor: "step-items", tone: "items",
-      done: items.length > 0,
-      needs: "Search for what is being supplied." },
-    ...(needsScript ? ([{
-      n: 2, title: "Patient & prescriber", anchor: "step-patient", tone: "patient",
-      done: !!patient && doctorId !== "",
-      needs: !patient ? "Find the patient, or add them if they are new."
-        : "Choose the prescribing doctor.",
-    }] as Step[]) : []),
-    // Typed as `Step[]` rather than inferred: inside a conditional spread
-    // TypeScript widens `tone` to `string`, and a tone that is not one of
-    // the four does nothing at all, silently, which is the same failure
-    // as a class the stylesheet has never heard of.
-    ...(needsCompliance ? ([{
-      n: needsScript ? 3 : 2, title: "Compliance record",
-      anchor: "step-compliance", tone: "check",
-      done: items.length > 0 && complianceDone
-        && (!needsInitials || initials.trim() !== ""),
-      needs: items.length === 0
-        ? "Add a medicine first. The record is about what is being supplied."
-        : "Tick the script, the prescriber and the patient's identity, and "
-          + "initial it.",
-    }] as Step[]) : []),
-    ...(!needsScript && items.length > 0 ? ([{
-      n: 2, title: "Consultation", anchor: "step-counter", tone: "patient",
-      done: !counsellingWanted || counselled,
-      needs: counsellingWanted && !counselled
-        ? "Confirm the patient was counselled before this can be handed over."
-        : "Record who it is for and what it is for.",
-    }] as Step[]) : []),
-    { n: steps_last_number(needsScript, needsCompliance),
-      title: needsScript ? "Safety check & dispense" : "Hand it over",
-      anchor: "step-dispense", tone: "go",
-      // Never "done" until it has happened; the screen clears when it does.
-      done: false,
-      needs: blockedBecause() || (needsScript ? "Ready to dispense."
-                                              : "Ready to hand over.") },
-  ];
-
   /** The quote, as something a patient can take away and think about.
    *
    *  A quote is the one thing on this screen that leaves the building without
@@ -3396,37 +3325,32 @@ export default function Dispense() {
 
 
 
-      {/* Where you are, and what the step you are on is waiting for.
-          In the flow rather than pinned: the route strip above was sticky once
-          and taken down for eating the top of the screen on the one page that
-          is long by nature. The same objection applies here, and the reason it
-          costs nothing is that the bottom of the page already carries the
-          missing condition beside the button that will not go. */}
-      {/* The step trail is hidden where the screen is being fitted to one
-          height. It costs 76px to name three sections that name themselves
-          twelve pixels lower. The headings below are numbered for the same
-          reason it was. It comes back on a tall screen, where the space is
-          free and the overview is worth having.
+      {/* THE STEP TRAIL IS GONE.
 
-          AND NOT UNTIL THERE IS SOMETHING IN THE BASKET.
+         It was three chips across the top saying "1 Medicine", "2 Patient &
+         prescriber", "3 Safety check & dispense", appearing the moment a
+         medicine was chosen. Two objections, and the second is the one that
+         settles it.
 
-          With nothing on the script the trail could only guess, and it
-          guessed a counter sale: "1 Medicine, 2 Hand it over", above an
-          empty table, before anybody had typed a letter. Put one
-          prescription medicine on and it becomes a four-step script with a
-          patient, a prescriber and a safety check — so the overview was
-          wrong in exactly the half of cases it was most confidently shown.
+         It said what the screen below it already says. The sections it named
+         are numbered headings twelve pixels lower, in the same order, in the
+         same words. Its own note here used to admit that, and drew the wrong
+         conclusion from it: hide the strip on a short screen and keep it on a
+         tall one, as though the duplication were a question of space rather
+         than of it being a duplication.
 
-          That is the fault the tabs had, which is why they went: the screen
-          cannot know what kind of supply this is until it knows what is
-          being supplied. The lane already reshapes itself from the basket
-          rather than asking first, and this is the last thing on the screen
-          that was still asserting an answer ahead of the evidence. It waits
-          for the basket now, like everything else here. */}
-      {items.length > 0 && (
-        <div className="disp-steps"><StepTrail steps={steps} /></div>
-      )}
+         And it could not count. `steps_last_number` returned the number of
+         steps BEFORE the last one rather than the last one's own number, so a
+         prescription with no controlled line showed "2 · Patient &
+         prescriber" beside "2 · Safety check & dispense". Every shape except
+         an empty basket was wrong, and an empty basket is the one shape the
+         trail did not render. A progress display that miscounts the progress
+         is worse than no progress display: it is the screen telling a
+         dispenser something untrue about where they are.
 
+         The headings below carry the order. The button at the bottom carries
+         what is still missing, in the same sentence this used to carry, and
+         it has always been the thing a dispenser actually looks at. */}
         <div className="rx-split">
           <div>
             {/* The controlled-substance notice, in the colour this product
