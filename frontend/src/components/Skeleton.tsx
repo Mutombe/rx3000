@@ -22,6 +22,8 @@
  *    loading always looks like one system rather than a patchwork.
  */
 import { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
+import { pageNameFor } from "./Layout";
 import Breadcrumbs, { Crumb } from "./Breadcrumbs";
 
 interface BlockProps {
@@ -271,17 +273,39 @@ export function DetailSkeleton({
 
 /** The stand-in while a page's code and data arrive.
  *
- *  Shaped like a page rather than like nothing: a heading, a line of context,
- *  and a table. It is what the Suspense boundary inside Layout falls back to,
- *  so the chrome stays put and only this area changes.
+ *  THE HEADING IS NOT A LOADING STATE.
+ *
+ *  This drew two grey blocks where the title and subtitle go, which made the
+ *  one thing on the screen that was never in doubt — the name of the page you
+ *  just clicked — arrive as a skeleton. A page's title is static: it does not
+ *  depend on the code, the data or the network, and it is already written down
+ *  in the rail's own table.
+ *
+ *  So the name is real from the first frame. It is the same string the rail
+ *  highlights, so clicking "Suppliers" puts the word Suppliers on the page
+ *  immediately and the only thing that pulses is the part nobody can know yet.
+ *
+ *  The subtitle is not here, because it is not in the rail and inventing a
+ *  grey bar for it would be the same fault one line down. Its line is held
+ *  open so the page does not jump when the real sentence arrives.
  */
 export function PageSkeleton() {
+  const { pathname } = useLocation();
+  const name = pageNameFor(pathname);
   return (
     <div className="page" aria-busy="true">
       <header className="page-head">
-        <div style={{ display: "grid", gap: "var(--s2)" }}>
-          <Block w="22ch" h={26} />
-          <Block w="38ch" h={12} />
+        {/* The same wrapper the real head uses, so the title lands in the
+            same place and at the same size and nothing moves when the page
+            takes over. */}
+        <div className="page-head-said">
+          {name
+            ? <h1>{name}</h1>
+            /* A route the rail does not carry — a record page reached by a
+               link. Nothing is claimed rather than a name being guessed. */
+            : <Block w="22ch" h={26} />}
+          {/* The subtitle's line, held open and empty. */}
+          <div className="sub sk-sub" />
         </div>
       </header>
       <TableSkeleton cols={6} rows={6} />

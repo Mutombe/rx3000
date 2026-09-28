@@ -45,7 +45,7 @@ export default function Marketing() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "compose", label: "New campaign" },
-    { key: "history", label: "Campaign history", count: campaigns.length },
+    { key: "history", label: "Campaign history", count: loading ? null : campaigns.length },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "compose");
 

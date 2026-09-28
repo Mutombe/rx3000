@@ -47,8 +47,8 @@ export default function ProductDetail() {
   }, [id]);
 
   const TABS: TabDef<Tab>[] = [
-    { key: "batches", label: "Batches on hand", count: data?.batches.length },
-    { key: "movements", label: "Movement history", count: data?.movements.length },
+    { key: "batches", label: "Batches on hand", count: data?.batches.length ?? null },
+    { key: "movements", label: "Movement history", count: data?.movements.length ?? null },
     // What has gone out month by month. The page can say how much is on the
     // shelf; only this says whether that is a lot.
     { key: "usage", label: "Usage",
@@ -60,7 +60,7 @@ export default function ProductDetail() {
     { key: "dispensings", label: "Dispensed to",
       hint: "Every time this medicine was handed over, and to whom" },
     { key: "pricing", label: "Price history",
-      count: data?.price_history?.length,
+      count: data?.price_history?.length ?? null,
       hint: "Every time the cost or the selling price moved, and who moved it" },
     // Where it comes from. Readable only from the supplier's side until now,
     // which answers a buyer's question rather than a pharmacist's.

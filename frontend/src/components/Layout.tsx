@@ -101,6 +101,21 @@ function initials(name?: string | null): string {
 interface NavLinkDef {
   to: string;
   label: string;
+  /** What the PAGE calls itself, when that is not what the rail calls it.
+   *
+   *  The rail is the only place a route's name exists before the route's code
+   *  does, so the Suspense fallback reads the heading from here. For most
+   *  screens the two words are the same and there is nothing to say. Twelve
+   *  call themselves something longer or more precise than the rail has room
+   *  for — the rail says Ledger and the page says General ledger — and on
+   *  those the fallback has to use the page's word, or the heading would
+   *  change as the code lands.
+   *
+   *  Recorded rather than reconciled: renaming twelve screens to make a
+   *  loading state simpler would be the tail wagging the dog, and the rail is
+   *  deliberately terse. `qa/a-heading-is-not-a-loading-state.py` keeps this
+   *  column honest against what the pages actually render. */
+  page?: string;
   // A component, without pinning its props. Phosphor types `weight` as its own
   // union and returns ReactNode; our Claude mark takes a plain string and
   // returns an Element. Narrowing to either shape excludes the other, and the
@@ -136,7 +151,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // Today, as it is happening: how much has gone out, what is waiting,
       // how long people wait, what is on hold. History is the ledger; this
       // is the board.
-      { to: "/dispensary/operations", label: "Operations", icon: Gauge },
+      { to: "/dispensary/operations", label: "Operations", page: "Dispensary operations", icon: Gauge },
       // Scripts by their number. The history above lists dispensings —
       // the events, so a script supplied over four visits appears four
       // times there and one never dispensed appears not at all.
@@ -152,7 +167,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
   {
     section: "Front Shop",
     links: [
-      { to: "/pos", label: "Till", icon: Storefront, tier: 1 },
+      { to: "/pos", label: "Till", page: "Front Shop", icon: Storefront, tier: 1 },
       { to: "/shifts", label: "Cash Office", icon: Vault },
       // Opening and closing the fiscal day is a daily counter act, not an admin
       // setting, so it sits with the till rather than in the control panel.
@@ -167,7 +182,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     section: "Stock",
     links: [
       { to: "/stock", label: "Inventory", icon: Package },
-      { to: "/stock-categories", label: "Departments", icon: ChartBar },
+      { to: "/stock-categories", label: "Departments", page: "Stock departments", icon: ChartBar },
       // What each line earns against the money it ties up. The buying
       // conversation, which units sold alone cannot have.
       { to: "/stock-performance", label: "Stock performance", icon: TrendUp, needs: "reports.money" },
@@ -179,13 +194,13 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // step before an order, not a separate concern.
       { to: "/rfqs", label: "Quotes", icon: Scales },
       { to: "/suppliers", label: "Suppliers", icon: Buildings },
-      { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
-      { to: "/samples", label: "Samples", icon: Gift },
+      { to: "/stock-take", label: "Stock Take", page: "Stock take", icon: ClipboardText },
+      { to: "/samples", label: "Samples", page: "Sample register", icon: Gift },
       { to: "/recall", label: "Recall", icon: Siren },
       { to: "/branches", label: "Branches", icon: Storefront },
       // The paper a branch trades on, and when it dies. Three of these
       // lapsing closes the shop.
-      { to: "/compliance", label: "Licences", icon: SealCheck },
+      { to: "/compliance", label: "Licences", page: "Licences and compliance", icon: SealCheck },
     ],
   },
   {
@@ -208,8 +223,8 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // procurement is about getting the goods, this is about what is owed
       // for them, and the person who reads it is doing the books.
       { to: "/payables", label: "Creditors", icon: Receipt },
-      { to: "/ledger", label: "Ledger", icon: Scales },
-      { to: "/periods", label: "Periods", icon: CalendarCheck },
+      { to: "/ledger", label: "Ledger", page: "General ledger", icon: Scales },
+      { to: "/periods", label: "Periods", page: "Trading periods", icon: CalendarCheck },
     ],
   },
   {
@@ -222,11 +237,11 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // stock question and the person asking it is not doing stock. Somebody
       // who owns three shops looks for this beside the analytics, which is
       // where every other "how are we doing" screen already lives.
-      { to: "/scorecard", label: "Branch performance", icon: ChartBar, tier: 1, groupWide: true },
+      { to: "/scorecard", label: "Branch performance", page: "Branch scorecard", icon: ChartBar, tier: 1, groupWide: true },
       { to: "/reports", label: "Analytics", icon: ChartLineUp, needs: "reports.money" },
       // What a repeat patient is worth beyond the line, and what to have
       // on the shelf before the month that sells it.
-      { to: "/seasons", label: "Basket & seasons", icon: Basket },
+      { to: "/seasons", label: "Basket & seasons", page: "Basket and seasons", icon: Basket },
       // Was "Pulse AI", which asked one question at a time against a fixed
       // snapshot and could not be asked where anything was. Same route, so
       // anybody's bookmark still works.
@@ -237,7 +252,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     section: "Business",
     links: [
       { to: "/helpdesk", label: "Cases", icon: Headset },
-      { to: "/accounts", label: "Key Accounts", icon: Buildings },
+      { to: "/accounts", label: "Key Accounts", page: "Accounts and Contacts", icon: Buildings },
       { to: "/leads", label: "Leads", icon: UserPlus },
       { to: "/pipeline", label: "Opportunities", icon: Funnel },
       { to: "/marketing", label: "Campaigns", icon: Megaphone },
@@ -248,7 +263,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     section: "Administration",
     links: [
       { to: "/admin", label: "Control Panel", icon: SlidersHorizontal, needs: "staff.manage" },
-      { to: "/system", label: "This Till", icon: Desktop },
+      { to: "/system", label: "This Till", page: "This till", icon: Desktop },
       // Platform-level: creating pharmacies and deciding who belongs to which.
       // A pharmacy's own administrator gets a 403 and the page explains why, so
       // it sits in Administration rather than under Stock, where it had no
@@ -260,6 +275,31 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     ],
   },
 ];
+
+/** What a page is called, without loading the page.
+ *
+ *  Every route's name is already written down here, for the rail. The Suspense
+ *  boundary in Staff.tsx falls back while a route's code arrives, and what it
+ *  used to fall back to was two grey blocks where the heading goes — so the
+ *  one thing on the screen that was never in doubt, the name of the page you
+ *  just clicked, arrived as a loading state.
+ *
+ *  A page's title is static. It is known before its code, its data, or the
+ *  network. So the fallback reads it from here and renders it for real. */
+export function pageNameFor(pathname: string): string | null {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  let best: NavLinkDef | null = null;
+  for (const group of NAV) {
+    for (const link of group.links) {
+      // The longest matching prefix wins, so /stock-take does not answer to
+      // /stock and a record page answers to its list.
+      if (path === link.to || path.startsWith(link.to + "/")) {
+        if (!best || link.to.length > best.to.length) best = link;
+      }
+    }
+  }
+  return best ? (best.page ?? best.label) : null;
+}
 
 export default function Layout({ children }: { children: ReactNode }) {
   // Live counts of what needs doing, keyed by route.

@@ -645,6 +645,11 @@ a:hover { opacity: 0.75; }
    and subtitle stay together when the actions wrap beneath them on a narrow
    screen, instead of the subtitle being orphaned across the row. */
 .page-head-said { min-width: 0; }
+/* The subtitle's line while a route's code is still arriving: held open so the
+   page does not jump when the real sentence lands, and empty rather than a
+   grey bar, because a grey bar is a claim that something is loading and the
+   heading beside it already says the page is. */
+.sk-sub { min-height: 1.4em; }
 /* What kind of thing this page is about. Detail pages have had one through
    RecordPage; list pages never did. */
 .page-eyebrow {
@@ -1667,6 +1672,18 @@ label {
   font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--ink-soft);
 }
 .pill-tabs button.active .tab-count { background: var(--accent-soft); color: var(--accent); }
+/* THE CHIP IS THE PART OF A TAB THAT LOADS.
+   The word beside it is static and must never wait on anything; the number is
+   the only thing on a tab nobody can know before the answer comes back. So it
+   pulses at the width of a two-figure count, in the chip's own shape, and the
+   tab around it is finished from the first frame. Sized rather than empty, so
+   the strip does not shuffle sideways when the figures land. */
+.tab-count.is-counting {
+  width: 2.2ch; height: 1em;
+  background: linear-gradient(90deg, var(--hover) 0%, var(--line) 50%, var(--hover) 100%);
+  background-size: 200% 100%;
+  animation: skel-sheen 1.3s ease-in-out infinite;
+}
 /* ---------- CRM kanban ---------- */
 .kanban {
   display: grid; grid-template-columns: repeat(6, minmax(190px, 1fr));

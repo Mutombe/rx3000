@@ -10,8 +10,15 @@ import { useSearchParams } from "react-router-dom";
 export type TabDef<T extends string> = {
   key: T;
   label: string;
-  /** Optional record count rendered as a chip on the tab. */
-  count?: number;
+  /** The record count, as a chip on the tab.
+   *
+   *  `null` means the count is not known yet, and the chip pulses in place of
+   *  a number. That is not the same as leaving it out: a page whose rows start
+   *  as an empty array was passing `0` while the request was still in flight,
+   *  so the tab said there were no products, then said there were three
+   *  hundred. The chip is the dynamic part of a tab — the word beside it is
+   *  static and should never wait on anything — so the chip is what loads. */
+  count?: number | null;
   hint?: string;
 };
 
@@ -170,7 +177,11 @@ export default function PageTabs<T extends string>({ tabs, tab, setTab }: {
           onClick={() => setTab(t.key)}
         >
           {t.label}
-          {t.count !== undefined && <span className="tab-count">{t.count}</span>}
+          {t.count === null
+            ? <span className="tab-count is-counting" aria-label="counting" />
+            : t.count !== undefined
+              ? <span className="tab-count">{t.count}</span>
+              : null}
         </button>
       ))}
     </TabStrip>

@@ -65,7 +65,7 @@ export default function DealDetail() {
   const ask = useAsk();
 
   const TABS: TabDef<Tab>[] = [
-    { key: "lines", label: "Line items", count: deal?.items.length },
+    { key: "lines", label: "Line items", count: deal?.items.length ?? null },
     { key: "quotes", label: "Quotations", count: quotes.length },
     { key: "activity", label: "Activity", count: timeline.length },
   ];

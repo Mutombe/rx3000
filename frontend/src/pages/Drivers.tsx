@@ -65,10 +65,10 @@ export default function Drivers() {
   const work = useRowWork();
 
   const TABS: TabDef<Tab>[] = [
-    { key: "working", label: "Drivers", count: rows.length },
+    { key: "working", label: "Drivers", count: loading ? null : rows.length },
     { key: "road", label: "On the road", count: road?.deliveries,
       hint: "Out now, and what they are carrying" },
-    { key: "retired", label: "Retired", count: retired.length },
+    { key: "retired", label: "Retired", count: loading ? null : retired.length },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "working");
 

@@ -19,9 +19,9 @@ export default function AccountDetail() {
   const [error, setError] = useState("");
 
   const TABS: TabDef<Tab>[] = [
-    { key: "contacts", label: "Contacts", count: data?.contacts.length },
-    { key: "deals", label: "Opportunities", count: data?.deals.length },
-    { key: "cases", label: "Cases", count: data?.tickets.length },
+    { key: "contacts", label: "Contacts", count: data?.contacts.length ?? null },
+    { key: "deals", label: "Opportunities", count: data?.deals.length ?? null },
+    { key: "cases", label: "Cases", count: data?.tickets.length ?? null },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "contacts");
 

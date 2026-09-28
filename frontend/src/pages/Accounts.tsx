@@ -55,8 +55,8 @@ export default function Accounts() {
   const toast = useToast();
 
   const TABS: TabDef<Tab>[] = [
-    { key: "companies", label: "Accounts", count: companies.length },
-    { key: "contacts", label: "Contacts", count: contacts.length },
+    { key: "companies", label: "Accounts", count: loading ? null : companies.length },
+    { key: "contacts", label: "Contacts", count: loading ? null : contacts.length },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "companies");
   const [filters, setFilters] = useState<FilterState>(emptyFilters);

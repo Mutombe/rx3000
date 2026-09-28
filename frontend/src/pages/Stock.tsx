@@ -138,7 +138,11 @@ export default function Stock() {
   const [lowOnly, setLowOnly] = useState(false);
   const [expiringOnly, setExpiringOnly] = useState(false);
   const TABS: TabDef<Tab>[] = [
-    { key: "products", label: "Products", count: products.length },
+    // `loading ? null` rather than `products.length`: the array starts empty,
+    // so the chip said there were no products while the request was still in
+    // flight and then said there were three hundred.
+    { key: "products", label: "Products",
+      count: loading ? null : products.length },
     // First after the catalogue, because it is the only tab that says
     // something nobody asked for. The rest answer a question somebody came
     // with; this one tells them what they did not know to ask.
@@ -160,8 +164,10 @@ export default function Stock() {
             + "number, the lots and who signed for them" },
     { key: "returns", label: "Supplier returns",
       hint: "Goods going back to the wholesaler, and the credit owed for them" },
-    { key: "batches", label: "Batches & expiry", count: batches.length },
-    { key: "movements", label: "Movement history", count: movements.length },
+    { key: "batches", label: "Batches & expiry",
+      count: loading ? null : batches.length },
+    { key: "movements", label: "Movement history",
+      count: loading ? null : movements.length },
     // Beside the movements, because that is what explains a difference: the
     // two counts disagree and the history is where the reason is.
     { key: "reconcile", label: "Reconciliation",

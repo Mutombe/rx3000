@@ -23,10 +23,10 @@ export default function CardReconciliation() {
   const toast = useToast();
 
   const TABS: TabDef<Tab>[] = [
-    { key: "matched", label: "Matched", count: report?.matched.length },
-    { key: "mismatched", label: "Amount differs", count: report?.mismatched.length },
-    { key: "missing_system", label: "Not in RX5000", count: report?.missing_in_system.length },
-    { key: "missing_statement", label: "Not banked", count: report?.missing_in_statement.length },
+    { key: "matched", label: "Matched", count: report?.matched.length ?? null },
+    { key: "mismatched", label: "Amount differs", count: report?.mismatched.length ?? null },
+    { key: "missing_system", label: "Not in RX5000", count: report?.missing_in_system.length ?? null },
+    { key: "missing_statement", label: "Not banked", count: report?.missing_in_statement.length ?? null },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "matched");
 

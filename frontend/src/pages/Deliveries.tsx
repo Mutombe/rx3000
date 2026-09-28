@@ -69,11 +69,11 @@ export default function Deliveries() {
   const confirm = useConfirm();
 
   const TABS: TabDef<Tab>[] = [
-    { key: "pending", label: "To go out", count: rows.pending?.length,
+    { key: "pending", label: "To go out", count: rows.pending?.length ?? null,
       hint: "Raised and not yet dispatched" },
-    { key: "out", label: "Out with a driver", count: rows.out?.length },
-    { key: "delivered", label: "Delivered", count: rows.delivered?.length },
-    { key: "failed", label: "Failed", count: rows.failed?.length,
+    { key: "out", label: "Out with a driver", count: rows.out?.length ?? null },
+    { key: "delivered", label: "Delivered", count: rows.delivered?.length ?? null },
+    { key: "failed", label: "Failed", count: rows.failed?.length ?? null,
       hint: "The medicine is still the pharmacy's" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "pending");

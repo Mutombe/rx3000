@@ -83,7 +83,7 @@ export default function Orders() {
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
 
   const TABS: TabDef<Tab>[] = [
-    { key: "orders", label: "Purchase orders", count: orders.length },
+    { key: "orders", label: "Purchase orders", count: loading ? null : orders.length },
     { key: "low", label: "Reorder needs",
       count: lowUnknown ? undefined : lowStock.length,
       hint: "Products at or below their reorder level" },

@@ -93,7 +93,7 @@ export default function Ledger() {
     // where does this go. Everything after it is an answer about amounts.
     { key: "chart", label: "Chart of accounts",
       hint: "Every account in the business, grouped as a balance sheet groups them" },
-    { key: "trial", label: "Trial balance", count: tb?.lines.length },
+    { key: "trial", label: "Trial balance", count: tb?.lines.length ?? null },
     { key: "income", label: "Income statement",
       hint: "Revenue, cost of sales and profit for the financial year" },
     { key: "balance", label: "Balance sheet",
@@ -102,7 +102,7 @@ export default function Ledger() {
       hint: "Why the bank balance moved, which profit alone never explains" },
     { key: "ageing", label: "Aged analysis",
       hint: "How old the money owed is, and who is sitting on it" },
-    { key: "journal", label: "Journal", count: entries.length },
+    { key: "journal", label: "Journal", count: loading ? null : entries.length },
     { key: "recon", label: "Reconciliation" },
     // Beside the statements, because it is the entry that makes the balance
     // sheet honest rather than a stock report that happens to mention money.

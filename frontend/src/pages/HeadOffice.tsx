@@ -96,20 +96,23 @@ export default function HeadOffice() {
   }, []);
 
   const TABS: TabDef<Tab>[] = [
-    { key: "map", label: "The estate", count: estate?.branches.length,
+    { key: "map", label: "The estate", count: estate?.branches.length ?? null,
       hint: "Where the shops are and what they have taken" },
     // Beside the estate rather than under administration: moving stock
     // between shops is a daily operational decision for a group, and the
     // question it answers, who has this and who needs it, can only be asked
     // from a screen that can see every branch at once.
     { key: "stock", label: "Stock across the estate",
-      count: transit?.length || undefined,
+      // Null until the read lands, so the chip pulses rather than claiming
+      // a nought. The `|| undefined` that used to hide a genuine nought
+      // went with it: nothing on the road is worth saying.
+      count: transit === null ? null : (transit.length || undefined),
       hint: "Move stock between branches, and what is on the road" },
     { key: "people", label: "Branches & people",
       hint: "Who works where, and what each may do" },
     { key: "authority", label: "Authority",
       hint: "What each role may do, and what one person may do on top of it" },
-    { key: "logins", label: "Who signs in", count: pins?.without_pin.length,
+    { key: "logins", label: "Who signs in", count: pins?.without_pin.length ?? null,
       hint: "The three kinds of login, and who cannot sign in their own name" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "map");
