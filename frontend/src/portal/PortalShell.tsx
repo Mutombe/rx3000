@@ -62,6 +62,134 @@ export function useBrand(kind: string, token?: string): Brand | null {
   return brand;
 }
 
+/** The pharmacy's mark: its logo, or its own initials.
+ *
+ *  It used to fall back to a dark blue tile carrying a serif ℞. That glyph is
+ *  the prescription symbol, not a pharmacy's identity, and a patient opening
+ *  their link saw a mark their own pharmacy has never put on anything —
+ *  reported, exactly, as "this Rx blue thing and I don't even know where it
+ *  came from".
+ *
+ *  A shop with no logo uploaded still has a name, so the fallback is the first
+ *  letters of it: "Rx3000 Demo Pharmacy" becomes RD. Nothing is invented, and
+ *  it follows the pharmacy's name when that changes.
+ */
+export function PortalMark({ brand, small }: {
+  brand: Brand | null | undefined; small?: boolean;
+}) {
+  if (brand?.logo) {
+    return (
+      <img className={`pp-logo${small ? "" : " pp-logo-lg"}`}
+           src={brand.logo} alt={brand.name} />
+    );
+  }
+  const initials = (brand?.name || "")
+    .split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+  return (
+    <div className={`pp-mark${small ? " pp-mark-sm" : ""}`} aria-hidden="true">
+      {initials || "\u2022"}
+    </div>
+  );
+}
+
+/** The app frame: chrome that stays put, and one region that scrolls.
+ *
+ *  WHY THIS IS NOT `PortalShell`
+ *
+ *  `PortalShell` lays a page out as a document — masthead, content, footer, in
+ *  normal flow. That is right for a quotation a wholesaler reads once and
+ *  never returns to.
+ *
+ *  The patient's portal is not read once. It is opened at a counter, in a
+ *  queue, one-handed, to answer "is my medicine ready". Measured as a document
+ *  it came out 2,281px tall on an 844px phone, with the navigation at the top
+ *  where a thumb does not reach and the pharmacy's telephone number at the
+ *  very bottom, twelve repeats below the fold.
+ *
+ *  So: three rows the height of the viewport. The bar at the top and the
+ *  navigation at the foot do not move; the middle scrolls inside itself. That
+ *  is the shape of every application already on the phone this is read on, and
+ *  the reason it is that shape is that a thumb reaches the bottom of a screen.
+ */
+export function PortalApp({ bar, nav, children }: {
+  bar: ReactNode;
+  nav: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="pp pp-app">
+      <div className="pp-appbar">{bar}</div>
+      {/* `tabIndex` so the region can still be scrolled from the keyboard on a
+          tab whose contents hold nothing focusable. */}
+      <main className="pp-scroll" tabIndex={-1}>{children}</main>
+      <div className="pp-appfoot">{nav}</div>
+    </div>
+  );
+}
+
+/** The navigation along the foot, which is where a thumb is. */
+export function PortalNav<T extends string>({ tabs, tab, setTab }: {
+  tabs: { key: T; label: string; icon: ReactNode; badge?: number }[];
+  tab: T;
+  setTab: (next: T) => void;
+}) {
+  return (
+    <nav className="pp-nav" role="tablist" aria-label="Sections">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          role="tab"
+          aria-selected={tab === t.key}
+          className={`pp-nav-item${tab === t.key ? " on" : ""}`}
+          onClick={() => setTab(t.key)}
+        >
+          <span className="pp-nav-mark" aria-hidden="true">
+            {t.icon}
+            {/* A count only where there is one. A nought badge says there is
+                nothing, which is what no badge already said. */}
+            {!!t.badge && <i className="pp-nav-count">{t.badge > 9 ? "9+" : t.badge}</i>}
+          </span>
+          <span className="pp-nav-word">{t.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/** Who made the software, in the one place that is allowed to say so.
+ *
+ *  `qa/a-portal-wears-the-shop-name.py` fails any portal page that names the
+ *  vendor, because a patient's page belongs to their pharmacy. The line still
+ *  has to appear somewhere, so it is declared here and used by reference —
+ *  which also means it is worded once rather than four times.
+ */
+export function PortalBy() {
+  return <p className="pp-by">Powered by RX5000</p>;
+}
+
+/** Nothing here, said properly.
+ *
+ *  Every empty state on these pages was a grey sentence on its own — "Nothing
+ *  is waiting for you." — which reads as a page that failed to load rather
+ *  than as an answer. An answer has a shape: a mark, the fact, and what will
+ *  change it.
+ */
+export function PortalNone({ mark, said, next }: {
+  mark: ReactNode; said: ReactNode; next?: ReactNode;
+}) {
+  return (
+    <div className="pp-none">
+      <span className="pp-none-mark" aria-hidden="true">{mark}</span>
+      <b className="pp-none-said">{said}</b>
+      {next && <span className="pp-none-next">{next}</span>}
+    </div>
+  );
+}
+
 /** The masthead: the pharmacy's own mark, then whatever this page is about. */
 export function PortalHead({ brand, title, sub, children }: {
   brand: Brand | null;
@@ -73,9 +201,7 @@ export function PortalHead({ brand, title, sub, children }: {
   return (
     <header className="pp-head">
       <div className="pp-brandline">
-        {brand?.logo
-          ? <img className="pp-logo" src={brand.logo} alt={brand.name} />
-          : <div className="pp-mark pp-mark-sm" aria-hidden="true">℞</div>}
+        <PortalMark brand={brand} small />
         <span className="pp-shopname">{brand?.name || "Your pharmacy"}</span>
       </div>
       {title && <h1>{title}</h1>}
@@ -165,9 +291,7 @@ export function PortalGate({
   return (
     <div className="pp pp-gate">
       <form className="pp-card pp-card-centre" onSubmit={onSubmit}>
-        {brand?.logo
-          ? <img className="pp-logo pp-logo-lg" src={brand.logo} alt={brand.name} />
-          : <div className="pp-mark" aria-hidden="true">℞</div>}
+        <PortalMark brand={brand} />
         {brand?.name && <p className="pp-gate-shop">{brand.name}</p>}
         <h1>{title}</h1>
         {lead && <p className="pp-lead">{lead}</p>}
@@ -284,9 +408,7 @@ export function PortalLoading({ brand }: { brand?: Brand | null }) {
   return (
     <div className="pp pp-centre">
       <div className="pp-card pp-card-centre">
-        {brand?.logo
-          ? <img className="pp-logo pp-logo-lg" src={brand.logo} alt={brand.name} />
-          : <div className="pp-mark" aria-hidden="true">℞</div>}
+        <PortalMark brand={brand} />
         <div className="pp-spinner" aria-hidden="true" />
         <p className="pp-muted">Fetching this from the pharmacy…</p>
       </div>
@@ -304,9 +426,7 @@ export function PortalGone({ brand, said }: { brand?: Brand | null; said?: strin
   return (
     <div className="pp pp-centre">
       <div className="pp-card pp-card-centre">
-        {brand?.logo
-          ? <img className="pp-logo pp-logo-lg" src={brand.logo} alt={brand.name} />
-          : <div className="pp-mark" aria-hidden="true">℞</div>}
+        <PortalMark brand={brand} />
         <h1 className="pp-gone-title">This link has expired</h1>
         <p className="pp-muted">
           {said || "Links are time-limited on purpose. Ring the pharmacy and "

@@ -28,9 +28,43 @@ const DriverPortal = lazy(() => import("./portal/DriverPortal"));
 // Everything a member of staff ever sees, including the sign-in.
 const Staff = lazy(() => import("./Staff"));
 
+/** What is on the screen before any of this has downloaded.
+ *
+ *  The fallback was `null`, so a patient opening their link saw a white page
+ *  until the route's chunk arrived — on a phone, on a Zimbabwean mobile
+ *  connection, that is the first impression the pharmacy makes and it is a
+ *  blank screen that looks like a broken link.
+ *
+ *  Styled inline and nothing else: the portal's own stylesheet lives in the
+ *  chunk this is waiting for, so anything that imported it would be waiting
+ *  for the thing it is standing in for. It cannot know which pharmacy this is
+ *  either — that needs a request the chunk has not made yet — so it says
+ *  nothing it does not know, and only shows that something is coming.
+ */
+function Booting() {
+  return (
+    <div
+      aria-busy="true"
+      style={{
+        minHeight: "100dvh", display: "grid", placeItems: "center",
+        background: "#f4f4f7",
+      }}
+    >
+      <div
+        style={{
+          width: 28, height: 28, borderRadius: "50%",
+          border: "3px solid #e6e6ea", borderTopColor: "#12306b",
+          animation: "pp-boot 0.9s linear infinite",
+        }}
+      />
+      <style>{"@keyframes pp-boot{to{transform:rotate(360deg)}}"}</style>
+    </div>
+  );
+}
+
 export default function App() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<Booting />}>
       <Routes>
         {/* Public, unauthenticated, and above the staff application on purpose
             so a patient is never bounced to a staff sign-in screen. */}

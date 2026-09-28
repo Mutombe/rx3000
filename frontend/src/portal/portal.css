@@ -277,6 +277,15 @@ html, body, #root { margin: 0; min-height: 100%; }
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--pp-line);
 }
+/* THE NAME GIVES WAY; THE PILL NEVER DOES.
+   A flex child will not shrink below its content unless it is told it may, so
+   "Tenofovir/Lamivudine/Dolutegravir" pushed its date chip off the right edge
+   of a 390px phone and the date — which is the whole reason the row is in the
+   overdue list — was the half that went. The name wraps instead; the chip
+   keeps its size and stays on screen. */
+.pp .pp-row > :first-child { min-width: 0; flex: 1 1 auto; }
+.pp .pp-row > .pp-pill { flex: 0 0 auto; }
+.pp .pp-row b { overflow-wrap: anywhere; }
 .pp .pp-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .pp .pp-row:first-of-type { padding-top: 0; }
 .pp .pp-row b { display: block; font-size: 0.98rem; color: var(--pp-ink); }
@@ -777,4 +786,209 @@ html, body, #root { margin: 0; min-height: 100%; }
 .pp .pp-stars {
   display: block; margin-top: 2px;
   color: #d79b1f; font-size: var(--pp-t-sm); letter-spacing: 0.1em;
+}
+
+/* ======================================================================
+   THE APP FRAME
+   ======================================================================
+
+   The patient's portal was laid out as a document: masthead, content, footer,
+   in normal flow. Measured on a 390x844 phone with a real record on it, that
+   came to 2,281px of page. The navigation sat at the top, where a thumb
+   holding a phone does not reach, and the pharmacy's telephone number sat at
+   the very bottom, twelve repeats below the fold — so the two things somebody
+   opens this for, "is it ready" and "what is the number", were the two hardest
+   things on it to get to.
+
+   Three rows, the height of the viewport. The bar and the navigation are
+   fixed; one region scrolls. Nothing here is novel: it is the shape of every
+   application already on the phone this is read on, and it is that shape
+   because a thumb reaches the bottom of a screen and not the top.
+   ====================================================================== */
+.pp-app {
+  height: 100vh; height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 0;
+  overflow: hidden;
+}
+/* `.pp > *` centres every child of the document layout in a 34rem column with
+   `margin-inline: auto`. On a grid item that is not a centring instruction, it
+   is a SIZING one: an auto margin makes the item shrink to its content instead
+   of stretching to its track. So the bar came out as wide as the shop's name
+   and the scrolling region as wide as its longest medicine, both floating in
+   the middle of the phone with the cards running off the right edge.
+   The frame's own rows stretch; the column limit belongs on what is inside
+   them, which is where it is set. */
+.pp-app > * { max-width: none; margin-left: 0; margin-right: 0; }
+
+/* The bar: whose counter this is. It does not scroll away, because on a page
+   about your medicine the name of the shop holding it is not a detail you
+   read once. */
+.pp-app .pp-appbar {
+  display: flex; align-items: center; gap: var(--pp-3);
+  padding: calc(var(--pp-3) + env(safe-area-inset-top, 0px))
+           var(--pp-4) var(--pp-3);
+  background: var(--pp-card);
+  border-bottom: 1px solid var(--pp-line);
+}
+.pp-app .pp-appbar .pp-mark,
+.pp-app .pp-appbar .pp-logo { margin: 0; flex: none; }
+.pp-appbar-said { min-width: 0; }
+.pp-appbar-shop {
+  display: block; margin: 0;
+  font-size: var(--pp-t-sm); font-weight: 700; color: var(--pp-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pp-appbar-who {
+  display: block; margin: 1px 0 0;
+  font-size: 0.8rem; color: var(--pp-mid);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The one thing that scrolls. `contain` so a flick inside it does not drag the
+   page behind it on iOS, which is what makes a web page feel like a web page. */
+.pp-app .pp-scroll {
+  overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--pp-4) var(--pp-4) var(--pp-6);
+}
+.pp-app .pp-scroll > * { max-width: 34rem; margin-left: auto; margin-right: auto; }
+.pp-app .pp-scroll:focus { outline: none; }
+
+/* The foot. Stuck, whatever the page holds — the amount of data behind it is
+   not its business. */
+.pp-app .pp-appfoot {
+  background: var(--pp-card);
+  border-top: 1px solid var(--pp-line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------- the navigation ---------- */
+.pp-nav {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  max-width: 34rem; margin: 0 auto;
+}
+/* `.pp .pp-nav-item`, not `.pp-nav-item`. `.pp button` further up this file
+   paints EVERY button in a portal as a blue gradient primary — which is what
+   it was written for, when the only buttons were "See my prescriptions" and
+   "Send it". It outranks a bare class, so the first version of this navigation
+   rendered as four dark blue slabs across the foot of the phone. A tab bar is
+   not four primary buttons. */
+.pp .pp-nav-item {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  width: auto;
+  /* Comfortably over the 44px thumb target, including the word. */
+  min-height: 56px; padding: var(--pp-2) var(--pp-1);
+  background: none; border: 0; border-radius: 0; cursor: pointer;
+  color: var(--pp-mid); font: inherit; font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.pp .pp-nav-item .pp-nav-mark {
+  position: relative; display: grid; place-items: center;
+  width: 26px; height: 26px; color: currentColor;
+}
+.pp .pp-nav-item svg { width: 22px; height: 22px; display: block; }
+/* The word under the icon. Both, because a tab bar of icons alone asks
+   somebody to guess, and this is read once by people who will not learn
+   it. `1` line height so a two-word label still clears the thumb target. */
+.pp .pp-nav-word { display: block; line-height: 1.15; text-align: center; }
+.pp .pp-nav-item.on { color: var(--pp-brand); }
+.pp .pp-nav-item:focus-visible {
+  outline: 2px solid var(--pp-brand); outline-offset: -3px;
+  border-radius: var(--pp-r-sm);
+}
+/* Which one you are on, marked at the TOP of the tab. It was drawn under the
+   icon, which put it straight through the middle of the word below it — the
+   active tab read as "Right now" with a line scored through it. Along the top
+   edge it belongs to the whole tab and collides with nothing. */
+.pp .pp-nav-item { position: relative; }
+.pp .pp-nav-item.on::before {
+  content: ""; position: absolute; top: 0; left: 22%; right: 22%;
+  height: 2px; border-radius: 0 0 2px 2px; background: var(--pp-brand);
+}
+.pp-nav-count {
+  position: absolute; top: -3px; right: -7px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: grid; place-items: center;
+  border-radius: var(--pp-r-pill);
+  background: var(--pp-bad); color: #fff;
+  font-size: 0.62rem; font-weight: 700; font-style: normal; line-height: 1;
+}
+
+/* ---------- nothing here, said properly ---------- */
+.pp .pp-none {
+  display: grid; justify-items: center; text-align: center;
+  gap: var(--pp-2); padding: var(--pp-5) var(--pp-4);
+}
+.pp .pp-none-mark {
+  display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: var(--pp-r-pill);
+  background: var(--pp-canvas); border: 1px solid var(--pp-line);
+  color: var(--pp-faint);
+}
+.pp .pp-none-mark svg { width: 20px; height: 20px; }
+.pp .pp-none-said { color: var(--pp-ink); font-size: var(--pp-t); font-weight: 600; }
+.pp .pp-none-next {
+  color: var(--pp-mid); font-size: var(--pp-t-sm); line-height: 1.5;
+  max-width: 26rem;
+}
+
+/* ---------- a section, with a boundary you can see ----------
+   "Exactly where am I and what am I supposed to see" was the report. A card
+   with a heading floating above it does not answer that. The heading belongs
+   to the card, inside its edge, with a rule under it. */
+.pp .pp-sec { padding: 0; overflow: hidden; }
+.pp .pp-sec > h2 {
+  margin: 0; padding: var(--pp-3) var(--pp-4);
+  border-bottom: 1px solid var(--pp-line);
+  background: var(--pp-canvas);
+}
+.pp .pp-sec-body { padding: var(--pp-2) var(--pp-4) var(--pp-3); }
+.pp .pp-sec-body > .pp-row:last-child { border-bottom: 0; }
+/* A count beside the heading, so a section says how much is in it before it is
+   read. */
+.pp .pp-sec-n {
+  float: right; color: var(--pp-faint); font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* ---------- an action somebody can take ---------- */
+.pp .pp-acts { display: grid; gap: var(--pp-2); }
+.pp .pp-act {
+  display: flex; align-items: center; gap: var(--pp-3);
+  min-height: var(--pp-tap);
+  padding: var(--pp-3) var(--pp-4);
+  border: 1px solid var(--pp-line); border-radius: var(--pp-r);
+  background: var(--pp-card); color: var(--pp-ink);
+  font-size: var(--pp-t); font-weight: 600; text-decoration: none;
+  text-align: left;
+}
+.pp .pp-act svg { width: 20px; height: 20px; flex: none; color: var(--pp-brand); }
+.pp .pp-act-said { display: block; font-weight: 400; font-size: var(--pp-t-sm);
+                   color: var(--pp-mid); margin-top: 1px; }
+.pp .pp-act:focus-visible { outline: 2px solid var(--pp-brand); outline-offset: 2px; }
+.pp .pp-act-go { margin-left: auto; color: var(--pp-faint); }
+
+/* ---------- the pharmacy's own page ---------- */
+.pp .pp-shopcard { text-align: center; display: grid; justify-items: center;
+                   gap: var(--pp-2); }
+.pp .pp-shopcard .pp-mark, .pp .pp-shopcard .pp-logo { margin: 0 0 var(--pp-2); }
+.pp .pp-shopname-lg { margin: 0; font-size: var(--pp-t-lg); font-weight: 700;
+                      color: var(--pp-ink); }
+.pp .pp-shopline { margin: 0; color: var(--pp-mid); font-size: var(--pp-t-sm);
+                   line-height: 1.55; }
+.pp .pp-by { margin: var(--pp-5) 0 0; text-align: center;
+             color: var(--pp-faint); font-size: 0.78rem; }
+
+/* ---------- wider than a phone ----------
+   The frame is the same on a tablet or a desktop; it simply stops growing. A
+   patient who opens the link on a laptop gets the same page, centred, rather
+   than a phone layout stretched across 1,400px. */
+@media (min-width: 40rem) {
+  .pp-app .pp-appbar, .pp-nav { max-width: 34rem; margin-inline: auto; width: 100%; }
+  .pp-app .pp-appbar { border-bottom: 0; }
+  .pp-app > .pp-appbar { border-bottom: 1px solid var(--pp-line); }
 }
