@@ -1,93 +1,93 @@
-Screens that told you what to do now let you do it.
+The screens were measured, one at a time, and made to say what is true.
 
-**The one with a clock on it**
+**A check that did not run is not a check that passed**
 
-A recall has always said, at the top of the screen, that holding what is left
-on the shelf is the first thing to do and the only step that stops another
-person receiving it. There was no way to do it. Now there is one button, and
-what is held stops being counted as on the shelf, so the figures say what
-happened.
+The dose check could fail to reach the reference and the screen said the dose
+was fine. It says now that it could not check, and why, which is the difference
+between a dispenser who looks it up and one who does not.
 
-**Writing off an expired sample now takes the witness it asks for**
+**An empty list that means the software broke no longer reads as an empty life**
 
-The sample register warns that an expired receipt still on the register is a
-finding, and says to write it off with a witness. The witness field only
-appeared for Destroyed, so following that instruction recorded no witness at
-all. It appears on both now. It is still only required for destruction, because
-saying medicine was destroyed is a claim nobody can check afterwards and a date
-on a box is not.
+When a patient's history could not be read, the screen said the patient had no
+history. A patient with no history and a read that failed look identical and
+mean opposite things. Nine screens were doing this. They now say the reading
+failed, and offer to try again.
 
-**Telling people something, from the screen that knows who they are**
+**Messages that named the wrong operation**
 
-The will call shelf can tell everybody in view that their medicine is ready.
-Money owed can remind everybody who owes. To follows can tell the people whose
-order has come in. A recall can tell everybody holding the batch to stop taking
-it. All four say how many have no telephone number before the message is
-written rather than after it is sent, because those are the ones somebody still
-has to ring.
+Signing in successfully could be answered with Please sign in. Refusals named
+an action nobody had taken, and some left no way forward at all. The ones
+people meet most were rewritten to say what happened and what to do about it.
 
-**Money owed now filters to what is actually late**
+**Tables you can read down**
 
-The thirty day figure was a tile nobody could press, so Remind them meant
-everybody, including the person who took their medicine this morning. It is the
-filter now.
+Every column in the software now starts on one vertical line, its heading
+stands on that same line, and anything too long for its column is cut with an
+ellipsis instead of running into the column beside it. Figures line up under
+figures. Missing data is named in words in the column's own language, not
+indented eight pixels away from everything above it.
 
-**The short supply gets written down**
+**Only the part that is still coming loads**
 
-Dispensing said Only 12 in stock and left the other eighteen in the dispenser's
-head. One press promises the balance against that patient, with no form to fill
-in: the medicine, the person and the shortfall are already on the screen.
+Going to a screen used to grey out the whole of it, including the title, the
+search box and the buttons, none of which were waiting for anything. Now the
+name of the screen is there immediately and only the figures that are still
+being fetched show as loading. The count of products on the stock screen
+loads; the stock screen does not.
 
-**Recording what the wholesaler actually billed**
+**The dispensary key strip**
 
-Creditors lists deliveries with no bill behind them and calls each one a debt
-that has not been recorded. It could not record one. Now it can, opened from
-the delivery so the supplier and the order cannot be got wrong, and it tells
-you at the moment you type the figure if the bill is more than the goods that
-arrived.
+The initials and finish bar sat directly on the key strip below it, and the
+key strip ran under the worklist and became its bottom border. It is the work
+column's footer now, with air above and below it, and the worklist ends where
+the worklist ends.
 
-**A till nobody counted**
+**Things that were sitting on each other**
 
-A shift left open, by somebody who went home, could not be counted by anybody.
-It can now, from the history, by whoever notices.
+The filter on compliance, the label above the recall search, the two strips on
+claiming that were different widths. Fifty screens were measured for anything
+resting on the thing below it and the gaps are consistent now.
 
-**Claiming leads with the deadline**
+**Corners, rings and shadows**
 
-Each funder's cut off is on the list of claims waiting to be batched, soonest
-first, with a mark on anything inside three days. The funder with a hundred and
-thirty claims due tomorrow is at the top instead of in the middle.
+A focus ring used to be drawn square around a rounded search box. Inner panels
+painted square corners inside rounded cards. Twenty eight components carried a
+coloured shadow down their left edge and the toasts carried one all round.
+Every one of those was found by measuring all fifty screens rather than by
+remembering, and every one is gone. A corner now takes its shape from whatever
+it sits in.
 
-**Stock transfers that were waiting for nobody**
+**Coloured messages you can actually read**
 
-A pharmacy that sets a value above which transfers need agreeing was creating a
-queue it could not see. Valuable transfers went in and stayed there, the stock
-never moved, and nothing said so. The queue is on the branches screen now, with
-what each transfer is worth, and both answers are one press.
+The green, amber and red toasts were so pale that the words in them were hard
+to make out. The word is now dark and readable and the colour is carried by
+the bar that counts the message out.
 
-**Things that could not be corrected**
+**The assistant answers the moment you press send**
 
-A lead, a deal, a branch, a trading period. A lead captured with the wrong
-telephone number stayed wrong for its whole life. A deal could be dragged
-between six columns and never edited, which is why the forecast quietly missed
-every deal somebody had captured in a hurry: it is built from the expected
-close date, and nothing could set one.
+It used to sit silent while it thought. It now says so at once.
 
-**The settlements screen is back**
+**Filters and tabs are the size of the thing they are**
 
-What each funder paid, and the claims a funder is holding, have both been
-answering an error. A broken line in the software stopped that screen loading
-at all while every other screen worked.
+A search box beside a Show retired button sat in the first third of a metre of
+empty bordered bar. The search now takes the room and the button goes to the
+far right. Tab strips were drawing a full width trough around four tabs; they
+are the width of their tabs.
 
-**Seeing what somebody else sees**
+**The patient's portal is an application now**
 
-Head office can sign in as a member of staff for thirty minutes to see what
-they see, which is the honest answer to it does not work on my screen. It takes
-a written reason, their password is never needed or shown, and a bar across
-every screen says whose session it is and offers the way back. Everything done
-while it lasts is recorded against both names.
+It opened on a blue mark that belonged to nobody, the navigation moved about,
+the footer floated up the page when there was little to show, and a patient
+with nothing due was shown an empty box with no explanation. It is a fixed top
+bar with the pharmacy's own name and logo, four tabs pinned to the bottom, and
+one scrolling area between them. Where there is nothing to show it says what
+that means and what happens next. There is a tab for the pharmacy itself, with
+one press to ring it and one to get directions.
 
-**Also**
+**The driver's round is one door at a time**
 
-Quotes can be sent and chased from the list. Dead stock can be moved to a
-branch that sells it. A branch scorecard's findings open the screen that deals
-with them. Held claims open the claim and the advice behind them.
+The driver used to scroll a stack of cards with the two buttons that close a
+delivery nine hundred pixels down, under the signature pad. The screen is now
+the door they are standing at, with the address as the largest thing on it and
+the two decisions fixed to the bottom of the screen. The round is a tab, and
+what they are carrying in cash is on the top bar where they can see it coming.
