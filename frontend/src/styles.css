@@ -10249,6 +10249,18 @@ button.ctx-chip:hover { background: var(--hover); }
   border: 1px solid var(--line); border-left: 2px solid var(--line-strong);
   background: var(--surface-sunk);
 }
+/* AN ITEM WITH NO ICON AND NO BUTTON IS ONE COLUMN, NOT THREE.
+   The template above is icon, text, action, and every warning on this dialog
+   has all three. The lot chooser has only a body: no icon, because it is not a
+   finding, and no button, because the control is inside it. So its body landed
+   in the FIRST column, which is twenty pixels wide, and "Going out: D31610,
+   expires 12 Jul, 2027" came out one word per line down a sixty pixel gutter
+   with six hundred pixels of empty card beside it.
+   Asked of the item's own contents rather than fixed with a second class, so
+   any future item that carries only a body is right without being told. */
+.fin-item:has(> .fin-item-body:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
 .fin-item.is-stop { border-color: var(--danger); background: var(--danger-soft); }
 .fin-item.is-warn { border-left-color: var(--warn); }
 .fin-item.is-info { border-left-color: var(--ink-soft); }
