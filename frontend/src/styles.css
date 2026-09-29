@@ -7997,11 +7997,28 @@ table.dt.sub th { font-size: var(--t-xs); }
 
 /* The estate, drawn. Tall enough to be a map rather than a strip — a map you
    have to scroll inside tells you less than the table under it. */
+/* OUT TO THE CARD'S OWN EDGES, NOT INSET INSIDE THEM.
+   It carried its own 1px border and its own radius inside a card that already
+   has both, so a map in a card was two frames a few pixels apart with a band
+   of card between them. A map is a picture: it should reach the edge of the
+   thing holding it and borrow that thing's corners.
+   Negative margins rather than a wider box, so the card keeps its padding for
+   everything else in it. */
 .hq-map {
-  height: 420px; width: 100%;
-  border-radius: var(--r-md); overflow: hidden;
-  border: 1px solid var(--line);
+  height: 420px; width: auto;
+  margin: calc(var(--s5) * -1) calc(var(--s5) * -1) 0;
+  border: 0;
+  /* Inside the card's own 1px border, so the curves sit concentric. */
+  border-radius: calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px) 0 0;
+  overflow: hidden;
 }
+/* Alone in its card, it fills the whole of it. */
+.hq-map:only-child {
+  margin-bottom: calc(var(--s5) * -1);
+  border-radius: calc(var(--r-lg) - 1px);
+}
+/* And the note underneath gets air rather than sitting on the map. */
+.hq-map + p { margin-top: var(--s4); }
 @media (max-width: 640px) { .hq-map { height: 280px; } }
 /* Leaflet ships its own light styling; these keep its chrome inside the
    product rather than looking like a component somebody dropped in. */

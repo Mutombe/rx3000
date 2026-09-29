@@ -371,8 +371,30 @@ function EstateMap({ branches }: { branches: BranchRow[] }) {
   useEffect(() => {
     if (!holder.current || map.current) return;
     const m = L.map(holder.current, { zoomControl: true });
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-      { maxZoom: 19, attribution: "&copy; OpenStreetMap &copy; CARTO" }).addTo(m);
+    /* OPENSTREETMAP'S OWN TILES, WHICH NEED NO KEY.
+     *
+     * This drew from `basemaps.cartocdn.com`, and CARTO now want an API key
+     * for that: every tile came back stamped "API KEY REQUIRED" across it, so
+     * the estate map was a grey grid with a watermark on it and the branches
+     * floating over nothing. Leaflet was never the problem. Leaflet is a
+     * renderer and asks for no key from anybody; the pictures it renders come
+     * from whoever you point it at, and this was pointed at a paid service.
+     *
+     * No `{s}` and no `{r}`: OpenStreetMap serves from one host now, and a
+     * subdomain placeholder against it asks for a machine that is not there.
+     * The retina suffix is a CARTO extension and comes back 404 here.
+     *
+     * Their tile policy is a fair use one and this sits well inside it: a back
+     * office map of a pharmacy group's branches, looked at occasionally, by
+     * staff. If this ever became something customers load, or wanted the
+     * pharmacy's own styling, a keyed provider is the honest answer and the
+     * key belongs in configuration rather than in this line.
+     */
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">'
+                   + "OpenStreetMap</a> contributors",
+    }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
     // Harare, until there is something to fit to.
