@@ -45,3 +45,11 @@ collected", not a general phrase.
 Each script drew its own separate table, so the columns down a patient's record
 never lined up with each other. It is one table now, with one set of column
 headings, and each script banded across it.
+
+**The screen you sign in on no longer opens on a message about a token**
+
+A till left overnight came back in the morning with "Invalid or expired token"
+written across the card where you sign in. Nobody asked it anything about a
+token. What
+had happened is that the session ran out, which is ordinary, and it says so:
+"Your session has ended. Please sign in again."
