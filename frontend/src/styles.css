@@ -11040,7 +11040,30 @@ button.fin-ack { cursor: pointer; }
   gap: 2px; border: none; background: none; border-radius: 0;
   overflow: visible;
 }
-.disp-with-worklist .wl-stat {
+/* AND THE FIRST TILE KEEPS ITS LEFT EDGE.
+ *
+ * Written against the well as well as the tile, and with the well's class
+ * doubled, because of one rule forty lines into the strip reset:
+ *
+ *     .wl-stats.wl-stats > :first-child { border-left: none; }
+ *
+ * That exists so a strip's own border is not doubled by its first tile's, and
+ * it is right there and wrong here: this rail turned the strip OFF two rules
+ * above, so there is no container border to double and the tile is a box in
+ * its own right. At one class each plus a pseudo-class it scores higher than
+ * `.disp-with-worklist .wl-stat` did, so it won, and the first tile was drawn
+ * with three sides.
+ *
+ * The first tile is "Waiting", which is also the one that is chosen when the
+ * screen opens. So the tile carrying the accent ring was the one tile missing
+ * a side of it, and it read as cut off down its left edge against the rail.
+ * Measured: the chosen tile had border-left-width 0px where its two
+ * neighbours had 1px.
+ *
+ * Doubling the well's class rather than adding a `:first-child` rule of my
+ * own, so this is one declaration that outranks the reset for every tile at
+ * once instead of a second rule racing the first. */
+.disp-with-worklist .wl-stats.wl-stats > .wl-stat {
   background: var(--surface-sunk); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 6px 8px; box-shadow: none;
 }
