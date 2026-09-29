@@ -27,6 +27,7 @@ import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import { packsMatter, perPackOf, saidLong, saidShort } from "../packs";
 
 type Tab = "products" | "watch" | "bins" | "quarantine" | "deliveries" | "returns" | "batches" | "movements" | "reconcile" | "upload";
 
@@ -332,19 +333,34 @@ export default function Stock() {
        When this shelf is empty and another branch is not, the row says so and
        says what to do about it, because "0" on its own sends somebody to the
        reorder list for stock the pharmacy already owns. */
-    { key: "quantity_on_hand", width: 128, header: "On hand", align: "right", sortable: true,
+    /* UNITS, AND THE BOXES THEY MAKE UP.
+       The shelf is counted in dispensable units and that is the figure a
+       script comes off, so it stays the figure. But a pharmacist at a shelf is
+       looking at boxes, and "227" against a pack of thirty is seven boxes and
+       seventeen loose. Those are the two numbers somebody counts, orders and
+       answers for, and only the first was ever on screen.
+       Said only where a pack is more than one unit: a column of shampoo and
+       plasters would otherwise carry a second line repeating itself. */
+    { key: "quantity_on_hand", width: 150, header: "On hand", align: "right", sortable: true,
       value: (p) => p.here ?? p.quantity_on_hand,
       render: (p) => {
         const here = p.here ?? p.quantity_on_hand;
         const elsewhere = (p.quantity_on_hand ?? 0) - here;
+        const each = perPackOf(p);
         return (
           <>
             <span className={`badge ${p.category === "airtime" ? "muted"
-              : here <= p.reorder_level ? "danger" : "ok"}`}>
+              : here <= p.reorder_level ? "danger" : "ok"}`}
+                  title={saidLong(here, each)}>
               {here}
             </span>
+            {packsMatter(each) && (
+              <span className="cell-note" title={saidLong(here, each)}>
+                {saidShort(here, each)}
+              </span>
+            )}
             {here <= 0 && elsewhere > 0 && (
-              <div className="muted small">{elsewhere} at another branch</div>
+              <span className="cell-note">{elsewhere} at another branch</span>
             )}
           </>
         );

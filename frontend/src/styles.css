@@ -12038,6 +12038,34 @@ button.fin-ack { cursor: pointer; }
   box-shadow: inset 0 0 0 1px var(--line-strong, var(--line));
 }
 
+/* COUNTING IN PACKS OR IN UNITS.
+   Two words under the number, in the same segmented shape as the direction
+   above it, because it is the same kind of choice: not what to do, but which
+   way round the figure is being said. Quieter than the direction, which is the
+   decision; this only says what the digits mean. */
+.adj-counting {
+  display: inline-flex; gap: 2px; margin-top: var(--s2);
+  padding: 2px; background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  width: fit-content;
+}
+.adj-count-in {
+  height: 24px; padding: 0 var(--s3); border: 0; background: none;
+  border-radius: calc(var(--r-sm) - 2px);
+  font-size: var(--t-xs); font-weight: 600; color: var(--ink-soft);
+  text-transform: lowercase;
+}
+.adj-count-in:hover:not(.is-on) { color: var(--ink); background: var(--surface); }
+.adj-count-in.is-on {
+  background: var(--surface); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong, var(--line));
+}
+/* The figure the person did not type, worked out for them. */
+.adj-in-other {
+  flex: 1 0 100%; margin: 0;
+  font-size: var(--t-sm); color: var(--ink-soft);
+}
+
 /* How many, and what it becomes, side by side. The figure is the biggest
    thing on the dialog because it is the only thing being decided. */
 .adj-figure {

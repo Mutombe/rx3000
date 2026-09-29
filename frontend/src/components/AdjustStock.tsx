@@ -30,6 +30,7 @@ import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
 import { useStepUp, CANCELLED } from "./StepUp";
 import { useCan } from "../session";
+import { inPacks, packsMatter, perPackOf, saidLong } from "../packs";
 
 /** Why a count is being corrected. The reason is what makes an adjustment an
  *  adjustment rather than an unexplained change, and a list beats free text.
@@ -92,6 +93,20 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
   const undated = Number(product.here_undated ?? 0);
 
   const [mode, setMode] = useState<"set" | "add" | "remove">("set");
+
+  /* PACKS OR UNITS, BECAUSE THEY ARE DIFFERENT FIGURES.
+   *
+   * The shelf is kept in dispensable units, so this dialog only ever asked for
+   * units. A delivery of three boxes of thirty is ninety, and somebody typing
+   * "3" took three tablets off a shelf they meant to put ninety on. The
+   * arithmetic was left to the person doing it, at the one moment the software
+   * had every number needed to do it for them.
+   *
+   * So the figure is typed in whichever the person is holding, and the other
+   * is worked out and shown. Units stays the default and the stored value: a
+   * pack is a way of counting, not a second kind of stock. */
+  const each = perPackOf(product);
+  const [countingIn, setCountingIn] = useState<"units" | "packs">("units");
   const [count, setCount] = useState(String(here));
   const [batch, setBatch] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -101,10 +116,17 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
   const toast = useToast();
   const { guarded, prompt } = useStepUp();
 
-  useEffect(() => { setCount(mode === "set" ? String(here) : ""); }, [mode]);
+  useEffect(() => {
+    // "Set to" starts from what is there, in whichever the person is counting.
+    setCount(mode === "set"
+      ? String(countingIn === "packs" ? inPacks(here, each).packs : here)
+      : "");
+  }, [mode, countingIn]);
 
-  const typed = Number(count);
-  const valid = count.trim() !== "" && Number.isFinite(typed) && typed >= 0;
+  const typedRaw = Number(count);
+  /* What was typed, in units, which is the only thing the shelf understands. */
+  const typed = countingIn === "packs" ? typedRaw * each : typedRaw;
+  const valid = count.trim() !== "" && Number.isFinite(typedRaw) && typedRaw >= 0;
   // What the shelf becomes, and what has to move to get there. Shown rather
   // than worked out in somebody's head: "set to 12" and "add 10" are the same
   // act from different directions and the mistake is always the direction.
@@ -266,7 +288,35 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
                    inputMode="numeric"
                    aria-label={howMany}
                    value={count} onChange={(e) => setCount(e.target.value)} />
+            {/* Only where a pack is more than one unit. On a bottle of syrup
+                the two are the same thing and a switch between them is a
+                control that does nothing. */}
+            {packsMatter(each) && (
+              <span className="adj-counting" role="radiogroup"
+                    aria-label="Counting in">
+                {(["units", "packs"] as const).map((which) => (
+                  <button key={which} type="button" role="radio"
+                          aria-checked={countingIn === which}
+                          className={`adj-count-in${countingIn === which ? " is-on" : ""}`}
+                          onClick={() => setCountingIn(which)}>
+                    {which}
+                  </button>
+                ))}
+              </span>
+            )}
           </label>
+
+          {/* The other figure, worked out rather than left to be worked out.
+              This is the whole point of the switch: a person holding three
+              boxes types 3, and the software says what that is on a shelf
+              counted in tablets. */}
+          {packsMatter(each) && valid && typedRaw > 0 && (
+            <p className="adj-in-other">
+              {countingIn === "packs"
+                ? `${typedRaw} pack${typedRaw === 1 ? "" : "s"} of ${each} is ${typed} units`
+                : `${typed} units is ${saidLong(typed, each).split(". ").slice(1).join(". ") || `${typed} loose`}`}
+            </p>
+          )}
 
           {/* What the shelf becomes. The whole reason this is here rather than
               left in somebody's head: "set to 12" and "add 12" are the same act
@@ -275,7 +325,8 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
           <div className={`adj-becomes${valid && delta !== 0 ? " is-live" : ""}`}>
             <span className="adj-was">{here}</span>
             <ArrowRight size={15} className="adj-arrow" aria-hidden="true" />
-            <span className={`adj-now${delta > 0 ? " is-up" : delta < 0 ? " is-down" : ""}`}>
+            <span className={`adj-now${delta > 0 ? " is-up" : delta < 0 ? " is-down" : ""}`}
+                  title={saidLong(valid ? after : here, each)}>
               {valid ? after : here}
             </span>
             {valid && delta !== 0 && (
