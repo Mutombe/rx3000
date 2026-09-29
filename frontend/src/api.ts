@@ -389,9 +389,24 @@ async function request<T>(
     const hadSession = !!getToken();
     setToken(null);
     const onLogin = window.location.pathname.startsWith("/login");
-    const ended = said || (hadSession
+    /* THE SERVER'S WORDING IS NOT USED HERE, DELIBERATELY.
+     *
+     * It was, and a till opened on "Invalid or expired token" across its
+     * sign-in card: the first sentence a pharmacy read in the morning, about
+     * a token they had never heard of, in answer to a question they had not
+     * asked. They asked for the dispensary. What happened is that the
+     * session they had ran out.
+     *
+     * Every 401 detail the server can send is machine wording of that kind
+     * ("Invalid or expired token", "Not authenticated", "User not found"),
+     * so there is nothing to lose by preferring our own sentence, and a
+     * fourth one added later would be machine wording too. The credential
+     * branch above is the opposite case and still uses `said`: there the
+     * server IS answering the question that was just asked.
+     */
+    const ended = hadSession
       ? "Your session has ended. Please sign in again."
-      : "Please sign in.");
+      : "Please sign in.";
     if (!onLogin) {
       // Carried across the reload, since the toast cannot survive it.
       if (hadSession) {
