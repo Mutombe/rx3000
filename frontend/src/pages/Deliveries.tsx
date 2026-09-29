@@ -270,7 +270,12 @@ export default function Deliveries() {
                    "16ch", "18ch"]} />}
       >
         <div className="dt-scroll">
-          <table className="dt dt-wider">
+          {/* WIDEST, NOT WIDER. Eight declared columns and an actions group come to
+              1,208px between them, so at `dt-wider`'s 78rem minimum the address,
+              which is the column that takes what is left, was left 38 pixels:
+              "1... g...". It is the one column on this table a driver cannot do
+              without. At 94rem it gets 296. */}
+          <table className="dt dt-widest">
             <thead>
               <tr>
                 <SelectAll checked={picked.allChosen} onChange={picked.all} />
@@ -324,7 +329,16 @@ export default function Deliveries() {
                   </td>
                   <td>
                     {w.address}
-                    {w.instructions && <div className="muted small">{w.instructions}</div>}
+                    {/* On its own line. The instruction is a sentence a driver
+                        acts on at the gate, not a qualifier of the street: run
+                        onto the same line it read "234 Nelson Mandela Ave,
+                        Chitungwiza Leave with reception if nobody answers" and
+                        the browser then cut it wherever the column ended. */}
+                    {w.instructions && (
+                      <span className="cell-note" title={w.instructions}>
+                        {w.instructions}
+                      </span>
+                    )}
                   </td>
                   <td>
                     {/* The driver's name opens the driver. It was a string

@@ -79,7 +79,12 @@ export default function HelpDesk() {
           {t.priority}
         </span>
       ) },
-    { key: "sla", header: "SLA", width: 104, render: (t) => slaBadge(t) },
+    /* 140, not 104. "SLA breached" is the longest thing this column
+       ever says and it did not fit: the badge wrapped to two lines and took
+       every row on the case desk to 40px. Badges in a cell are allowed to wrap
+       rather than be cut off, which is right, but a column whose widest value
+       is known should be wide enough not to need it. */
+    { key: "sla", header: "SLA", width: 140, render: (t) => slaBadge(t) },
     { key: "assigned", header: "Assigned", sortable: true, width: 156,
       value: (t) => t.assigned_to?.full_name ?? "",
       render: (t) => t.assigned_to?.full_name ?? <span className="muted">Unassigned</span> },

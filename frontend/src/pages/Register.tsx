@@ -179,15 +179,20 @@ export default function Register() {
                         { value: "6", label: sched(6) }]}
             />
           </div>
-          <div className="filter-dim">
+          {/* ONE CONTROL, NOT THREE SIBLINGS.
+              A date range is a single thing a person sets, and it was three
+              children of the rail: a field, the word "to", and another field.
+              The rail cannot tell that apart from three separate filters, so
+              spacing the last control to the far edge tore the range in half
+              and left "to" pointing at nothing. `.filter-range` is the wrapper
+              the shared filter bar already uses for this. */}
+          <span className="filter-range">
             <input type="date" value={dateFrom}
                    onChange={(e) => setDateFrom(e.target.value)} />
-          </div>
-          <span className="muted reg-to">to</span>
-          <div className="filter-dim">
+            <span className="muted reg-to">to</span>
             <input type="date" value={dateTo}
                    onChange={(e) => setDateTo(e.target.value)} />
-          </div>
+          </span>
         </div>
         <Refreshable
           loading={loading}

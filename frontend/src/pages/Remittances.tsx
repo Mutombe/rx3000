@@ -252,7 +252,7 @@ export default function Remittances() {
           {!open ? <TableSkeleton cols={7} rows={8} rowHeight={64}
             headers={["Claim", "Service", "Claimed", "Paid", "Short",
                       "Scheme's reason", ""]}
-            widths={["12ch","16ch","11ch","14ch","5ch","9ch","9ch"]} /> : open.outstanding_count === 0 ? (
+            widths={["12ch","11ch","8ch","8ch","8ch","30ch","9ch"]} /> : open.outstanding_count === 0 ? (
             <p className="st-note is-ok">
               Every shortfall has been billed or written off. Nothing is in the air.
             </p>
@@ -277,9 +277,12 @@ export default function Remittances() {
                           was being clipped to "Reduced by…". The one column on
                           this table somebody actually has to read before
                           deciding who pays. */}
-                      <Th>Claim</Th><Th>Service</Th>
-                      <Th className="num">Claimed</Th><Th className="num">Paid</Th>
-                      <Th className="num">Short</Th><Th>Scheme's reason</Th><th className="actions" />
+                      <Th className="rm-claim">Claim</Th>
+                      <Th className="rm-when">Service</Th>
+                      <Th className="num rm-money">Claimed</Th>
+                      <Th className="num rm-money">Paid</Th>
+                      <Th className="num rm-money">Short</Th>
+                      <Th>Scheme's reason</Th><th className="actions rm-acts" />
                     </tr>
                   </thead>
                   <tbody>

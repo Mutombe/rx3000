@@ -4831,7 +4831,11 @@ table.dt-wider  { min-width: 78rem; }
    date all know roughly how wide they are; the address does not, and it is
    the one a driver reads. So the five declare and the address takes the
    remainder. */
-.dlv-no     { width: 8rem; }
+/* 10rem, not 8. The waybill number fits in 8, but the warning under it says
+   "Check ID at the door", and at 8rem that wrapped to two lines and took the
+   row with it. The address below gives up the difference; it is the widest
+   column here and the only one that can. */
+.dlv-no     { width: 10rem; }
 /* Three nodes and two hairlines: 7 + 18 + 7 + 18 + 7 = 57px, plus the
    cell's own padding. Declared so the column does not take a share of
    the address, which is the one column here that cannot spare any. */
@@ -4839,6 +4843,18 @@ table.dt-wider  { min-width: 78rem; }
 .dlv-who    { width: 12rem; }
 .dlv-driver { width: 10rem; }
 .dlv-cod    { width: 8rem; }
+
+/* THE SCHEME'S REASON IS THE COLUMN SOMEBODY READS, AND IT HAD THE LEAST ROOM.
+   Nothing on this table declared a width, so a fixed layout divided it into
+   seven equal shares of 150px. Three of those went to money that needs 90, and
+   the reason, which needs 282 to say "Reduced by the member's co-payment", got
+   150 and was cut to "Reduced by the member's co...". The one column here that
+   decides whether the patient is billed or the shortfall written off.
+   The five that know their own size say so; the reason takes what is left. */
+.rm-claim { width: 9rem; }
+.rm-when  { width: 7rem; }
+.rm-money { width: 6rem; }
+.rm-acts  { width: 13rem; }
 /* "30 Aug, 2026, 06:32" is 149px and this was 144. */
 .dlv-raised { width: 10rem; }
 table.dt-widest { min-width: 94rem; }
@@ -5264,7 +5280,23 @@ main td > .muted {
  *
  * `:not(:first-child)` is the same fix the badge rule below already carries,
  * for the same reason, written down there a while ago and never applied here. */
-main td > .muted:not(:first-child) { margin-left: var(--s2); }
+/* :not(:only-child), NOT :not(:first-child).
+ *
+ * The gap exists so a note sitting after a value does not touch it, and it is
+ * withheld from a note that IS the whole cell so a missing-data placeholder
+ * does not sit eight pixels in from every value above it. `:first-child` was
+ * the wrong test for the second case: it matches the first ELEMENT child, and
+ * a cell written as `{value}{note && <div class="muted">…</div>}` has a bare
+ * text node first, so the note is the first element and lost its gap.
+ *
+ * On deliveries that read "Blessing Chigumba0736312345" and "234 Nelson
+ * Mandela Ave, ChitungwizaLeave with reception if nobody answers": two facts
+ * with nothing between them, which the eye reads as one and the browser then
+ * truncates in the middle of.
+ *
+ * `:only-child` asks the question that was actually meant: is this note the
+ * whole of the cell. */
+main td > .muted:not(:only-child) { margin-left: var(--s2); }
 
 /* AND IN A NUMERIC COLUMN, THE NOTE TAKES ITS OWN LINE.
  *
@@ -5408,6 +5440,18 @@ th.num,
 th.center,
 .dt thead th.center,
 .cu-scroll > table thead th.center { text-align: center; }
+
+/* AND THE TICK THAT SELECTS EVERY ROW, WHICH HAD THE SAME PROBLEM AND WAS NOT
+   ON THIS LIST.
+   `.bulk-tick` centres its checkbox, and lost the same argument for the same
+   reason: one class against one class and two elements. So the select all box
+   sat eight to ten pixels left of the column of boxes it selects, on patients,
+   repeats, deliveries and every other table with a tick column. Measured
+   rather than guessed: same cell left edge, same width, same padding, and the
+   input still nine pixels out. */
+th.bulk-tick,
+.dt thead th.bulk-tick,
+.cu-scroll > table thead th.bulk-tick { text-align: center; }
 
 /* ---------- icon buttons ----------
    Square, quiet at rest, and a real hit target: 30px, because a 16px glyph is a
@@ -6735,14 +6779,32 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
    Left to that grid they wrapped two-and-three, which reads as two groups of
    different things rather than one scale from "nothing to do" to "deal with
    this". Below a laptop they wrap deliberately, in pairs. */
+/* AS MANY COLUMNS AS THERE ARE BANDS, WHICH IS NOT ALWAYS FIVE.
+   This was `repeat(5, 1fr)`. Stock performance has six, so the sixth dropped
+   to a row of its own with five columns of empty strip beside it: "0.01, gross
+   profit per dollar of stock" alone under a full width band. And a screen with
+   four left a fifth column empty and made its four narrower than they needed
+   to be.
+   `grid-auto-flow: column` takes the count from the children, which is where
+   the count actually lives. The narrow layouts still wrap, by switching the
+   flow back to rows. */
 .wc-bands {
   display: grid; gap: 0; margin-bottom: var(--s5);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface); overflow: hidden;
 }
-@media (max-width: 1100px) { .wc-bands { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 700px)  { .wc-bands { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1100px) {
+  .wc-bands {
+    grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .wc-bands {
+    grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 /* Inside the strip a band is a cell, not a card: no box of its own, divided
    from its neighbour by one rule. The specificity has to beat `.wl-stat`,
    which is why the tile is named rather than matched with `>` alone. */
@@ -8173,9 +8235,23 @@ table.dt.sub th { font-size: var(--t-xs); }
  * better than one with two controls in the middle of it. A rail is an
  * instrument: it should be the size of the instrument. So where there is
  * nothing to absorb the width, it stops taking it. */
+/* A RAIL WITH NOTHING TO GROW STILL SPANS THE PAGE, AND SPACES WHAT IS IN IT.
+ *
+ * This made such a rail shrink to its contents, on the reasoning that a bar
+ * with two controls at opposite ends of a metre of empty space is no better
+ * than two controls in the middle of it. Wrong on the evidence: a 254px rail
+ * sitting between a full width band of figures above and a full width table
+ * below reads as a component that failed rather than one that was placed, and
+ * it was pointed at on repeats and on the analytics date range.
+ *
+ * So it spans, like everything else on the page, and the last control goes to
+ * the far edge: the period picker on the left, "Overdue only" on the right.
+ * That is what was asked for in the first place. The hairline travels with the
+ * control, the way it does on suppliers, so the group still reads as one
+ * segment rather than a button adrift. */
 :is(.filter-bar, .dt-filters, .toolbar):not(
-    :has(input[type="search"], .filter-search, .dt-count)) {
-  width: fit-content; max-width: 100%;
+    :has(input[type="search"], .filter-search, .dt-count)) > :last-child {
+  margin-left: auto;
 }
 /* A dropdown sized to its own content rather than stretched by the flex row —
    "Any schedule" and "Last 7 days" are different widths and should look it. */
@@ -10902,7 +10978,14 @@ button.fin-ack { cursor: pointer; }
   background: var(--surface-sunk);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: 2px; gap: 2px;
+  /* FOUR, NOT TWO. WHAT RISES OUT OF THE WELL NEEDS ROOM TO SHOW IT HAS.
+     The tight padding is the point of a well, but at 2px the chosen tile's
+     own border sat against the well's, inside the well's corner radius, so
+     the selected "Waiting" tile and the selected "Queue" tab both read as cut
+     off down their left edge: the one element on the rail whose whole job is
+     to look lifted was the one that looked broken. Two more pixels is still
+     tight and lets the border close. */
+  padding: 4px; gap: 2px;
   box-shadow: none;
   /* The panel does not scroll here; the list inside it does. It carried
      `overflow-y: auto` with `scrollbar-gutter: stable`, which reserves a lane
@@ -11604,6 +11687,14 @@ button.fin-ack { cursor: pointer; }
   color: var(--ink-mid); font-weight: 600; min-height: 30px;
   border-bottom: 1px solid var(--line-strong);
 }
+/* THE HEAD'S RULES HAVE TO BE VISIBLE ON THE HEAD'S OWN TINT.
+   The basket head wears the money section's wash, which in the dark theme is
+   rgba(180,120,80,0.15) over a near black surface. The column rules are
+   `--line`, 13% white, and 13% white on that wash is nothing: the head read as
+   one unbroken band while every row below it was plainly divided, so the
+   columns stopped looking like columns exactly where their names are.
+   The same strength the head already uses along its bottom edge. */
+.till-row-head > span + span { border-left-color: var(--line-strong); }
 .till-row-empty { min-height: 34px; color: transparent; }
 .till-row-fill { flex: 1 1 auto; border-bottom: 0; }
 .till-name { min-width: 0; gap: var(--s2); }

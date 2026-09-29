@@ -184,10 +184,17 @@ export default function Reports() {
 
       {(tab === "daily" || tab === "vat") && (
         <div className="toolbar">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ maxWidth: 180 }} />
-          <span className="muted">to</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ maxWidth: 180 }} />
-          <span className="muted">(blank = last 30 days)</span>
+          {/* The range is one control: grouped, so spacing the rail cannot put
+              the second date at the far edge and leave "to" pointing at
+              nothing. The sentence after it is the thing that goes right. */}
+          <span className="filter-range">
+            <input type="date" value={dateFrom}
+                   onChange={(e) => setDateFrom(e.target.value)} />
+            <span className="muted">to</span>
+            <input type="date" value={dateTo}
+                   onChange={(e) => setDateTo(e.target.value)} />
+          </span>
+          <span className="muted">Leave both blank for the last 30 days</span>
         </div>
       )}
 
