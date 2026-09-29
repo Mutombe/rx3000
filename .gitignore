@@ -53,3 +53,8 @@ backend/dist/
 # committed here would go stale the first time a pharmacy edits a code, and the
 # whole point of the sheet is that it matches the dispensary.
 dispensing-shorthand*.pdf
+
+# Journals written by tools/pack_sizes.py when it backfills a catalogue. They
+# record what one pharmacy's products were before the change so it can be put
+# back, and they are about that pharmacy's data rather than about this code.
+pack-sizes-*.json
