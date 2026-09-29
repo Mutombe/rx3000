@@ -22,6 +22,7 @@ import { Product } from "../types";
 import RfqAuto from "./RfqAuto";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { useDebounced } from "../hooks/useDebounced";
 
 interface RfqRow {
   id: number;
@@ -298,6 +299,25 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
   const [notes, setNotes] = useState("");
   const [closes, setCloses] = useState("");
 
+  /* ANYTHING IN THE CATALOGUE, NOT ONLY WHAT IS ALREADY LOW.
+   *
+   * This modal only ever loaded `?low_stock=true`, so the list was whatever
+   * had fallen to its reorder level and there was no way to add a line to it.
+   * That is a sound default and a poor rule: a pharmacy asks around before a
+   * tender, before stocking something new, when a wholesaler has a deal on,
+   * and when a line is about to run low rather than after. None of those is
+   * reachable from a list of what is already short.
+   *
+   * So the low list stays as the opening suggestion, and anything else can be
+   * searched for and added to it. */
+  const [q, setQ] = useState("");
+  const query = useDebounced(q, 250);
+  const [found, setFound] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
+  /** Products added by hand, in the order they were added. */
+  const [added, setAdded] = useState<Product[]>([]);
+
   useEffect(() => {
     // Everything at or below its reorder level: the lines somebody is about
     // to buy anyway, which is when asking around is worth doing.
@@ -318,8 +338,43 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
       .catch(() => setSuppliersUnknown(true));
   }, []);
 
+  useEffect(() => {
+    const needle = query.trim();
+    if (needle.length < 2) { setFound([]); setSearchFailed(false); return; }
+    let live = true;
+    setSearching(true);
+    api.get<Product[]>(`/api/products?q=${encodeURIComponent(needle)}&limit=25`)
+      .then((r) => { if (live) { setFound(r); setSearchFailed(false); } })
+      // A search that failed is not a search that found nothing. Saying "no
+      // match" here would send somebody away believing the catalogue does not
+      // carry a line they stock.
+      .catch(() => { if (live) { setFound([]); setSearchFailed(true); } })
+      .finally(() => { if (live) setSearching(false); });
+    return () => { live = false; };
+  }, [query]);
+
+  /** What is on offer to ask about: the low lines, then anything added. */
+  const pool = useMemo(() => {
+    const seen = new Set(low.map((p) => p.id));
+    return [...low, ...added.filter((p) => !seen.has(p.id))];
+  }, [low, added]);
+
+  function addLine(p: Product) {
+    setAdded((was) => (was.some((x) => x.id === p.id) ? was : [...was, p]));
+    setWanted((w) => ({
+      ...w,
+      // A sensible opening figure, the same one the low lines get: what it
+      // would take to reach the reorder level, or the reorder quantity.
+      [p.id]: w[p.id] || Math.max(p.reorder_quantity || 0,
+                                  (p.reorder_level || 0) - (p.quantity_on_hand || 0),
+                                  1),
+    }));
+    setQ("");
+    setFound([]);
+  }
+
   const chosen = useMemo(
-    () => low.filter((p) => (wanted[p.id] || 0) > 0), [low, wanted]);
+    () => pool.filter((p) => (wanted[p.id] || 0) > 0), [pool, wanted]);
 
   async function raise() {
     try {
@@ -341,13 +396,40 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
       <div className="modal rfq-new" onClick={(e) => e.stopPropagation()}>
         <h2>Ask for prices</h2>
         <p className="muted">
-          Everything at or below its reorder level is here. Change a quantity
-          to nought to leave it out.
+          Everything at or below its reorder level is here to start with.
+          Search for anything else you want a price on, and set a quantity to
+          nought to leave a line out.
         </p>
 
         <div className="rfq-new-grid">
           <div>
-            <label className="field-label">What to ask about</label>
+            <label className="field-label" htmlFor="rfq-find">What to ask about</label>
+            <div className="rfq-find">
+              <input id="rfq-find" type="search" value={q}
+                     placeholder="Search the catalogue to add a line…"
+                     onChange={(e) => setQ(e.target.value)} />
+              {searching && <span className="muted small">Looking…</span>}
+            </div>
+            {searchFailed && (
+              <p className="hint is-warn">
+                The catalogue could not be searched, so this is not an answer
+                about what you stock. Try again before deciding it is not
+                there.
+              </p>
+            )}
+            {found.length > 0 && (
+              <div className="rfq-found">
+                {found.map((p) => (
+                  <button key={p.id} type="button" className="rfq-found-line"
+                          onClick={() => addLine(p)}>
+                    <span>{p.name} {p.strength}</span>
+                    <span className="muted small">
+                      {pool.some((x) => x.id === p.id) ? "already listed" : "add"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="rfq-new-list">
               {lowUnknown && (
                 <p className="hint is-warn">
@@ -358,7 +440,7 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
               {!lowUnknown && low.length === 0 && (
                 <p className="muted small">Nothing is at its reorder level.</p>
               )}
-              {low.map((p) => (
+              {pool.map((p) => (
                 <label key={p.id} className="rfq-new-line">
                   <span>{p.name} {p.strength}</span>
                   <input type="number" min={0} value={wanted[p.id] ?? 0}

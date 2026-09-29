@@ -14132,6 +14132,27 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 /* Raising a request: what to ask about on the left, who to ask on the right. */
 .rfq-new { max-width: 52rem; }
 .rfq-new-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+/* Searching the catalogue to add a line, above the list it adds to. */
+.rfq-find {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+.rfq-find input { flex: 1 1 auto; min-width: 0; }
+/* The matches, as a short list that pushes the suggestions down rather than
+   covering them: a person adding a line wants to see what is already on it. */
+.rfq-found {
+  max-height: 22vh; overflow-y: auto; margin-bottom: var(--s2);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+}
+.rfq-found-line {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); width: 100%; height: auto;
+  padding: var(--s2) var(--s3); text-align: left;
+  background: none; border: 0; border-radius: 0;
+  font: inherit; color: var(--ink); white-space: normal;
+}
+.rfq-found-line:hover { background: var(--surface); }
 .rfq-new-list {
   max-height: 34vh; overflow-y: auto;
   border: 1px solid var(--line); border-radius: var(--r-sm);
