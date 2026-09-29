@@ -360,7 +360,10 @@ export default function Layout({ children }: { children: ReactNode }) {
   // production serving an API three days older than this front end.
   const [staleApi, setStaleApi] = useState<{ started?: string; written?: string } | null>(null);
   useEffect(() => {
-    api.get<{ running_stale_code?: boolean; process_started_at?: string; code_written_at?: string }>(
+    // `quiet`: this is a check on the SERVER's build, for a banner that warns
+    // whoever deploys. Nobody at a counter is waiting for it, so it goes after
+    // the screen's own data rather than alongside it.
+    api.quiet<{ running_stale_code?: boolean; process_started_at?: string; code_written_at?: string }>(
       "/api/health")
       .then((h) => {
         if (h.running_stale_code) {

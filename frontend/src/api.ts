@@ -529,8 +529,93 @@ export function errorText(cause: unknown, fallback = "That did not work. Please 
   return fallback;
 }
 
+/* ---------------------------------------------------------------------------
+   PRIORITY, AND NOT ASKING THE SAME QUESTION TWICE
+
+   Measured on a preview of a real build, because vite's dev server doubles
+   every call through React StrictMode and would have sent this chasing ghosts.
+
+   A COLD START fires eighteen requests at once. Navigation afterwards is two
+   to six, so this is a start-up problem and nothing else. Among those eighteen
+   are the dispensary worklist, which is the screen, and the offline
+   catalogue's first page, which is a convenience for a day the line drops.
+   They were competing on equal terms, and the worklist came back LAST, at 4.3
+   seconds, having queued behind seventeen calls nobody was waiting for.
+
+   Three of those eighteen were also the same question asked twice within ten
+   milliseconds: `/api/dispensing/policy`, `/api/jurisdiction` and
+   `/api/health`, each requested by two components that both need the answer
+   and neither of which knows about the other.
+
+   So: identical GETs already in flight share one answer, and work nobody is
+   looking at goes in a lane behind the work they are. Nothing is delayed that
+   somebody is waiting for, which is the line between this and theatre. */
+
+/** GETs in flight, by path. */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/** How many foreground requests are outstanding. Background work waits for
+ *  this to reach nought, so the screen's own data is never queued behind a
+ *  catalogue sync. */
+let foreground = 0;
+let drained: (() => void)[] = [];
+
+function foregroundDone() {
+  foreground -= 1;
+  if (foreground === 0) {
+    const waiting = drained;
+    drained = [];
+    for (const go of waiting) go();
+  }
+}
+
+/** Resolves once nothing in the foreground is outstanding and the browser has
+ *  a quiet moment. `requestIdleCallback` is absent on Safari, so a timeout
+ *  stands in: the point is to be after the screen, not to be precise. */
+function whenQuiet(): Promise<void> {
+  return new Promise((resolve) => {
+    const then = () => {
+      const idle = (window as unknown as {
+        requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void;
+      }).requestIdleCallback;
+      if (idle) idle(() => resolve(), { timeout: 3000 });
+      else window.setTimeout(resolve, 200);
+    };
+    if (foreground === 0) then();
+    else drained.push(then);
+  });
+}
+
 export const api = {
-  get: <T>(path: string) => request<T>("GET", path),
+  get: <T>(path: string) => {
+    const running = inFlight.get(path);
+    if (running) return running as Promise<T>;
+    foreground += 1;
+    const p = request<T>("GET", path)
+      .finally(() => { inFlight.delete(path); foregroundDone(); });
+    inFlight.set(path, p);
+    return p;
+  },
+
+  /** A read nobody is waiting for.
+   *
+   *  The offline catalogue, a health check, a count on a tab that is not open.
+   *  It goes out once the screen's own requests are done and the browser is
+   *  quiet, so it cannot delay the thing somebody is actually looking at. It
+   *  is otherwise an ordinary GET: same errors, same retries, same session
+   *  handling.
+   */
+  quiet: async <T>(path: string): Promise<T> => {
+    const running = inFlight.get(path);
+    if (running) return running as Promise<T>;
+    await whenQuiet();
+    const again = inFlight.get(path);
+    if (again) return again as Promise<T>;
+    const p = request<T>("GET", path).finally(() => inFlight.delete(path));
+    inFlight.set(path, p);
+    return p as Promise<T>;
+  },
+
   /** `stepUp` carries a single-use authorisation token for protected actions. */
   post: <T>(path: string, body?: unknown, stepUp?: string) =>
     request<T>("POST", path, body, stepUp),

@@ -47,7 +47,19 @@ async function fetchEveryProduct(): Promise<any[]> {
   const all: any[] = [];
   let page = 1;
   for (;;) {
-    const res = await api.get<{ items: any[]; total: number; pages: number }>(
+    /* `quiet`, not `get`. NOBODY IS WAITING FOR THIS.
+     *
+     * Measured on a real build: a cold start fires eighteen requests at once,
+     * and this was among them, page after page of it. The dispensary worklist
+     * came back LAST, at 4.3 seconds, having queued behind calls for a day the
+     * line might drop. A pharmacy opening the till in the morning is waiting
+     * for the queue of people in front of them, not for a copy of the
+     * catalogue they will need only if the internet fails.
+     *
+     * It still runs, and still runs to completion, and a till that has been
+     * open a minute is as ready to go offline as it ever was. It just goes
+     * after the screen. */
+    const res = await api.quiet<{ items: any[]; total: number; pages: number }>(
       `/api/products/paged?page=${page}&per_page=${PAGE}`);
     all.push(...(res.items ?? []));
     // Stop on the reported page count, not on a short page: a page that comes
@@ -63,8 +75,36 @@ async function fetchEveryProduct(): Promise<any[]> {
   }
 }
 
-/** Pull the catalogue down and replace the local copy. */
-export async function sync(): Promise<{ count: number; at: string }> {
+/** How long a local copy is good for.
+ *
+ *  It had none, so every start of the application pulled the whole catalogue
+ *  again. For a pharmacy with ten thousand lines that is fifty requests and
+ *  several megabytes, on every open, for a copy that is only read when the
+ *  line is down, over connections the README is explicit are often metered.
+ *
+ *  THE TRADE, STATED PLAINLY. A product added in the last six hours may not be
+ *  sellable while the line is down until the next refresh. That is the cost,
+ *  and it is accepted because this copy exists to sell a bottle of shampoo in
+ *  a power cut, not to dispense: nothing clinical is held here at all, and a
+ *  line the till has never heard of can still be rung up by code. `force`
+ *  skips this for a "refresh now" control, which is the honest place to put
+ *  the answer if a pharmacy ever wants it sooner.
+ */
+const GOOD_FOR_MS = 6 * 60 * 60 * 1000;
+
+/** Pull the catalogue down and replace the local copy.
+ *
+ *  `force` for the button on the This Till screen, where somebody has asked
+ *  for it and is watching.
+ */
+export async function sync(force = false): Promise<{ count: number; at: string }> {
+  if (!force) {
+    const was = await meta<string>(LAST_SYNC);
+    const held = (await local.count(STORE_PRODUCTS)) > 0;
+    if (was && held && Date.now() - Date.parse(was) < GOOD_FOR_MS) {
+      return { count: (await meta<number>(COUNT)) ?? 0, at: was };
+    }
+  }
   const rows = await fetchEveryProduct();
   const cached: CachedProduct[] = rows.map((p) => ({
     id: p.id,
