@@ -408,7 +408,7 @@ export default function Stock() {
     /* The medicine, followable. It was the plain name of the one thing on the
        row somebody might want to look at, on a screen whose whole subject is
        what happened to that medicine. */
-    { key: "product", header: "Product", sortable: true, width: 136,
+    { key: "product", header: "Product", sortable: true, width: 130,
       value: (m) => m.product?.name ?? "",
       render: (m) => (m.product?.name
         ? <EntityLink kind="product" id={m.product_id}>{m.product.name}</EntityLink>
@@ -427,7 +427,7 @@ export default function Stock() {
        The header was "Δ Qty": a Greek letter on a pharmacy screen, and the
        only cue to direction was a minus sign three characters wide in a
        right-aligned column. Direction is what the reader is scanning for. */
-    { key: "quantity_delta", header: "In or out", align: "right", sortable: true, width: 100,
+    { key: "quantity_delta", header: "In or out", align: "right", sortable: true, width: 84,
       render: (m) => (
         <span className={m.quantity_delta < 0 ? "mv-out" : "mv-in"}>
           {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
@@ -443,11 +443,22 @@ export default function Stock() {
     /* Blank, not a dash. A sale has no reason code and never will: the reason
        it happened is that it was sold, and the column exists for adjustments.
        A dash on every one of twenty-five rows reads as missing data. */
-    { key: "reason", header: "Why", sortable: true, width: 90, value: (m) => m.reason ?? "",
-      render: (m) => (m.reason ? <span className="badge">{m.reason}</span> : null) },
+    /* A SENTENCE IS NOT A BADGE.
+       The reasons are written as sentences, "Expired, taken off the shelf" and
+       "Recalled by the supplier", and they were being drawn as badges in a
+       90px column. A badge wraps rather than truncates, so each one became
+       three stacked lines and took the row to 55px, on a table whose other
+       cells are one line of text. Twenty five rows of that is a screen of
+       mostly nothing.
+       Plain words now, in the room to hold them, cut with an ellipsis when
+       they still do not fit and carrying the whole of it on hover. */
+    { key: "reason", header: "Why", sortable: true, width: 210, value: (m) => m.reason ?? "",
+      render: (m) => (m.reason
+        ? <span title={m.reason}>{m.reason}</span>
+        : null) },
     /* Followable. "Who moved this stock" is one of the two questions a
        movement is ever asked, and the answer was a name nobody could open. */
-    { key: "user_name", header: "Who", sortable: true, width: 155,
+    { key: "user_name", header: "Who", sortable: true, width: 126,
       value: (m) => m.user_name ?? "",
       render: (m) => (m.user_name
         ? <EntityLink kind="staff" id={m.user_id ?? 0}><Person name={m.user_name} /></EntityLink>
@@ -457,7 +468,14 @@ export default function Stock() {
        booked it in, and the reference is the name of that something. It was
        printed as monospace text, truncated at 34 characters, and led nowhere,
        so the causing record was named on screen and unreachable from it. */
-    { key: "reference", header: "Reference", wrap: true,
+    /* THE NOTE GOES UNDER THE REFERENCE, NOT BESIDE IT.
+       `main td > .muted` sets a note inline, which is right where the note
+       qualifies the value on its line. Here they are two different facts: the
+       reference names the record that caused the movement, and the note says
+       what happened. Run together they read as one string and the browser cut
+       it mid word, so a row showed "A55515 Released from quarantine (was Re"
+       and neither fact was legible. */
+    { key: "reference", header: "Reference", width: 210,
       render: (m) => (
         <>
           {m.prescription_id
@@ -465,7 +483,9 @@ export default function Stock() {
                 {m.reference || `Script ${m.prescription_id}`}
               </EntityLink>
             : <span className="mono">{m.reference}</span>}
-          {m.notes && <div className="muted small">{m.notes}</div>}
+          {m.notes && (
+            <span className="cell-note" title={m.notes}>{m.notes}</span>
+          )}
         </>
       ) },
   ];

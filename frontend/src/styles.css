@@ -4880,6 +4880,22 @@ table.dt-widest { min-width: 94rem; }
 /* A cell that renders its own stacked block (a name above a subtitle) keeps it —
    nowrap governs inline text, not block children, so those are unaffected. */
 .dt td .clip { max-width: 100%; }
+/* A SECOND FACT, ON ITS OWN LINE, CUT TO THE COLUMN.
+   Used where a cell holds two different things rather than a value and its
+   qualifier: the record that caused a stock movement, and the note saying what
+   happened to it. `main td > .muted` sets a note inline, which is right when it
+   belongs on the value's line and wrong here, where running them together made
+   the browser cut the pair mid word and lose both. */
+.cell-note {
+  display: block;
+  margin-left: 0;
+  font-size: var(--t-xs);
+  line-height: 1.35;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* A cell holding buttons is not text and must never be squeezed: its contents
    were being sliced in half at the table edge. It keeps its controls on one line
@@ -8573,7 +8589,24 @@ table.dt.sub th { font-size: var(--t-xs); }
    did not, which meant the wrap happened between the title and the buttons and
    never between the buttons. */
 .page-head .page-actions,
-.page-head > div:last-child {
+/* A LONE BLOCK IN A HEADER IS NOT AN ACTIONS GROUP.
+ *
+ * The second arm is a fallback for headers written by hand, which put their
+ * buttons in a bare `<div>` rather than in `.page-actions`. On a record page
+ * with NO buttons there is only the identity block, so it was both the first
+ * child and the last, and this turned the record's type, its name and its
+ * subtitle into a right justified flex ROW: "MESSAGE Repeat due Munashe
+ * Musarurwa" ran along one line and finished hard against the right edge,
+ * while every other record page in the product stacked them on the left.
+ *
+ * Reported on messages, claims, creditor invoices, remittances and adherence,
+ * and those are exactly the record pages that carry no header buttons.
+ *
+ * So: never the only child, and never one of the two blocks that are known by
+ * name to be the identity half. Named as well as counted, because a page that
+ * grows a second block below its title would otherwise hand this rule the
+ * title again. */
+.page-head > div:last-child:not(:first-child):not(.rp-ident):not(.page-head-said) {
   display: flex; flex-wrap: wrap; gap: var(--s2);
   justify-content: flex-end; min-width: 0;
 }
