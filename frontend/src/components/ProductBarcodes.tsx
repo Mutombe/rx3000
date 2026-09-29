@@ -22,6 +22,7 @@ import { api } from "../api";
 import BusyButton from "./BusyButton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import Th from "./Th";
+import { Figure } from "./Skeleton";
 
 interface Code {
   id: number; code: string; pack_size: number | null;
@@ -46,16 +47,25 @@ export default function ProductBarcodes({ productId }: { productId: number }) {
     key: (c) => c.id,
   });
 
-  if (list.loading && list.items.length === 0) return null;
+  /* THE HEADING IS NOT A LOADING STATE.
+     This returned null until the codes arrived, so the card appeared out of
+     nowhere and pushed everything below it down. Its heading is written here
+     and is the same on every visit; only the codes are fetched. The sentence
+     beside it DOES wait, because "none yet" is a claim about the answer and
+     saying it before the answer is in is how a till gets taught a code it
+     already knows. */
+  const counting = list.loading && list.items.length === 0;
 
   return (
     <div className="card">
       <div className="card-head">
         <h3><Barcode size={16} /> Codes that find this</h3>
         <span className="muted small">
-          {list.items.length === 0
-            ? "None yet. The till learns them as they are scanned"
-            : `${list.items.length} scanned or entered`}
+          {counting
+            ? <Figure ready={false} w="18ch">{null}</Figure>
+            : list.items.length === 0
+              ? "None yet. The till learns them as they are scanned"
+              : `${list.items.length} scanned or entered`}
         </span>
       </div>
 

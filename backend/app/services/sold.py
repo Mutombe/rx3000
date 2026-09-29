@@ -156,6 +156,48 @@ def for_product(db: Session, product_id: int, since, until=None) -> dict:
     }
 
 
+def people_for_product(db: Session, product_id: int, since, until=None) -> dict:
+    """How many different people have had this medicine, and how often.
+
+    The other half of "what is this line worth to us", and the half the page
+    could not answer. Money says what the shelf earned; this says how many
+    people it reached, and the two together are what a recall, a shortage and a
+    formulary change are all argued from. A line worth four thousand a year to
+    six patients and a line worth four thousand a year to four hundred are not
+    the same line, and every screen here showed them identically.
+
+    Counted from the SALE, because that is where a patient is named whether the
+    medicine went out on a script or over the counter, and because it is the
+    same source the money above is counted from: two answers drawn from
+    different tables eventually disagree about the same week.
+
+    Walk-ins are counted apart rather than dropped. A pharmacy that sold three
+    hundred packs to people it cannot name has an answer to "who did we give
+    this to", and the answer is "we do not know", which is a fact worth putting
+    on the screen rather than rounding to nothing.
+    """
+    net = SaleItem.quantity - func.coalesce(SaleItem.quantity_returned, 0)
+    base = (
+        db.query(Sale.patient_id, func.sum(net))
+        .join(SaleItem, SaleItem.sale_id == Sale.id)
+        .filter(SaleItem.product_id == product_id)
+        .filter(Sale.status.notin_(("void", "credited")))
+        .filter(func.date(Sale.created_at) >= since)
+    )
+    if until is not None:
+        base = base.filter(func.date(Sale.created_at) <= until)
+    rows = base.group_by(Sale.patient_id).all()
+
+    named = [r for r in rows if r[0] is not None]
+    anonymous_units = sum(float(r[1] or 0) for r in rows if r[0] is None)
+    return {
+        "patients": len(named),
+        "units_to_named": int(sum(float(r[1] or 0) for r in named)),
+        # Units that went to somebody nobody can telephone.
+        "units_to_walk_ins": int(anonymous_units),
+    }
+
+
 def last_sold_at(db: Session) -> dict[int, "object"]:
     """When each line last sold anything. Keyed by product id.
 

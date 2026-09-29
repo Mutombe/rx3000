@@ -293,6 +293,7 @@ export default function ProductDetail() {
           { label: "Average cost", value: <Figure ready={false} w="8ch">{null}</Figure> },
           { label: "Markup", value: <Figure ready={false} w="5ch">{null}</Figure> },
           { label: "Earned in a year", value: <Figure ready={false} w="9ch">{null}</Figure> },
+          { label: "People in a year", value: <Figure ready={false} w="4ch">{null}</Figure> },
           { label: "On order", value: <Figure ready={false} w="3ch">{null}</Figure> },
         ] : shelf ? [
           { label: "On this shelf", value: String(shelf.here),
@@ -324,6 +325,23 @@ export default function ProductDetail() {
                   + `${shelf.year.margin}% margin`
                 : `${shelf.year.units.toLocaleString()} sold. Takings, not profit: `
                   + "no cost was recorded against these sales" },
+          // WHO IT REACHED, BESIDE WHAT IT EARNED.
+          // Money says what the shelf made; this says how many people it went
+          // to, and the two together are what a recall, a shortage and a
+          // formulary change are argued from. A line worth four thousand a
+          // year to six patients and one worth four thousand to four hundred
+          // are not the same line and this page showed them identically.
+          { label: "People in a year",
+            value: shelf.reached
+              ? String(shelf.reached.patients)
+              : "Not counted",
+            hint: !shelf.reached ? "The server did not say"
+              : shelf.reached.patients === 0 && shelf.reached.units_to_walk_ins === 0
+                ? "Nobody has had it in a year"
+                : shelf.reached.units_to_walk_ins > 0
+                  ? `${shelf.reached.units_to_named.toLocaleString()} unit(s) to people we can name, `
+                    + `${shelf.reached.units_to_walk_ins.toLocaleString()} over the counter`
+                  : `${shelf.reached.units_to_named.toLocaleString()} unit(s), all to people we can name` },
           { label: "On order", value: String(shelf.on_order),
             hint: shelf.on_order > 0 ? "Not yet received" : "Nothing outstanding" },
         ] : [

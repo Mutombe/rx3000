@@ -61,7 +61,7 @@ SLACK = 8
 #: hand-picked few.
 KINDS = [
     ("/api/patients?limit=1", "/patients/{id}"),
-    ("/api/products?limit=1", "/inventory/{id}"),
+    ("/api/products?limit=1", "/products/{id}"),
     ("/api/suppliers?limit=1", "/suppliers/{id}"),
     ("/api/prescriptions?limit=1", "/scripts/{id}"),
     ("/api/messages?limit=1", "/messages/{id}"),

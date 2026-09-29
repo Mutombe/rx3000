@@ -91,7 +91,7 @@ ROUTES = [
 #: screen with itself and call it a pass. Resolved in `record_routes()`.
 RECORD_PATHS = [
     ("/api/patients?limit=1", "/patients/{id}"),
-    ("/api/products?limit=1", "/inventory/{id}"),
+    ("/api/products?limit=1", "/products/{id}"),
     ("/api/suppliers?limit=1", "/suppliers/{id}"),
     ("/api/prescriptions?limit=1", "/scripts/{id}"),
 ]
@@ -172,12 +172,35 @@ ALLOWED: dict[str, set[str]] = {
         # The verdict badge beside the heading. The heading itself is drawn.
         "What is connectedNot ready to trade",
     },
+    "/products/{id}": {
+        # "None yet" against "3 scanned or entered": which sentence belongs
+        # there is decided by the answer, and saying "none yet" before the
+        # answer is in is how a till gets taught a code it already knows. The
+        # heading above it is drawn at once, which is the part that was wrong.
+        "Codes that find thisNone yet. The till learns them as they are scanned",
+    },
     "/stock-categories": {
         # The panel offering to file untagged lines exists only when there are
         # untagged lines, which is a finding rather than a fixture.
         "File the untagged lines",
     },
 }
+
+
+def allowed_on(route: str) -> set[str]:
+    """The exemptions for this screen, by its shape rather than its id.
+
+    A record route carries a real id resolved at startup, so "/products/577"
+    is a different string every time the catalogue changes and an exemption
+    written against it would quietly stop applying. Keyed on the shape as well:
+    "/products/577" also reads the entry for "/products/{id}".
+    """
+    out = set(ALLOWED.get(route, ()))
+    bits = route.rsplit("/", 1)
+    if len(bits) == 2 and bits[1].isdigit():
+        out |= set(ALLOWED.get(f"{bits[0]}/{{id}}", ()))
+    return out
+
 
 CHROME = r"""
 () => {
@@ -316,7 +339,7 @@ def look(routes):
                     # An element that was absent entirely, like a panel title,
                     # leaves no "#" behind and is still caught.
                     had.remove("#")
-                elif s not in ALLOWED.get(route, ()):
+                elif s not in allowed_on(route):
                     withheld.append(s)
             grew = after["height"] - before["height"]
             if withheld or grew > GROW:

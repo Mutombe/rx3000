@@ -490,6 +490,12 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
     # the next sale at today's prices. That is the same number whether four
     # boxes went out this year or four hundred.
     earned = sold.for_product(db, product.id, date.today() - timedelta(days=365))
+    # And how many people it reached, over the same year, from the same table.
+    # A line worth four thousand a year to six patients and one worth four
+    # thousand a year to four hundred are not the same line, and this page
+    # showed them identically.
+    reached = sold.people_for_product(db, product.id,
+                                      date.today() - timedelta(days=365))
 
     each = product.per_unit()
     return {
@@ -515,6 +521,8 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
         "sold_90_revenue": recent["revenue"],
         # A year of trade in this one line: units, takings, and what was kept.
         "year": earned,
+        # And who it went to over the same year.
+        "reached": reached,
         # Blank rather than infinity where nothing moves: "never runs out" is
         # not a fact about the medicine, it is the absence of one. Blank too
         # where the record has gone negative, because "minus thirty days of

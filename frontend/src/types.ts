@@ -843,6 +843,15 @@ export interface ShelfFigures {
     margin: number | null;
     costed_units: number;
   };
+  /** How many different people had it over the same year, from the same
+   *  table the money is counted from. Walk-ins cannot be counted as people,
+   *  so what went to them is counted in units instead and said separately:
+   *  "we do not know who" is a fact, not a nought. */
+  reached: {
+    patients: number;
+    units_to_named: number;
+    units_to_walk_ins: number;
+  };
   /** Null where nothing moves, or where the count has gone negative. */
   days_cover: number | null;
   reorder_level: number;
