@@ -496,6 +496,12 @@ def consume_stock_fefo(
             branch_id=branch_id,
             prescription_id=prescription_id,
             reason_code=reason_code,
+            # The lot itself, beside the sentence that names it. The sentence
+            # stays: it carries the expiry and the out of rotation note, and a
+            # person reading one movement wants to read it rather than resolve
+            # an id. This is the half a QUERY can use, which is the half a
+            # recall needs.
+            batch_id=batch.id,
         ))
         allocation = BatchAllocation(
             batch_id=batch.id, sale_item_id=sale_item_id, quantity=take, reference=reference,

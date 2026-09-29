@@ -1373,6 +1373,20 @@ class StockMovement(Base, TenantMixin):
     #: chose a reason for, which is most of them: a sale, a receipt and a
     #: transfer all say why in `movement_type` already.
     reason_code = Column(String(20), default="", index=True)
+    #: The lot this movement took from or added to, where one is known.
+    #:
+    #: Written into `notes` before this, as "batch OPENING exp 2028-01-26", on
+    #: 99% of movements. The information was there and unqueryable, so the only
+    #: answerable half of "where did this batch go" was the part sold through a
+    #: till: `BatchAllocation` is joined through `sale_item_id`, so a write-off,
+    #: a transfer, a stock take and a compounding draw left nothing to find.
+    #: Those are the movements a recall is most about.
+    #:
+    #: Null where there genuinely is no lot: a product with no batches at all,
+    #: and every movement written before this column existed that the backfill
+    #: could not match to one.
+    batch_id = Column(Integer, ForeignKey("stock_batches.id"), nullable=True,
+                      index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     branch_id = Column(Integer, ForeignKey("branches.id"), index=True)

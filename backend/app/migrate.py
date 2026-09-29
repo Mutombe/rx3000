@@ -144,7 +144,26 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # branch_id: which shelf moved. prescription_id: what the person was
     # doing when they moved it, where that was a script.
     "stock_movements": {"branch_id": "INTEGER", "prescription_id": "INTEGER",
-                        "reason_code": "VARCHAR(20) DEFAULT ''"},
+                        "reason_code": "VARCHAR(20) DEFAULT ''",
+                        # WHICH LOT MOVED, AS A NUMBER RATHER THAN A SENTENCE.
+                        #
+                        # The batch has been known at the moment every one of
+                        # these is written since FEFO was added, and it was
+                        # flattened into `notes`: "batch OPENING exp
+                        # 2028-01-26". 99% of movements carry it that way and
+                        # none of them can be asked about it.
+                        #
+                        # So "a batch is recalled, what happened to it" could
+                        # only be answered for the part that went out through a
+                        # sale, because `batch_allocations` is joined through
+                        # `sale_item_id`. A write-off, a transfer, a stock take
+                        # and a compounding draw all left no trace at all, and
+                        # those are the movements a recall is most about.
+                        #
+                        # Exactly the fault `reason_code` above was pulled out
+                        # of free text to fix, in the same column, for the same
+                        # reason.
+                        "batch_id": "INTEGER"},
     "stock_categories": {
         # Per-department expiry warning. See StockCategory.
         "expiry_alert_days": "INTEGER",
@@ -1219,6 +1238,71 @@ def _one_value_per_key_per_pharmacy(conn, live) -> None:
     log.info("settings: one value per key per pharmacy is now enforced")
 
 
+def _batches_out_of_the_notes(conn, inspector, existing_tables: set) -> int:
+    """Read the lot back out of the sentence it was written into.
+
+    Every movement `consume_stock_fefo` wrote carries "| batch NUMBER exp DATE"
+    in its notes, and 99% of the movements in a working pharmacy came from
+    there. The number is exact, it is the batch's own, and it is sitting in the
+    same row as the product, so the pair identifies one lot.
+
+    Matched on (product_id, batch_number) and only where that pair names EXACTLY
+    ONE batch. A pharmacy that has received the same batch number twice for one
+    product has two lots the sentence cannot tell apart, and guessing between
+    them would put a recall on the wrong delivery. Those keep a null, which is
+    honest: the movement says which batch in words and this column says it does
+    not know.
+
+    Runs once. Afterwards the column is written directly and there is nothing
+    left in the notes that is not already beside them.
+    """
+    if "stock_movements" not in existing_tables or "stock_batches" not in existing_tables:
+        return 0
+    # NOT through `inspector`. It was built before ADDED_COLUMNS ran, so on the
+    # very run that adds `batch_id` it still reports the old shape and this
+    # would skip itself exactly once: on the one run where there is anything to
+    # backfill. Asked of the connection instead, which has just added it.
+    try:
+        conn.execute(text("SELECT batch_id FROM stock_movements LIMIT 1"))
+    except Exception:  # noqa: BLE001 - the column is not there yet
+        return 0
+    try:
+        todo = conn.execute(text(
+            "SELECT COUNT(*) FROM stock_movements "
+            "WHERE batch_id IS NULL AND notes LIKE '%batch %'")).scalar() or 0
+    except Exception:  # noqa: BLE001 - a fresh database has nothing to read
+        return 0
+    if not todo:
+        return 0
+
+    # The batch number is what sits between "batch " and " exp", which is how
+    # the sentence has always been built. Done in SQL rather than in Python so
+    # a pharmacy with a million movements does not load them all to read a
+    # substring, and written to run the same on both engines.
+    #
+    # `position`/`instr` differ between Postgres and SQLite, so the match is
+    # made the portable way: join on the batch number appearing in the notes
+    # between the two markers the writer put there.
+    sql = text("""
+        UPDATE stock_movements
+           SET batch_id = (
+               SELECT b.id FROM stock_batches b
+                WHERE b.product_id = stock_movements.product_id
+                  AND b.batch_number <> ''
+                  AND stock_movements.notes LIKE '%batch ' || b.batch_number || ' exp %'
+                )
+         WHERE batch_id IS NULL
+           AND notes LIKE '%batch %'
+           AND (SELECT COUNT(*) FROM stock_batches b2
+                 WHERE b2.product_id = stock_movements.product_id
+                   AND b2.batch_number <> ''
+                   AND stock_movements.notes LIKE '%batch ' || b2.batch_number || ' exp %') = 1
+    """)
+    done = conn.execute(sql).rowcount or 0
+    log.info("Named the batch on %d stock movement(s) from their notes", done)
+    return 1 if done else 0
+
+
 def _create_indexes(conn, inspector, existing_tables: set) -> int:
     """Add the indexes the queries actually need.
 
@@ -1863,6 +1947,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
         applied += _entries_follow_their_sale(conn, existing_tables)
         applied += _settings_belong_to_a_pharmacy(conn, inspector, existing_tables)
+        applied += _batches_out_of_the_notes(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
     # The tidying passes run in their own transactions, and a failure in one is
