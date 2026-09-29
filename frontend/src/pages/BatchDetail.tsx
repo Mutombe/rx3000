@@ -22,6 +22,17 @@ interface Recipient {
   patient_id: number | null; patient: string; phone: string; quantity: number;
   sale_id: number | null; sale_number: string;
   prescription_id: number | null; rx_number: string; sold_at: string;
+  /** Empty on a counter sale, which has no dispensing and no pharmacist. */
+  pharmacist: string; pharmacist_id: number | null;
+  dispensed_at: string | null;
+}
+/** One thing that happened to this lot. */
+interface Event {
+  at: string; what: string; why: string;
+  quantity: number; balance_after: number;
+  reference: string; notes: string;
+  who: string; who_id: number | null;
+  prescription_id: number | null;
 }
 interface Data {
   id: number; batch_number: string; product_id: number; product: string;
@@ -34,6 +45,7 @@ interface Data {
   quantities: { received: number; on_shelf: number; traced_to_a_patient: number;
                 sold_to_a_walk_in: number; unaccounted: number };
   recipients: Recipient[];
+  life: Event[];
   warnings: string[];
 }
 
@@ -232,6 +244,60 @@ export default function BatchDetail() {
         </Panel>
       </div>
 
+      {/* EVERYTHING THAT HAPPENED TO THIS LOT, IN ORDER.
+          Until the batch was a column on a movement this could not be asked:
+          the lot was named in the movement's notes as prose, so the only part
+          of a batch's life anybody could query was the part that went out
+          through a till. A quarantine, a release, a write-off, a transfer and
+          a stock take left nothing to find, and those are the events a recall
+          is most about. */}
+      <Panel title="Everything that happened to it" count={d?.life?.length}
+             empty={!d ? undefined
+               : "Nothing is recorded against this lot by name. Stock received "
+                 + "before lots were tracked leaves no trail, and neither does "
+                 + "anything the shelf lost without naming the lot it came from."}>
+        <div className="dt-scroll" style={{ maxHeight: "40vh" }}>
+          <table className="dt">
+            <thead>
+              <tr><Th>When</Th><Th>What</Th><Th className="num">Change</Th>
+                  <Th className="num">Left</Th><Th>Who</Th><Th>Reference</Th></tr>
+            </thead>
+            {!d ? (
+              <GhostRows cols={6} rows={3}
+                         widths={["60%", "45%", "30%", "30%", "55%", "55%"]} />
+            ) : (
+              <tbody>
+                {(d.life ?? []).map((e, i) => (
+                  <tr key={`${e.at}-${i}`}>
+                    <td>{fmtDate(e.at)}</td>
+                    <td>
+                      <span className="badge muted">{e.what.replace(/_/g, " ")}</span>
+                      {e.why && <span className="cell-note">{e.why.replace(/_/g, " ")}</span>}
+                    </td>
+                    <td className={`num ${e.quantity < 0 ? "mv-out" : "mv-in"}`}>
+                      {e.quantity > 0 ? `+${e.quantity}` : e.quantity}
+                    </td>
+                    <td className="num">{e.balance_after}</td>
+                    <td>
+                      {e.who
+                        ? <EntityLink kind="staff" id={e.who_id}>{e.who}</EntityLink>
+                        : <span className="muted">Not recorded</span>}
+                    </td>
+                    <td className="mono small">
+                      {e.prescription_id
+                        ? <EntityLink kind="prescription" id={e.prescription_id}>
+                            {e.reference}
+                          </EntityLink>
+                        : e.reference || <span className="muted">None</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        </div>
+      </Panel>
+
       <Panel title="Who received it" count={d?.recipients.length}
              /* Both of these sentences claim to know where the stock went,
                 which is precisely what is still being fetched, so neither is
@@ -242,11 +308,12 @@ export default function BatchDetail() {
         <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
           <table className="dt">
             <thead>
-              <tr><Th>Patient</Th><Th className="num">Qty</Th><Th>When</Th><Th>Reference</Th></tr>
+              <tr><Th>Patient</Th><Th className="num">Qty</Th><Th>When</Th>
+                  <Th>Handed over by</Th><Th>Reference</Th></tr>
             </thead>
             {!d ? (
-              <GhostRows cols={4} rows={3} secondLine={[0]}
-                         widths={["70%", "30%", "55%", "50%"]} />
+              <GhostRows cols={5} rows={3} secondLine={[0]}
+                         widths={["70%", "30%", "55%", "55%", "50%"]} />
             ) : (
               <tbody>
                 {d.recipients.map((r, i) => (
@@ -261,6 +328,18 @@ export default function BatchDetail() {
                     </td>
                     <td className="num">{r.quantity}</td>
                     <td>{fmtDate(r.sold_at)}</td>
+                    {/* A recall asks two things about a person: who has the
+                        medicine, and who gave it to them. The second was
+                        reachable through the dispensing all along and was
+                        never asked for. A counter sale has no pharmacist and
+                        says so rather than looking like a gap. */}
+                    <td>
+                      {r.pharmacist
+                        ? <EntityLink kind="staff" id={r.pharmacist_id}>
+                            {r.pharmacist}
+                          </EntityLink>
+                        : <span className="muted">Sold at the counter</span>}
+                    </td>
                     <td className="mono small">
                       {r.rx_number
                         ? <EntityLink kind="prescription" id={r.prescription_id}>

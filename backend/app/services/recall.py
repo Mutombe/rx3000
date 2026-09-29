@@ -35,7 +35,8 @@ from sqlalchemy.orm import Session
 
 from ..models import (
     Dispensing, Patient, PrescriptionItem, Prescription, Product,
-    PurchaseOrder, PurchaseOrderItem, Sale, SaleItem, StockBatch, Supplier,
+    PurchaseOrder, PurchaseOrderItem, Sale, SaleItem, StockBatch, StockMovement,
+    Supplier, User,
 )
 
 
@@ -96,6 +97,47 @@ def _origin(db: Session, batch: StockBatch) -> dict:
     }
 
 
+
+def _life(db: Session, batch: StockBatch) -> list[dict]:
+    """Everything that happened to this lot, in the order it happened.
+
+    Until `StockMovement.batch_id` existed this could not be asked. The lot was
+    named in the movement's notes as prose, so the only part of a batch's life
+    anybody could query was the part that went out through a till: a write-off,
+    a transfer, a stock take and a compounding draw left nothing to find, and
+    those are the events a recall is most about. A batch that was quarantined
+    and then released had two entries in its life and neither was reachable.
+
+    Read from the movements rather than assembled from the sale side, because a
+    movement is written for every one of those and a sale is written for one of
+    them.
+    """
+    rows = (
+        db.query(StockMovement, User)
+        .outerjoin(User, User.id == StockMovement.user_id)
+        .filter(StockMovement.batch_id == batch.id)
+        .order_by(StockMovement.created_at.asc())
+        .limit(200)
+        .all()
+    )
+    out = []
+    for m, who in rows:
+        out.append({
+            "at": m.created_at,
+            "what": m.movement_type or "",
+            "why": m.reason_code or "",
+            "quantity": m.quantity_delta or 0,
+            "balance_after": m.balance_after or 0,
+            "reference": m.reference or "",
+            "notes": m.notes or "",
+            # Named rather than left as an id: the question this answers is
+            # "who did that", and an id is not an answer to it.
+            "who": who.full_name if who else "",
+            "who_id": who.id if who else None,
+            "prescription_id": m.prescription_id,
+        })
+    return out
+
 def trace(db: Session, batch_id: int) -> dict:
     """Everything known about one batch: where it came from, where it went.
 
@@ -130,13 +172,26 @@ def trace(db: Session, batch_id: int) -> dict:
                p.last_name      AS last_name,
                p.phone          AS phone,
                rx.id            AS prescription_id,
-               rx.rx_number     AS rx_number
+               rx.rx_number     AS rx_number,
+               -- WHO HANDED IT OVER, AND WHEN THEY DID.
+               -- A recall asks two questions about a person: who has the
+               -- medicine, and who gave it to them. The second was reachable
+               -- through the dispensing all along and was never asked for, so
+               -- the answer to "who dispensed this lot" was a name nobody
+               -- could get at without writing SQL by hand.
+               -- Null on a counter sale, which has no dispensing and no
+               -- pharmacist, and that is a real difference worth keeping.
+               u.full_name      AS pharmacist,
+               u.id             AS pharmacist_id,
+               d.dispensed_at   AS dispensed_at
           FROM batch_allocations ba
           JOIN sale_items si ON si.id = ba.sale_item_id
           JOIN sales      s  ON s.id  = si.sale_id
           LEFT JOIN patients p ON p.id = s.patient_id
           LEFT JOIN prescription_items pi ON pi.id = si.prescription_item_id
           LEFT JOIN prescriptions rx ON rx.id = pi.prescription_id
+          LEFT JOIN dispensings d ON d.prescription_item_id = pi.id
+          LEFT JOIN users u ON u.id = d.dispensed_by_id
          WHERE ba.batch_id = :batch
            AND s.pharmacy_id = :pharmacy
          ORDER BY s.created_at DESC
@@ -165,6 +220,9 @@ def trace(db: Session, batch_id: int) -> dict:
             "prescription_id": r["prescription_id"],
             "rx_number": r["rx_number"] or "",
             "sold_at": r["sold_at"],
+            "pharmacist": r["pharmacist"] or "",
+            "pharmacist_id": r["pharmacist_id"],
+            "dispensed_at": r["dispensed_at"],
         })
 
     received = batch.quantity_received or 0
@@ -192,6 +250,7 @@ def trace(db: Session, batch_id: int) -> dict:
             "unit_cost": batch.unit_cost or 0,
         },
         "origin": _origin(db, batch),
+        "life": _life(db, batch),
         "quantities": {
             "received": received,
             # WHAT IS ON THE SHELF AND WHAT IS MERELY LEFT ARE NOT THE SAME.

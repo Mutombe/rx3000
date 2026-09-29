@@ -235,6 +235,11 @@ def stock_batch(batch_id: int, db: Session = Depends(get_db)):
         "origin": traced.get("origin", {}),
         "quantities": traced.get("quantities", {}),
         "recipients": traced.get("recipients", [])[:100],
+        # Every event against this lot by name, oldest first. Capped for the
+        # same reason the recipients are: a lot of paracetamol has thousands of
+        # movements and the page is for reading, not for auditing in bulk.
+        # The export is where a whole trail belongs.
+        "life": traced.get("life", [])[:200],
         "warnings": traced.get("warnings", []),
     }
 
