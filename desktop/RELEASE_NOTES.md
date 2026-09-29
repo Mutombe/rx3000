@@ -75,6 +75,11 @@ moment share one answer instead of asking twice.
 
 **Things that were being cut off or pointed the wrong way**
 
+On the dispensary rail, the chosen tile at the top of the worklist was drawn
+with three sides. It is always the first one, "Waiting", and it is the one
+chosen when the screen opens, so the single tile meant to stand out was the one
+missing an edge and it read as cut off against the rail.
+
 The tick that selects every row sat eight pixels left of the column of ticks it
 selects, on patients, repeats and deliveries. The date range on the controlled
 register and on analytics had been torn in half, with the word "to" pointing at
