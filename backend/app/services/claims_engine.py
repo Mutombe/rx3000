@@ -266,6 +266,32 @@ def submit_claim(db: Session, sale: Sale, patient: Patient) -> Claim:
     return claim
 
 
+#: A claim in one of these has been put to the funder in some form, so taking
+#: the sale back means taking the claim back too.
+#:
+#: `submitted` and `deferred` are here because they were NOT, and that was the
+#: case a patient actually walks away in: they are told at the counter that the
+#: scheme has left them a shortfall, they decide to try a pharmacy that will not,
+#: and the sale is reversed before the funder has answered. The claim was left
+#: standing, so the pharmacy had billed a scheme for medicine it had taken back,
+#: and the first anybody knew of it was a remittance weeks later.
+#:
+#: `reversed` is excluded because it is done, and `rejected` because the funder
+#: has already refused it — there is nothing to take back and saying so twice
+#: would overwrite the reason they gave.
+REVERSIBLE = ("submitted", "approved", "partial", "deferred")
+
+
+def may_reverse(claim: Claim | None) -> bool:
+    """Whether this claim still has to be taken back off the funder.
+
+    Asked here rather than at each call site because there are two — a void and
+    a credit note — and they had the same list written out separately. They also
+    had the SHORTER list, which is how `submitted` came to be missed in both.
+    """
+    return bool(claim) and claim.status in REVERSIBLE
+
+
 def reverse_claim(db: Session, claim: Claim) -> Claim:
     claim.status = "reversed"
     claim.response_message += " | Claim reversed."

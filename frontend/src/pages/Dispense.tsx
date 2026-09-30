@@ -70,7 +70,7 @@ import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AdjustStock from "../components/AdjustStock";
 import AlterScript from "../components/AlterScript";
-import { Camera, CaretDown, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
+import { ArrowUUpLeft, Camera, CaretDown, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import { routeForSchedule, scheduleCode, useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
@@ -255,7 +255,18 @@ const PAY_CHOICES = [
   // where the choice is made.
   { key: "till", label: "Send to till",
     hint: "Raise it now; the patient settles their share at the front shop" },
-  { key: "now", label: "Take payment now", hint: "Cash, card, mobile or a mix of them" },
+  // "Take payment now" was here: cash, card, mobile or a mix, collected at the
+  // dispensary counter. It is gone, and not because it did not work.
+  //
+  // No money is taken at a dispensary. The drawer, the shift and the person who
+  // answers for what is in it are all at the till, so money taken at this
+  // counter is money outside the drawer it will be counted against. What
+  // happens here is the claim; everything else is settled at the front shop.
+  //
+  // That leaves three things that can happen to a dispensed script, and they
+  // are the three below: it waits at the till, it goes out with a driver who
+  // collects at the door, or it is claimed from a scheme and whatever the
+  // scheme leaves waits at the till too.
   // The third thing that actually happens to a dispensed script, and the
   // screen had no word for it. A delivery leaves the building unpaid: the
   // driver collects at the door and the money is theirs to account for until
@@ -268,7 +279,7 @@ const PAY_CHOICES = [
   // patient where they are on file, typed where they are not — and the claim is
   // sent or held as the counter decides, with the shortfall taken on the spot.
   { key: "aid", label: "Medical aid",
-    hint: "Claim from the scheme on the card and take the patient's shortfall here" },
+    hint: "Claim from the scheme on the card; any shortfall is paid at the till" },
 ];
 
 export default function Dispense() {
@@ -455,7 +466,7 @@ export default function Dispense() {
   // script to reach a panel that was waiting for them. `payHowSet` records
   // that somebody chose for themselves, so the default never overrides a real
   // decision or a restored draft.
-  const [payHow, setPayHow] = useState("now");
+  const [payHow, setPayHow] = useState("till");
   const payHowSet = useRef(false);
   const choosePayHow = (key: string) => { payHowSet.current = true; setPayHow(key); };
   /** Who is taking it, and where. Only asked for on the delivery route. */
@@ -508,7 +519,7 @@ export default function Dispense() {
   // A member's script is a claim unless somebody says otherwise.
   useEffect(() => {
     if (payHowSet.current) return;
-    setPayHow(patient?.medical_aid_id ? "aid" : "now");
+    setPayHow(patient?.medical_aid_id ? "aid" : "till");
   }, [patient?.medical_aid_id]);
   // Whatever the patient's record holds, as the starting point: most members
   // show the same card every month, and retyping it is where numbers go wrong.
@@ -1500,11 +1511,12 @@ export default function Dispense() {
    */
   function printDefault(kind: roll.DocKind) {
     if (kind === "label") return true;
-    // Money taken at this counter is a sale, and a sale hands over a tax
-    // invoice. "Take payment now" printed nothing at all: the patient paid at
-    // the dispensary and walked away without a receipt, which the till would
-    // never have allowed.
-    if (kind === "receipt") return payHow === "now" || payHow === "aid";
+    // No receipt, because no money is taken here any more. A receipt is the
+    // document that follows a payment, and the payment now happens at the till,
+    // which prints its own. Printing one here would hand the patient a receipt
+    // for money they have not yet paid, and then the till would hand them
+    // another for the same bag.
+    if (kind === "receipt") return false;
     if (kind === "claim") return !!split?.covered || payHow === "aid";
     if (kind === "delivery") return payHow === "delivery";
     // OFF, by the pharmacy's own decision (24 Sept 2026), settled twice.
@@ -1925,6 +1937,42 @@ export default function Dispense() {
     return openFinish(ixMajor > 0 && !ixAcknowledged ? "finish-warnings" : undefined);
   }
 
+  /** The patient saw the shortfall and would rather go elsewhere.
+   *
+   *  Undoes the whole dispensing: the stock goes back to the batches it was
+   *  drawn from, the claim is reversed off the scheme, and the loyalty points
+   *  are taken back. Confirmed first and then behind a code, because it is not
+   *  reversible in its turn and because the medicine has physically left the
+   *  shelf — somebody has to put it back.
+   *
+   *  A fiscalised sale cannot be voided at all; the server refuses it and says
+   *  so, and the sale's own page issues the credit note that stands in its
+   *  place. Not duplicated here: a second implementation of "which way does
+   *  this reverse" is a second chance to get it wrong.
+   */
+  async function reverseTheClaim(sale: Sale) {
+    const owed = patientPortion(sale);
+    const ok = await askConfirm({
+      title: "Reverse this dispensing?",
+      body: `${sale.sale_number} comes back: the medicine returns to stock, `
+        + `${schemeName} is no longer billed for it, and the `
+        + `${money(owed)} the patient was asked for is cancelled. `
+        + "They keep nothing and owe nothing.",
+      confirmLabel: "Reverse it",
+      destructive: true,
+    });
+    if (!ok) return;
+    const said = await guarded<Sale>(
+      "sale.void",
+      (token) => api.post<Sale>(`/api/pos/sales/${sale.id}/void`, {}, token),
+      `Reverse ${sale.sale_number} · ${money(sale.total)}`,
+    );
+    if (said === CANCELLED) return;
+    toast.ok(`${sale.sale_number} reversed. The stock is back and `
+      + `${schemeName} is not billed.`);
+    setDoneSale(null);
+  }
+
   /** A lane field has just been satisfied, so go to the next one.
    *
    *  Asked for as "once a certain field has been satisfied, the focus should
@@ -2115,10 +2163,11 @@ export default function Dispense() {
       if (aidScheme === "") return "Choose the medical aid scheme on the card.";
       if (!aidMember.trim()) return "Enter the member number from the card.";
       if (aidHold && aidHoldReason.trim().length < 3) return "Say why the claim is being held.";
-      const world = currencyWorld(currencyState);
-      const took = tenders.reduce((n, t) => n + inBase(t, world.rates, world.base), 0);
-      if (dueNow > 0.005 && took + 0.005 < dueNow)
-        return `Take the patient's ${money(dueNow)}: ${money(took)} entered so far.`;
+      // The shortfall used to be refused here until it had been tendered on
+      // this screen. It is not tendered on this screen any more — it is paid at
+      // the till — so insisting on it would block a dispensing for money nobody
+      // is being asked for yet. The scheme and the member number still have to
+      // be right, because those are what the claim is raised on.
     }
     return "";
   };
@@ -2727,6 +2776,32 @@ export default function Dispense() {
       label: `Dispensing ${said}`,
       said: `${said}. Dispensed.`,
       run: () => dispenseTheScript(before, already, (made) => { already = made; }),
+      // WHETHER THE SCHEME LEFT A SHORTFALL, EVERY TIME, EITHER WAY.
+      //
+      // Asked for: "automatically it should be noted whether there is a
+      // shortfall or not once we click Finish". Said out loud rather than left
+      // to be read off a figure, because the two outcomes need different things
+      // from the dispenser — one sends the patient to the till, the other sends
+      // them home — and the difference between them is a number nobody is
+      // looking at by the time it lands.
+      //
+      // The figure is the SERVER'S, after adjudication, not the estimate the
+      // dialog showed while the script was being built. The estimate is worked
+      // out from the scheme's terms; what the scheme actually allowed is what
+      // the patient is asked for, and when those disagree it is exactly the
+      // case somebody has to be told about.
+      done: (made: any) => {
+        if (before.payHow !== "aid" || !made?.id) return;
+        const owed = patientPortion(made);
+        if (owed > 0.005) {
+          toast.warn(
+            `${made.sale_number}: ${before.patient?.medical_aid?.name ?? "The scheme"} `
+            + `left ${money(owed)} of ${money(made.total)}. `
+            + "It is on the till, under this script's number.");
+        } else {
+          toast.ok(`${made.sale_number}: covered in full. Nothing to pay.`);
+        }
+      },
       // Where it goes next is the answer to "how it is paid", which was decided
       // in Finish a moment ago:
       //
@@ -2738,6 +2813,15 @@ export default function Dispense() {
       // half way through the next patient, and moving their screen then is the
       // very thing that made them wait for a spinner in the first place.
       next: (sale: any) => {
+        // A shortfall goes to the front shop for the same reason a "send to
+        // till" does, so it is offered the same way.
+        if (before.payHow === "aid" && sale?.id) {
+          const owed = patientPortion(sale);
+          return owed > 0.005
+            ? { label: `Take the ${money(owed)} shortfall at the till →`,
+                go: () => navigate(`/pos?settle=${sale.id}&tab=pending`) }
+            : null;
+        }
         if (before.payHow === "till" && sale?.id) {
           // Offered, because the answer is about the shop rather than the
           // software: with a cashier at the front, the sale is already on their
@@ -2899,65 +2983,29 @@ export default function Dispense() {
       // raised pending either way; settling it is the same call the till makes,
       // so there is one payment path in the system rather than two that can
       // disagree about what a scheme has already covered.
+      //
+      // A SHORTFALL IS NOT TAKEN HERE.
+      //
+      // "Medical aid" used to settle on this screen: the scheme's share as a
+      // medical_aid tender and the patient's share out of the tender rows
+      // below. It no longer does, and the reason is not about software.
+      //
+      // A shortfall is what the scheme decided not to carry, and the patient
+      // settles it in cash. Cash is the till's: that is where the drawer is,
+      // where the shift is, and where somebody answers for what is in it. A
+      // dispenser taking notes at the counter is money taken outside the
+      // drawer it will be counted against.
+      //
+      // So the claim is raised by the dispensing, the sale stays pending for
+      // exactly the shortfall, and the front shop collects it — findable now by
+      // the number on the bag's own label. Nothing is lost by waiting: the till
+      // settles the scheme's share and the patient's in one call, as it always
+      // has.
       let finished = sale;
-      if (payHow === "now" || payHow === "aid") {
-        try {
-          const due = patientPortion(sale);
-          const lines = tenders.filter((t) => Number(t.amount) > 0);
-          // The scheme's share, as adjudicated, settles as a medical aid tender
-          // exactly as the till does it. Without it the sale was asked for its
-          // gross against the patient's share alone and refused as short, so
-          // "Take payment now" never settled a scheme member's script.
-          const covered = Math.round((sale.total - due) * 100) / 100;
-          finished = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
-            payment_method: "split",
-            // Each piece kept separate, with what it needs to be matched to a
-            // statement later: the wallet and number, or the bank and last four.
-            tenders: [
-              ...(covered > 0.005 ? [{ method: "medical_aid",
-                currency_code: currencyState?.base ?? "USD", amount: covered, reference: "" }] : []),
-              ...lines.map((t) => ({
-              method: t.method,
-              currency_code: t.currency_code || (currencyState?.base ?? "USD"),
-              amount: Number(t.amount),
-              reference: [t.wallet, t.phone, t.scheme, t.last4 && `••${t.last4}`, t.auth]
-                .filter(Boolean).join(" "),
-            })),
-            ],
-          });
-          // What was actually collected, against what the scheme actually
-          // allowed. `due` is the server's figure after adjudication, and the
-          // tenders were typed against the estimate shown while the script was
-          // being built. Those agree almost always, and when they do not, it
-          // is because the scheme allowed less than its terms suggested, which
-          // is precisely the case somebody has to be told about rather than
-          // congratulated on. Saying "settled" over a sale that is short is how
-          // a patient walks out owing money nobody mentioned.
-          const took = lines.reduce((n, t) => n + Number(t.amount || 0), 0);
-          const short = Math.round((due - took) * 100) / 100;
-          toast.ok(
-            short > 0.005
-              // "The scheme" starts a sentence here, so it is capitalised.
-              // Interpolating the fallback in lower case produced "still
-              // owed. the scheme allowed less…" on every patient without a
-              // named aid, which is most walk-ins.
-              ? `${money(took)} taken, ${money(short)} still owed. `
-                + `${patient?.medical_aid?.name ?? "The scheme"} allowed less `
-                + `than its terms suggested. It is on the till as `
-                + `${sale.sale_number}.`
-              : due < sale.total - 0.005
-                ? `${money(due)} taken from the patient, `
-                  + `${money(sale.total - due)} on the scheme.`
-                : `${money(due)} taken. ${sale.sale_number} is settled.`);
-        } catch (err) {
-          // The medicine has already gone out and the invoice exists — the
-          // dispensing is not undone because the card machine declined. It
-          // becomes an ordinary pending sale, which is exactly what the till
-          // is for, and the message says so instead of reading as a failure.
-          toast.error(errorText(err,
-            "Dispensed, but the payment did not go through. It is waiting at the till."));
-        }
-      }
+      // Nothing is settled here any more. The sale is raised pending and
+      // the front shop collects it, whether that is the whole bill or the
+      // shortfall a scheme left. `let finished = sale` above stays, because
+      // the printing and the outcome below are written against it.
       // Out for delivery: raise the waybill and put it on the driver's
       // account. Done after the sale exists, because the waybill has to carry
       // its number and the amount to collect at the door.
@@ -4670,6 +4718,34 @@ ${d.action}`}
                         Take payment <ArrowRight size={12} weight="bold" />
                       </Link>
                     )}
+                    {/* THE PATIENT LOOKED AT THE SHORTFALL AND WALKED.
+                        Asked for: "if there is a shortfall and the customer
+                        does not want to proceed because they want to go to a
+                        pharmacy where there are no shortfalls, we should be
+                        able to reverse the claim."
+
+                        This is the moment it happens — the bar is still up, the
+                        figure on it is what they were just told, and the bag is
+                        still on the counter. Anywhere else means finding the
+                        sale again with somebody waiting.
+
+                        It is the ordinary void, not a claim-only undo, and that
+                        is deliberate: taking the claim back while the medicine
+                        stays sold would leave the shelf short and the pharmacy
+                        unpaid. The void returns the stock to the batches it
+                        came from, reverses the claim and gives back the loyalty
+                        points, behind the same code a void has always needed.
+
+                        Offered only where a scheme was actually billed. On a
+                        cash sale there is no claim to reverse and this would be
+                        a void button beside an unpaid bag, which is a different
+                        and much easier mistake to make. */}
+                    {doneSale.status !== "paid" && !!doneSale.claim && (
+                      <button type="button" className="linkish is-danger"
+                              onClick={() => reverseTheClaim(doneSale)}>
+                        <ArrowUUpLeft size={13} /> They have declined it
+                      </button>
+                    )}
                     <button type="button" className="linkish" onClick={() => setDoneSale(null)}>
                       Dismiss
                     </button>
@@ -5150,21 +5226,6 @@ ${d.action}`}
                             </div>
                           )}
 
-                          {payHow === "now" && (
-                            <div className="fin-panel is-form">
-                              <Tenders
-                                lines={tenders}
-                                onChange={setTenders}
-                                owed={dueNow}
-                                allowAid={false}
-                                {...currencyWorld(currencyState)}
-                              />
-                              <p className="fin-note">
-                                The patient&rsquo;s share only. The claim is raised by the dispensing
-                                itself, so the scheme&rsquo;s part is never collected here.
-                              </p>
-                            </div>
-                          )}
 
                           {payHow === "aid" && (
                             <div className="fin-panel is-form fin-aid" id="finish-aid">
@@ -5273,14 +5334,31 @@ ${d.action}`}
                                     : "Saved to the patient's record when dispensed."}
                                 </p>
                               )}
+                              {/* THE SHORTFALL IS NOT COLLECTED HERE.
+                                  These were tender rows: cash, card and mobile,
+                                  taken at the dispensary counter. A shortfall is
+                                  settled in cash, and cash belongs to the till —
+                                  that is where the drawer is, where the shift
+                                  is, and where somebody answers for what is in
+                                  it. Money taken at this counter is money
+                                  outside the drawer it will be counted against.
+
+                                  So the figure is stated and the bag goes to the
+                                  front shop, findable by the number on its own
+                                  label. Estimated, and said to be: what the
+                                  scheme actually allows is settled by the claim
+                                  and can differ, which is why the amount shown
+                                  after dispensing is the server's and not
+                                  this one. */}
                               {dueNow > 0.005 ? (
-                                <Tenders
-                                  lines={tenders}
-                                  onChange={setTenders}
-                                  owed={dueNow}
-                                  allowAid={false}
-                                  {...currencyWorld(currencyState)}
-                                />
+                                <p className="fin-note">
+                                  <b>{money(dueNow)}</b> estimated shortfall, paid
+                                  at the till. The bag goes to the front shop and
+                                  the cashier finds it by this script&rsquo;s
+                                  number or its barcode. What {schemeName} actually
+                                  allows is settled by the claim, so the figure on
+                                  the till is the one to ask for.
+                                </p>
                               ) : (
                                 <p className="fin-note">
                                   Fully covered. Nothing to collect from the patient.
@@ -5533,7 +5611,7 @@ ${d.action}`}
                               <b>{pricing || split ? money(dueNow + fee) : <span className="skel skel-num is-big" />}</b>
                               <small>
                                 {payHow === "till" ? "at the till"
-                                  : payHow === "now" || payHow === "aid" ? "here, now"
+                                  : payHow === "aid" ? "at the till"
                                     : "to the driver, at the door"}
                               </small>
                             </div>

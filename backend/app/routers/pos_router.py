@@ -759,7 +759,10 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
         )
     # Return stock to the exact batches it was drawn from.
     helpers.return_sale_stock(db, sale, user.id, reference=f"VOID {sale.sale_number}")
-    if sale.claim and sale.claim.status in ("approved", "partial"):
+    # Which statuses count is claims_engine's to say, not this
+    # router's: a credit note asks the same question and the two had
+    # the same list written out separately, both of them short.
+    if claims_engine.may_reverse(sale.claim):
         claims_engine.reverse_claim(db, sale.claim)
     if sale.patient_id:
         patient = db.get(Patient, sale.patient_id)

@@ -182,7 +182,9 @@ def credit_note(sale_id: int, db: Session = Depends(get_db),
     # goods stay sold in inventory while the revenue authority has been told
     # they were returned.
     helpers.return_sale_stock(db, sale, user.id, reference=f"CREDIT NOTE {note.global_counter}")
-    if sale.claim and sale.claim.status in ("approved", "partial"):
+    # Same rule as the void, stated once in claims_engine. These two had the
+    # list written out separately and both were short of `submitted`.
+    if claims_engine.may_reverse(sale.claim):
         claims_engine.reverse_claim(db, sale.claim)
     if sale.patient_id:
         patient = db.get(Patient, sale.patient_id)
