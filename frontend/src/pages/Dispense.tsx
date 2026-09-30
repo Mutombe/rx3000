@@ -1880,6 +1880,40 @@ export default function Dispense() {
     return openFinish(ixMajor > 0 && !ixAcknowledged ? "finish-warnings" : undefined);
   }
 
+  /** A lane field has just been satisfied, so go to the next one.
+   *
+   *  Asked for as "once a certain field has been satisfied, the focus should
+   *  automatically move to the next field". The lane reads patient, prescriber,
+   *  medicine, and a dispenser filling it in should not have to reach for the
+   *  mouse three times to say what one script is.
+   *
+   *  Deliberately NOT `takeMeThere`, which answers a bigger question and can
+   *  open the finish dialog. Picking a prescriber must never open anything: a
+   *  dialog that arrives because somebody chose from a list is a dialog they
+   *  did not ask for, and this fires on every pick.
+   *
+   *  Where the next field is already settled its input does not exist — the
+   *  picked state renders a name and an X instead — so the query finds nothing
+   *  and the fall-through carries on to the medicine. That is the whole of the
+   *  skip logic, and it cannot disagree with what is on the screen because it
+   *  is reading what is on the screen.
+   *
+   *  The timeout is for React: the pick sets state, and the field being moved
+   *  to may not have rendered yet on the tick the click is handled.
+   */
+  function laneAdvance(filled: "patient" | "doctor") {
+    window.setTimeout(() => {
+      const go = (sel: string) => {
+        const el = document.querySelector<HTMLElement>(sel);
+        el?.focus();
+        return !!el;
+      };
+      // A search box is only there while that half is unanswered.
+      if (filled === "patient" && go("#step-patient #disp-doctor")) return;
+      go("[data-hk='product']");
+    }, 40);
+  }
+
   // Finish closes itself when the dispensing lands: the outcome is on the bar.
   useEffect(() => { if (doneSale) setFinishing(null); }, [doneSale]);
 
@@ -3387,57 +3421,15 @@ export default function Dispense() {
                   <span className="badge sched">{schedCode(highestSchedule)}</span>
                 </div>
               )}
-              {/* FIRST, BECAUSE IT IS WHAT SOMEBODY TYPES FIRST.
-                  The patient and the prescriber only appear once the basket
-                  holds something that needs a script, so this used to be the
-                  third field along with nothing beside it, and then two
-                  fields arrived to its LEFT and moved the screen under the
-                  dispenser's hand. All three are the same act — saying what
-                  this script is for and what is on it — and they now run in
-                  the order the work does. The heading went with them: a
-                  table under a search box labelled "Medicine" does not need
-                  telling it holds script items. */}
-              <div className="lane-field disp-medicine">
-                <input data-hk="product" id="disp-product" type="search"
-                  // One box, one sentence. It named the tab's schedules, which
-                  // was a promise about what the search would offer; it now
-                  // offers whatever this person may dispense, and the badge on
-                  // each result says which schedule that one is.
-                  aria-label="Medicine: search by name"
-                  placeholder={laneFocus === "product" ? MEDICINE_HINT : "Medicine"}
-                  value={productQ}
-                  onFocus={() => setLaneFocus("product")}
-                  onBlur={() => setLaneFocus(null)}
-                  onChange={(e) => setProductQ(e.target.value)}
-                  onKeyDown={(e) => {
-                    // A scanner's Enter, not a person's: check the pack.
-                    if (e.key === "Enter" && looksLikeCode(productQ)) {
-                      e.preventDefault();
-                      const code = productQ.trim();
-                      setProductQ("");
-                      scanPack(code);
-                    }
-                  }} />
-                {/* The camera, for a counter that has no scanner on it. A
-                    phone or a laptop is the scanner instead, and the pack is
-                    checked against the script exactly as a scanner's would be.
-                    Hidden where the browser has no camera to offer. */}
-                {cameraSupported() && (
-                  <button type="button" className="lane-icon-btn lane-scan"
-                          title="Scan the pack with the camera"
-                          aria-label="Scan the pack with the camera"
-                          onClick={() => setCameraOpen(true)}>
-                    <Camera size={16} />
-                  </button>
-                )}
-                <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
-              </div>
-              {/* Patient: asked for when a line needs a script.
-                  Somebody buying a cough syrup is not registered
-                  first, and the counter section below takes a
-                  walk-in name where one is wanted. */}
-              {needsScript && (
-              <>
+              {/* FIRST. Who this is for.
+                  It is not REQUIRED first, and that is the distinction the
+                  old gating lost: somebody buying a cough syrup is still not
+                  registered, the counter section below still takes a walk-in
+                  name, and Finish still only insists on a patient where a line
+                  needs a script. What changed is that the field is drawn from
+                  the moment the screen opens, so a dispenser holding a script
+                  can start where the script starts instead of having to put a
+                  medicine on it first to make the patient field appear. */}
               {patient ? (
                 <div className="lane-field is-picked disp-patient-picked">
                   <span className="dpp-who"
@@ -3541,7 +3533,7 @@ export default function Dispense() {
                   )}
                   {patients.map((p) => (
                     <div key={p.id} className="product-pick"
-                      onClick={() => { setPatient(p); clearPatients(); setIdNumber(p.id_number); }}>
+                      onClick={() => { setPatient(p); clearPatients(); setIdNumber(p.id_number); laneAdvance("patient"); }}>
                       <span>
                         <b>{p.last_name}, {p.first_name}</b>
                         {p.profile_number && <span className="muted mono"> {p.profile_number}</span>}
@@ -3552,8 +3544,6 @@ export default function Dispense() {
                   ))}
                 </>
               )}
-              </>
-              )}
               {/* Read before the first medicine goes on the script, not after
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
@@ -3561,12 +3551,13 @@ export default function Dispense() {
               {/* The two halves of one question. Who is this for, and who
                   wrote it. A script has never had one without the other, and
                   they were taking a row each. */}
-              {/* Prescriber: only where there is a prescription.
-                  A counter sale has no prescriber, and asking for
-                  one was half the reason it needed a lane of its
-                  own. */}
-              {needsScript && (
-              <>
+              {/* SECOND. Who wrote it.
+                  Drawn always, like the patient, and for the same reason: a
+                  field that appears only after the basket has been built
+                  cannot be the second thing anybody fills in. A counter sale
+                  simply leaves it empty — nothing asks for it, and the
+                  consultation card below is where a counter supply records
+                  what was asked and what was said. */}
               {/* The prescriber, searched and listed like the patient and the
                   medicine. It was a dropdown whose list was a popover as narrow
                   as its own field, the one field on the lane that behaved
@@ -3646,7 +3637,7 @@ export default function Dispense() {
                 }
                 return hits.map((d) => (
                   <div key={d.id} className="product-pick doc-pick"
-                       onClick={() => { setDoctorId(d.id); setDoctorQ(""); }}>
+                       onClick={() => { setDoctorId(d.id); setDoctorQ(""); laneAdvance("doctor"); }}>
                     <span>
                       <b>{d.name}</b>
                       {d.phone && <span className="muted"> · {d.phone}</span>}
@@ -3666,8 +3657,59 @@ export default function Dispense() {
                   </div>
                 ));
               })()}
-              </>
-              )}
+              {/* THIRD, BECAUSE IT IS THE THIRD THING ASKED.
+                  This was first, on the reasoning that the medicine is what
+                  somebody types first. It is not. A dispenser is handed a
+                  script and reads it in the order it is written: who it is
+                  for, who wrote it, then what is on it. Asked for, in those
+                  words.
+
+                  The reason it was first is that the other two did not exist
+                  until a medicine had been chosen — they were gated on
+                  `needsScript`, which is computed FROM the basket — so the
+                  lane genuinely could not start with the patient. It can now:
+                  both fields are always there, and the gate that remains is on
+                  whether a script is REQUIRED, not on whether the field is
+                  drawn.
+
+                  The heading went with the reorder: a table under a search box
+                  labelled "Medicine" does not need telling it holds script
+                  items. */}
+              <div className="lane-field disp-medicine">
+                <input data-hk="product" id="disp-product" type="search"
+                  // One box, one sentence. It named the tab's schedules, which
+                  // was a promise about what the search would offer; it now
+                  // offers whatever this person may dispense, and the badge on
+                  // each result says which schedule that one is.
+                  aria-label="Medicine: search by name"
+                  placeholder={laneFocus === "product" ? MEDICINE_HINT : "Medicine"}
+                  value={productQ}
+                  onFocus={() => setLaneFocus("product")}
+                  onBlur={() => setLaneFocus(null)}
+                  onChange={(e) => setProductQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    // A scanner's Enter, not a person's: check the pack.
+                    if (e.key === "Enter" && looksLikeCode(productQ)) {
+                      e.preventDefault();
+                      const code = productQ.trim();
+                      setProductQ("");
+                      scanPack(code);
+                    }
+                  }} />
+                {/* The camera, for a counter that has no scanner on it. A
+                    phone or a laptop is the scanner instead, and the pack is
+                    checked against the script exactly as a scanner's would be.
+                    Hidden where the browser has no camera to offer. */}
+                {cameraSupported() && (
+                  <button type="button" className="lane-icon-btn lane-scan"
+                          title="Scan the pack with the camera"
+                          aria-label="Scan the pack with the camera"
+                          onClick={() => setCameraOpen(true)}>
+                    <Camera size={16} />
+                  </button>
+                )}
+                <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
+              </div>
             </div>
 
             {/* THE CONSULTATION, WHERE THE PATIENT AND PRESCRIBER WOULD BE.
