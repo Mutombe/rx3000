@@ -263,11 +263,33 @@ def claim_estimate(patient_id: int | None = Body(default=None),
     somebody would be asked for the wrong amount.
     """
     patient = db.get(Patient, patient_id) if patient_id else None
+
+    def _figure(line: dict, key: str) -> float | None:
+        """A price or a claim the dispenser set by hand, or None for neither.
+
+        Read defensively because it arrives from a browser: a blank field, a
+        word, or a negative comes back as None and the line is priced off the
+        shelf, which is what every line without one does anyway.
+        """
+        raw = line.get(key)
+        if raw in (None, ""):
+            return None
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return None
+        return value if value >= 0 else None
+
     rows = []
     for line in items:
         product = db.get(Product, int(line.get("product_id") or 0))
         if product:
-            rows.append((product, int(line.get("quantity") or 1)))
+            # The hand set price and the hand set claim travel with the line.
+            # They used to be dropped here, so this endpoint answered with the
+            # catalogue's price while the row on the screen showed an
+            # authorised one and the sale charged it. See claims_engine.estimate.
+            rows.append((product, int(line.get("quantity") or 1),
+                         _figure(line, "unit_price"), _figure(line, "claim")))
     # The scheme and member number chosen in Finish, where they are not (yet) on
     # the patient's record: a card shown at the counter. Estimated against them
     # without saving anything — the record is only changed when the script is

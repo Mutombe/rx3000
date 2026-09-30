@@ -165,9 +165,39 @@ def estimate(db, patient, lines: list[tuple]) -> dict:
     a pack costs despite its name. Multiplying the two told a patient their
     twenty-one capsules would come to $1,050 and then charged them $1.05 — or,
     before the sale was fixed too, actually took the $1,050.
+
+    A line may also carry the two things a dispenser can set by hand and sign
+    for, as (product, quantity, each, claim). Both are optional and both are
+    None on almost every line, meaning "off the shelf, and ask the funder for
+    what the line comes to".
+
+    They are here because they were NOT, and the sentence two paragraphs above
+    was therefore untrue. `_adjudicate` reads both off the sale through
+    `asked_for`, so an authorised price reached the till and the claim, and
+    this — the figure the dispenser reads while agreeing the money with the
+    patient in front of them — went on quoting the catalogue. A script whose
+    line had been authorised at $1.11 each showed a gross of $0.76 in the
+    finish dialog and $2.55 on the row above it. The estimate disagreeing with
+    the sale is exactly what this function exists not to do.
+
+    A claim override never exceeds what the line comes to, the same clamp
+    `asked_for` applies, because the endpoint that records one refuses a bigger
+    figure and the column behind it is a float somebody could have written
+    directly.
     """
-    priced = [(product, round(product.per_unit() * max(1, int(qty or 1)), 2))
-              for product, qty in lines]
+    priced, claimed = [], []
+    for line in lines:
+        product, qty = line[0], line[1]
+        each = line[2] if len(line) > 2 else None
+        claim = line[3] if len(line) > 3 else None
+        unit = product.per_unit() if each is None else float(each)
+        amount = round(unit * max(1, int(qty or 1)), 2)
+        priced.append((product, amount))
+        # What the FUNDER is asked for, which the price does not decide. A hand
+        # set claim moves this and leaves the line's own cost alone; the patient
+        # covers the difference.
+        claimed.append((product, amount if claim is None
+                        else round(min(float(claim), amount), 2)))
     total = round(sum(amount for _, amount in priced), 2)
 
     # No membership is not a small shortfall, it is the whole bill. Said the
@@ -182,7 +212,7 @@ def estimate(db, patient, lines: list[tuple]) -> dict:
                     else ""),
         }
 
-    claimable_total, approved = _apply_rule(priced)
+    claimable_total, approved = _apply_rule(claimed)
     approved = min(approved, claimable_total, total)
     return {
         "total": total,
