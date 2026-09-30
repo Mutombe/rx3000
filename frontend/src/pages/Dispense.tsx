@@ -70,7 +70,7 @@ import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AdjustStock from "../components/AdjustStock";
 import AlterScript from "../components/AlterScript";
-import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
+import { Camera, CaretDown, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import { routeForSchedule, scheduleCode, useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
@@ -358,6 +358,11 @@ export default function Dispense() {
   const [adjusting, setAdjusting] = useState<Product | null>(null);
   const [railEdit, setRailEdit] = useState<"each" | "line" | "claim" | null>(null);
   const [railDraft, setRailDraft] = useState("");
+  /** Which half of the finish dialog's bill is showing the lines behind it. */
+  const [billOpen, setBillOpen] = useState<"gross" | "claim" | null>(null);
+  /** Which of those lines is being typed, and what has been typed into it. */
+  const [billEdit, setBillEdit] = useState<number | null>(null);
+  const [billDraft, setBillDraft] = useState("");
   // Closing the editor, or moving to another line, abandons whatever was half
   // typed. Without this the box reopens on the next medicine still holding the
   // last one's figure, which is the one way an inline editor can put a price on
@@ -1774,6 +1779,36 @@ export default function Dispense() {
       keep: false,
       reason: "Changed at the counter",
     });
+  }
+
+  /** Keep what was typed into the bill's breakdown.
+   *
+   *  Which figure it is depends on which half is open, and the two mean quite
+   *  different things: under Gross it is what the LINE comes to, so it is
+   *  divided by the quantity to get a price each; under the scheme it is what
+   *  the funder is asked for on that line, which is already a line figure and
+   *  is not divided by anything.
+   *
+   *  Both then go through the ordinary authorised path, which asks for a code,
+   *  records who approved it, and — on a script taken off the worklist —
+   *  writes the override against the line that already exists. Closed before
+   *  the code is asked for, like every other money edit on this screen: a
+   *  prompt over a field held open reads as the edit having failed.
+   */
+  function commitBillEdit(idx: number) {
+    const which = billOpen;
+    const typed = Number(billDraft);
+    const it = items[idx];
+    setBillEdit(null);
+    setBillDraft("");
+    if (!which || !it || billDraft.trim() === "") return;
+    if (!Number.isFinite(typed) || typed < 0) return;
+    if (which === "gross") {
+      void setLinePrice(idx, { each: typed / Math.max(1, it.quantity || 1),
+                               keep: false, reason: "Changed on the bill" });
+    } else {
+      void setLineClaim(idx, typed);
+    }
   }
 
   /** Escape: put back what was there before the double-click. */
@@ -5365,14 +5400,134 @@ ${d.action}`}
                         <aside className="fin-side">
                           <section className="finish-sec">
                             <h4>The bill</h4>
+                            {/* THE TWO FIGURES OPEN ON THE LINES THEY ARE MADE OF.
+                                Asked for as "things should be editable, even
+                                the bill". A gross typed over directly would be
+                                a total that disagrees with the rows above it,
+                                which is the exact fault this dialog was just
+                                fixed for: it quoted the catalogue while the
+                                script showed an authorised price. So neither
+                                total is typed. Each opens the lines behind it
+                                and those are typed, which is the only place the
+                                figure comes from.
+
+                                And it goes through the paths that already
+                                exist — setLinePrice and setLineClaim — so a
+                                change made here asks for the same code, writes
+                                the same override and leaves the same trail as
+                                one made on the script. A third way to change
+                                money would be a third thing to audit. */}
                             <dl className="ed-facts fin-facts">
                               <dt>Lines</dt><dd>{items.length}</dd>
-                              <dt>Gross</dt><dd>{pricing || split ? money(gross) : <span className="skel" style={{ width: 56 }} />}</dd>
+                              <dt>Gross</dt>
+                              <dd>
+                                {pricing || split ? (
+                                  <button type="button" className="fin-figure"
+                                          aria-expanded={billOpen === "gross"}
+                                          title="What each line comes to. Open it to change one."
+                                          onClick={() => { setBillEdit(null);
+                                            setBillOpen(billOpen === "gross" ? null : "gross"); }}>
+                                    {money(gross)}
+                                    <CaretDown size={10} weight="bold" aria-hidden="true" />
+                                  </button>
+                                ) : <span className="skel" style={{ width: 56 }} />}
+                              </dd>
                               {schemeCarries && (
-                                <><dt>{split!.scheme || "Scheme"} pays</dt><dd>{money(split.scheme_pays)}</dd></>
+                                <>
+                                  <dt>{split!.scheme || "Scheme"} pays</dt>
+                                  <dd>
+                                    <button type="button" className="fin-figure"
+                                            aria-expanded={billOpen === "claim"}
+                                            title={`What ${split!.scheme || "the scheme"} is asked for, line by line. `
+                                              + "Open it to change one. The patient covers the difference."}
+                                            onClick={() => { setBillEdit(null);
+                                              setBillOpen(billOpen === "claim" ? null : "claim"); }}>
+                                      {money(split.scheme_pays)}
+                                      <CaretDown size={10} weight="bold" aria-hidden="true" />
+                                    </button>
+                                  </dd>
+                                </>
                               )}
                               {fee > 0 && (<><dt>Delivery</dt><dd>{money(fee)}</dd></>)}
                             </dl>
+                            {billOpen !== null && (
+                              <ul className="fin-breakdown">
+                                {items.map((it, idx) => {
+                                  const qty = Math.max(1, it.quantity || 1);
+                                  // BOTH FIGURES OFF THE SAME BASIS AS THE TOTAL
+                                  // ABOVE THEM, which is the front end's own
+                                  // per-unit arithmetic and the one the claim
+                                  // estimate uses.
+                                  //
+                                  // The claim row first read `marginFor().claim`,
+                                  // off /api/script-totals, and that endpoint adds
+                                  // a dispensing fee on a scheme claim while the
+                                  // estimate does not. So the lines said $1.10 and
+                                  // $1.13 under a heading that said $0.18, which is
+                                  // a breakdown that breaks nothing down. The gap
+                                  // between those two endpoints is real and is not
+                                  // this dialog's to paper over; what this must not
+                                  // do is show a total made of one and rows made of
+                                  // the other.
+                                  const shown = billOpen === "gross"
+                                    ? lineEach(it) * (it.quantity || 0)
+                                    : (it.claim ?? lineEach(it) * (it.quantity || 0));
+                                  const busy = billOpen === "gross"
+                                    ? authorisingPrice === it.product.id
+                                    : authorisingClaim === it.product.id;
+                                  return (
+                                    <li key={it.product.id} className="fin-breakdown-row">
+                                      <span className="cell-text">{lineName(it.product)}</span>
+                                      {busy ? (
+                                        <span className="rx-price-waiting">
+                                          <CircleNotch size={11} className="spin" />
+                                          {money(shown)}
+                                        </span>
+                                      ) : billEdit === idx ? (
+                                        <input className="ed-money-input" autoFocus
+                                               inputMode="decimal"
+                                               aria-label={`${billOpen === "gross"
+                                                 ? "Amount" : "What the scheme is asked for"}`
+                                                 + ` for ${it.product.name}`}
+                                               value={billDraft}
+                                               onFocus={(e) => e.currentTarget.select()}
+                                               onChange={(e) => setBillDraft(e.target.value)}
+                                               onBlur={() => commitBillEdit(idx)}
+                                               onKeyDown={(e) => {
+                                                 if (e.key === "Enter") { e.preventDefault(); commitBillEdit(idx); }
+                                                 if (e.key === "Escape") {
+                                                   e.preventDefault(); setBillEdit(null); setBillDraft("");
+                                                 }
+                                               }} />
+                                      ) : (
+                                        <button type="button" className="fin-breakdown-fig"
+                                                title="Type a new figure. It needs a code."
+                                                onClick={() => {
+                                                  setBillEdit(idx);
+                                                  setBillDraft(shown.toFixed(2));
+                                                }}>
+                                          {money(shown)}
+                                          <PencilSimpleLine size={10} weight="bold" aria-hidden="true" />
+                                        </button>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                                {/* The heading is what the scheme will SETTLE;
+                                    these rows are what it is ASKED. They are
+                                    different questions and the cover rule sits
+                                    between them, so the one that is not being
+                                    typed is said in words rather than left to
+                                    look like an arithmetic error. */}
+                                {billOpen === "claim" && split && (
+                                  <li className="fin-breakdown-note">
+                                    What {split.scheme || "the scheme"} is asked
+                                    for. It settles at {money(split.scheme_pays)};
+                                    the patient covers the rest.
+                                  </li>
+                                )}
+                              </ul>
+                            )}
                             <div className="fin-due">
                               <span>{schemeCarries ? TERMS.shortfall : "Patient pays"}</span>
                               <b>{pricing || split ? money(dueNow + fee) : <span className="skel skel-num is-big" />}</b>

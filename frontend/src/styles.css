@@ -10330,6 +10330,52 @@ button.fin-ack { cursor: pointer; }
 .fin-note.is-warn { color: var(--warn); }
 .fin-note.is-bad { color: var(--danger); }
 .fin-facts { font-size: var(--t-md); }
+
+/* A TOTAL THAT OPENS ON THE LINES IT IS MADE OF.
+   It sits where a figure sat, so it has to read as that figure and not as a
+   button parked in a definition list: no fill, no border, the same weight and
+   the same tabular digits as the rows around it. The caret is the whole of the
+   affordance until the pointer arrives. */
+.fin-figure {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 4px; margin: -1px -4px;
+  background: none; border: 1px solid transparent; border-radius: var(--r-sm);
+  color: inherit; font: inherit; font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.fin-figure > svg { color: var(--ink-faint); }
+.fin-figure:hover { background: var(--surface-sunk); border-color: var(--line); }
+.fin-figure:hover > svg { color: var(--ink-soft); }
+.fin-figure[aria-expanded="true"] { background: var(--surface-sunk); border-color: var(--line); }
+.fin-figure[aria-expanded="true"] > svg { transform: rotate(180deg); color: var(--ink-soft); }
+
+/* The lines behind it. Indented under the total rather than boxed, because it
+   is the same list read one level closer, not a separate panel. */
+.fin-breakdown {
+  list-style: none; margin: 2px 0 0; padding: var(--s2) 0 var(--s2) var(--s3);
+  border-left: 2px solid var(--line);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.fin-breakdown-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2);
+  font-size: var(--t-sm); color: var(--ink-soft);
+}
+.fin-breakdown-fig {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 1px 4px; margin: -1px -4px;
+  background: none; border: 1px solid transparent; border-radius: var(--r-sm);
+  color: var(--ink); font: inherit; font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.fin-breakdown-fig > svg { color: var(--ink-faint); opacity: 0; }
+.fin-breakdown-fig:hover { background: var(--surface); border-color: var(--line); }
+.fin-breakdown-fig:hover > svg { opacity: 1; }
+.fin-breakdown .ed-money-input { width: 6rem; }
+.fin-breakdown-note {
+  display: block; margin-top: 2px;
+  font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.35;
+}
 .fin-due {
   display: flex; flex-direction: column; gap: 2px;
   margin-top: var(--s3); padding: var(--s3);
