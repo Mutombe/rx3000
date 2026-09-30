@@ -57,6 +57,35 @@ export function draftFrom(query: string): PatientDraft {
   };
 }
 
+/** Somebody already on file, as this form's fields.
+ *
+ *  Here rather than at each call site because there are now three: the patient
+ *  register's pencil, the dispensary's patient card, and this form's own
+ *  duplicate review. Three hand-written copies of fifteen field names is three
+ *  places for a new field to be forgotten, and the one that forgets it silently
+ *  blanks that field on save — `PUT /api/patients/{id}` replaces the record
+ *  rather than patching it, so a field missing from the draft is a field
+ *  cleared on the patient.
+ *
+ *  Nulls become empty strings because these are form inputs and a controlled
+ *  input given null is an uncontrolled input that React complains about.
+ */
+export function draftOf(p: Patient): PatientDraft {
+  return {
+    first_name: p.first_name ?? "", last_name: p.last_name ?? "",
+    id_number: p.id_number ?? "", date_of_birth: p.date_of_birth ?? "",
+    phone: p.phone ?? "", email: p.email ?? "", address: p.address ?? "",
+    allergies: p.allergies ?? "", chronic_conditions: p.chronic_conditions ?? "",
+    medical_aid_id: p.medical_aid_id ?? "",
+    medical_aid_number: p.medical_aid_number ?? "",
+    dependent_code: p.dependent_code ?? "00",
+    caregiver_name: p.caregiver_name ?? "",
+    caregiver_phone: p.caregiver_phone ?? "",
+    caregiver_relationship: p.caregiver_relationship ?? "",
+    contact_caregiver_first: p.contact_caregiver_first ?? false,
+  };
+}
+
 /** Somebody on file who may be the person being registered, and why. */
 interface DuplicateMatch {
   id: number;
@@ -363,7 +392,22 @@ export default function PatientForm({
               They're a different person. Add them
             </BusyButton>
           ) : (
-            <BusyButton type="submit" className="btn primary" disabled={!ready}
+            // NOT type="submit", which saved the patient TWICE. A submit button
+            // runs its own onClick and then submits the form, and this form's
+            // onSubmit is `save` as well, so one press sent two requests.
+            // BusyButton's "a second press is not a second request" guard does
+            // not catch it: both fire on the same tick, before the busy state it
+            // checks has been set.
+            //
+            // Measured on the dispensary's edit: two PUT /api/patients/1, both
+            // 200. Harmless on an edit, which is the same record written twice;
+            // on the register's Add it is two rows for one person, which is the
+            // fault this form keeps a duplicate check to prevent.
+            //
+            // Pressing Enter in a field still saves, through the form's own
+            // onSubmit. That is the path this button gives up, not the
+            // behaviour.
+            <BusyButton type="button" className="btn primary" disabled={!ready}
                         busyLabel={editing ? "Saving…" : "Checking…"}
                         onClick={() => save()}>
               {editing ? "Save patient" : "Add patient"}

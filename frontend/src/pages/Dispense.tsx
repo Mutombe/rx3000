@@ -62,7 +62,8 @@ import { EntityLink } from "../components/Filters";
 import PageHead from "../components/PageHead";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
-import PatientForm, { draftFrom } from "../components/PatientForm";
+import PatientForm, { draftFrom, draftOf, EMPTY_PATIENT as EMPTY_DRAFT }
+  from "../components/PatientForm";
 import NewMedicine, { MedicineDraft } from "../components/NewMedicine";
 import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
 import MarginTag, { shelfMargin } from "../components/MarginTag";
@@ -852,6 +853,15 @@ export default function Dispense() {
   const [showKeys, setShowKeys] = useState(false);
   /** Somebody at the counter who is not on file yet. */
   const [newPatient, setNewPatient] = useState(false);
+  /** Somebody on file whose details have just changed at the counter. */
+  const [editPatient, setEditPatient] = useState(false);
+  /** This patient as that form's fields.
+   *
+   *  Held steady rather than rebuilt each render: the form resets itself when
+   *  `initial` changes, and a fresh object every render is a change every
+   *  render, which wipes whatever is being typed as it is typed. */
+  const patientDraft = useMemo(
+    () => (patient ? draftOf(patient) : EMPTY_DRAFT), [patient]);
   // A medicine the catalogue has never heard of, added without leaving the
   // script. Holds the draft rather than a boolean so that a refusal can hand
   // the typing back instead of losing it.
@@ -5849,7 +5859,13 @@ ${d.action}`}
             )}
             {laneOpen === "details" && patient && (
               <PatientCardModal patient={patient} canLeave={items.length === 0}
-                                onClose={() => setLaneOpen(null)} />
+                                onClose={() => setLaneOpen(null)}
+                                // The card closes as the form opens. Both draw
+                                // their own backdrop, so leaving it open would
+                                // stack one dimmed sheet on another and the
+                                // form would appear to float over a screen
+                                // nobody can reach.
+                                onEdit={() => { setLaneOpen(null); setEditPatient(true); }} />
             )}
 
             {/* What a lane chip stands for, in full. */}
@@ -5920,6 +5936,30 @@ ${d.action}`}
       {/* Created here, selected here, dispensed to here. A dialog that closes
           and leaves you to search for what you just made is barely better than
           the navigation it replaced. */}
+      {/* THE SAME PATIENT, CHANGED WHERE THE CHANGE IS HEARD.
+          A second mount of the same form rather than a second form: the
+          register's pencil and this both PUT the whole record, so one of them
+          growing a field and the other not is how a record loses one.
+
+          `editing` is what turns it from a registration into an edit; without
+          it the form POSTs and the pharmacy gets a duplicate patient, which is
+          the exact fault its own duplicate check exists to prevent.
+
+          What is saved comes straight back as the lane's patient, so the
+          allergies chip, the cover chip, the claim estimate and the finish
+          dialog are all reading the new record within the same script. That is
+          the half that makes this worth having: an edit that persisted to the
+          database and not to the screen in front of the dispenser would be a
+          worse lie than no edit at all. */}
+      {patient && (
+        <PatientForm
+          open={editPatient}
+          editing={patient}
+          initial={patientDraft}
+          onClose={() => setEditPatient(false)}
+          onSaved={(p) => { setPatient(p); setEditPatient(false); }}
+        />
+      )}
       <PatientForm
         open={newPatient}
         initial={draftFrom(patientQ)}

@@ -9,7 +9,7 @@ import { api, fmtDate, prefetchRoute, errorText  } from "../api";
 import { Patient } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
-import PatientForm from "../components/PatientForm";
+import PatientForm, { draftOf } from "../components/PatientForm";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 import ExportButton from "../components/ExportButton";
@@ -94,16 +94,7 @@ export default function Patients() {
 
   function openEdit(p: Patient) {
     setEditing(p);
-    setForm({
-      first_name: p.first_name, last_name: p.last_name, id_number: p.id_number,
-      date_of_birth: p.date_of_birth ?? "", phone: p.phone, email: p.email, address: p.address,
-      allergies: p.allergies, chronic_conditions: p.chronic_conditions,
-      medical_aid_id: p.medical_aid_id ?? "", medical_aid_number: p.medical_aid_number,
-      dependent_code: p.dependent_code,
-      caregiver_name: p.caregiver_name ?? "", caregiver_phone: p.caregiver_phone ?? "",
-      caregiver_relationship: p.caregiver_relationship ?? "",
-      contact_caregiver_first: p.contact_caregiver_first ?? false,
-    });
+    setForm(draftOf(p));
     setShowForm(true);
   }
 
