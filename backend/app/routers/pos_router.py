@@ -8,7 +8,8 @@ from .. import auth, helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from .periods_router import require_step_up
-from ..models import (BatchAllocation, Claim, Patient, Product, Sale, SaleItem,
+from ..models import (BatchAllocation, Claim, Patient, Prescription,
+                      PrescriptionItem, Product, Sale, SaleItem,
                       SaleTender, User, PriceOverride,
 )
 from ..services import (claims_engine, currency, fefo, fiscal, pack_dates,
@@ -633,6 +634,13 @@ def _sale_graph():
         selectinload(Sale.items)
         .selectinload(SaleItem.allocations)
         .joinedload(BatchAllocation.batch),
+        # And the script each line came off, for `Sale.rx_number`. Without it
+        # that property is two lazy loads per LINE, which on the twenty rows
+        # this list returns is exactly the N+1 the rest of this graph exists to
+        # avoid — and it would be paid on every render of the till.
+        selectinload(Sale.items)
+        .joinedload(SaleItem.prescription_item)
+        .joinedload(PrescriptionItem.prescription),
         selectinload(Sale.tenders),
         joinedload(Sale.claim),
     )
@@ -643,25 +651,53 @@ def list_sales(status: str = "", q: str = "", limit: int = 100,
                db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """What the till has taken, newest first.
 
-    `q` searches the invoice number and the customer's name, which are the two
-    things anybody actually has when they ask: a slip in their hand, or the name
-    of the person who was standing there. The front shop had no history screen
-    at all until now, so this had never needed to answer a search.
+    `q` searches the invoice number, the customer's name, and the RX NUMBER of
+    the script the sale came off — the three things anybody actually has when
+    they ask: a slip in their hand, the name of the person standing there, or
+    the script itself.
+
+    The rx number was the one missing, and it is the one a cashier is holding
+    most often: a dispensary sale arrives at the till as a bag with a label on
+    it, and the label carries the script number and its barcode. Without this
+    the only way to find it was to recognise the patient's name in a list of
+    twenty, which is not a way to find anything in a queue.
+
+    `status` takes a comma separated list, because "awaiting payment" is two
+    states and not one. A sale somebody has part paid is still owed for, still
+    accepted by `pay_sale` below, and was invisible to the only screen that
+    collects it: the till asked for `pending` alone, so a part payment made a
+    sale vanish from the list it was waiting in.
+
+    The rx match is a subquery rather than a join, deliberately. Sale to line is
+    one to many, so joining it would return a sale once per line that matched
+    and the list would show the same bag three times.
 
     The patient is joined rather than lazily loaded — the list renders a name
     per row, and fifty rows was fifty extra queries against a hosted database.
     """
     query = db.query(Sale).options(*_sale_graph())
-    if status:
-        query = query.filter(Sale.status == status)
+    wanted = [s.strip() for s in (status or "").split(",") if s.strip()]
+    if len(wanted) == 1:
+        query = query.filter(Sale.status == wanted[0])
+    elif wanted:
+        query = query.filter(Sale.status.in_(wanted))
     term = (q or "").strip()
     if term:
         like = f"%{term.lower()}%"
+        off_a_script = (
+            db.query(SaleItem.sale_id)
+            .join(PrescriptionItem,
+                  SaleItem.prescription_item_id == PrescriptionItem.id)
+            .join(Prescription,
+                  PrescriptionItem.prescription_id == Prescription.id)
+            .filter(func.lower(Prescription.rx_number).like(like))
+        )
         query = (query.outerjoin(Patient, Sale.patient_id == Patient.id)
                  .filter(or_(
                      func.lower(Sale.sale_number).like(like),
                      func.lower(Patient.first_name).like(like),
                      func.lower(Patient.last_name).like(like),
+                     Sale.id.in_(off_a_script),
                  )))
     return query.order_by(Sale.created_at.desc()).limit(max(1, min(limit, 200))).all()
 

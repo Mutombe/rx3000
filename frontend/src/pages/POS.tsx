@@ -78,6 +78,10 @@ export default function POS() {
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [pending, setPending] = useState<Sale[]>([]);
   const [pendingUnknown, setPendingUnknown] = useState(false);
+  /** What the cashier is looking for: a script number, an invoice, or a name. */
+  const [pendingQ, setPendingQ] = useState("");
+  /** Bags still owed for that match a script number typed into the till box. */
+  const [scriptHits, setScriptHits] = useState<Sale[]>([]);
   const [history, setHistory] = useState<Sale[]>([]);
   const [historyUnknown, setHistoryUnknown] = useState(false);
   const [historyQ, setHistoryQ] = useState("");
@@ -145,6 +149,13 @@ export default function POS() {
   const { online } = useConnection();
 
   useEffect(() => { loadPending(); }, []);
+  // Searched on the server, because the twenty newest is not where a bag from
+  // Tuesday is. Debounced, or a scanned number fires a request per character as
+  // the wedge types it.
+  useEffect(() => {
+    const t = window.setTimeout(loadPending, pendingQ ? 300 : 0);
+    return () => window.clearTimeout(t);
+  }, [pendingQ]);
   // Optional hardware — absent agent simply means manual capture and browser printing
   useEffect(() => {
     deviceAgent.probe().then(setAgent).catch(() => setAgent(null));
@@ -184,7 +195,14 @@ export default function POS() {
   }>>({});
 
   function loadPending() {
-    api.get<Sale[]>("/api/pos/sales?status=pending&limit=20")
+    // BOTH STATES THAT ARE STILL OWED FOR.
+    // This asked for `pending` alone, so the moment a cashier took part of what
+    // was owed the sale became `part_paid` and vanished from the only list that
+    // collects it — while `pay_sale` on the server went on accepting it. The
+    // balance was findable through the patient's "owes" banner and nowhere
+    // else. A shortfall settled in two goes is an ordinary afternoon.
+    api.get<Sale[]>("/api/pos/sales?status=pending,part_paid&limit=20"
+      + (pendingQ.trim() ? `&q=${encodeURIComponent(pendingQ.trim())}` : ""))
       .then((r) => { setPending(r); setPendingUnknown(false); })
       // A `.finally` is not a `.catch`. This one turned the spinner off and
       // left an empty list behind, which on a till reads as "nothing is
@@ -223,7 +241,33 @@ export default function POS() {
     loadPending();
   }, [settleId]);
 
+  /** Does this look like a script number rather than a medicine?
+   *
+   *  `RX` and then digits. Read rather than asked of the server on every
+   *  keystroke: the till's box is a product search and firing a second lookup
+   *  for "parac" against the sales table would be two round trips a character
+   *  to answer a question nobody asked.
+   *
+   *  Deliberately a shape and not a length. Numbers issued by `next_number` are
+   *  RX + yymm + five digits, but the portal writes DR-prefixed ones and older
+   *  data carries shorter ones, so anything beginning RX with digits after it
+   *  is offered and the server decides whether it exists.
+   */
+  const looksLikeScript = (text: string) => /^rx[- ]?\d{3,}$/i.test(text.trim());
+
   useEffect(() => {
+    // A script typed in full, rather than scanned. Offered as soon as it is
+    // recognisable, so somebody reading the number off a label gets the bag
+    // without having to know that the pending tab is where scripts live.
+    if (looksLikeScript(scan)) {
+      setResults([]);
+      api.get<Sale[]>("/api/pos/sales?status=pending,part_paid&limit=6"
+        + `&q=${encodeURIComponent(scan.trim())}`)
+        .then(setScriptHits)
+        .catch(() => setScriptHits([]));
+      return;
+    }
+    setScriptHits([]);
     if (scan.length < 2) { setResults([]); return; }
     // Only what a till may lawfully sell. This searched the whole catalogue,
     // so a cashier could find a prescription medicine, basket it and be
@@ -295,6 +339,18 @@ export default function POS() {
   }
 
   function onScanned(result: ScanResult) {
+    // A SCRIPT, NOT A PRODUCT.
+    //
+    // `/api/scan` has always answered with `kind: "prescription"` when the code
+    // is an rx number, and the dispensary has always acted on it. The till
+    // never looked: a script barcode came back found, with no product and no
+    // suggestions, fell through the branch below and returned in silence. So
+    // scanning the label stapled to the bag — the one thing a cashier is
+    // holding — did nothing at all, and said nothing about doing nothing.
+    if (result.found && result.kind === "prescription" && result.prescription) {
+      void billScript(result.prescription.rx_number);
+      return;
+    }
     if (!result.found || !result.product) {
       // Exactly one candidate is not a guess, it is the answer.
       if (result.suggestions.length === 1) {
@@ -887,6 +943,63 @@ export default function POS() {
     }
   }
 
+  /** A script number, scanned or typed, put in front of the cashier to bill.
+   *
+   *  The bag on the counter carries a label with the script number on it and a
+   *  barcode of that same number. Until now the only way to find what it owed
+   *  was to recognise the patient's name in the Awaiting payment list, which in
+   *  a queue is not a way of finding anything.
+   *
+   *  It answers in three ways and each is said out loud, because the wrong one
+   *  silently is how a patient walks out unbilled:
+   *
+   *    nothing owed      the script exists and has been paid for, or was taken
+   *                      here and settled at the point of dispensing.
+   *    one sale          the ordinary case. It opens on the settle dialog with
+   *                      the shortfall already in it.
+   *    more than one     shown in the list rather than guessed at.
+   *
+   *  It asks the server rather than filtering `pending`, because that list is
+   *  the twenty newest and the bag in somebody's hand may be older than twenty.
+   */
+  async function billScript(rx: string) {
+    const number = (rx || "").trim();
+    if (!number) return;
+    try {
+      const found = await api.get<Sale[]>(
+        `/api/pos/sales?status=pending,part_paid&limit=20`
+        + `&q=${encodeURIComponent(number)}`);
+      const mine = found.filter((s) => (s.rx_number || "") === number);
+      const rows = mine.length ? mine : found;
+      if (rows.length === 0) {
+        toast.warn(`${number} has nothing waiting to be paid for. `
+          + "It is either settled already or was never dispensed.");
+        setTab("pending");
+        setPendingQ(number);
+        return;
+      }
+      if (rows.length > 1) {
+        toast.warn(`${number} has ${rows.length} sales still owing. `
+          + "Pick the one being collected.");
+        setTab("pending");
+        setPendingQ(number);
+        return;
+      }
+      const sale = rows[0];
+      setTab("pending");
+      setPendingQ(number);
+      // Straight to the money. Cash, because the shortfall on a dispensary bag
+      // is settled in cash at the counter more often than anything else, and
+      // the dialog lets it be changed before anything is taken.
+      setSettling({ sale, method: "cash" });
+      setScan("");
+    } catch (e: any) {
+      // Never silently. A cashier who scanned and saw nothing assumes the
+      // scanner missed and scans again.
+      toast.error(errorText(e, `${number} could not be looked up. Try again.`));
+    }
+  }
+
   async function settlePending(sale: Sale, method: string,
                               confirmed?: { method: string; currency_code: string;
                                             amount: number; reference: string }[]) {
@@ -1071,6 +1184,21 @@ export default function POS() {
 
       {tab === "pending" ? (
         <div className="card">
+          {/* FIND THE BAG, RATHER THAN RECOGNISE IT.
+              A dispensary sale arrives here as a bag with a label on it, and
+              the label carries the script number. The list was the twenty
+              newest with no way to search them, so a cashier holding RX260900015
+              had to know which customer it belonged to and spot the name. */}
+          <div className="toolbar">
+            <input type="search" id="pos-find" value={pendingQ}
+                   aria-label="Find a sale by script number, invoice number or name"
+                   placeholder="Scan or type a script number, invoice number or name…"
+                   onChange={(e) => setPendingQ(e.target.value)} />
+            {pendingQ.trim() !== "" && (
+              <button type="button" className="btn secondary"
+                      onClick={() => setPendingQ("")}>Show everything</button>
+            )}
+          </div>
           <Refreshable
             loading={pendingLoading}
             hasData={pending.length > 0}
@@ -1090,6 +1218,15 @@ export default function POS() {
                   <td className="mono">
                     <EntityLink kind="sale" id={s.id}>{s.sale_number}</EntityLink>
                     {settleId === s.id && <span className="muted small"> · just dispensed</span>}
+                    {/* Which script this bag is. It is what the cashier just
+                        searched for or scanned, and answering in invoice
+                        numbers alone is answering in a language they did not
+                        ask in. */}
+                    {s.rx_number && (
+                      <div className="cell-note" title={`Dispensed against ${s.rx_number}`}>
+                        {s.rx_number}
+                      </div>
+                    )}
                     {/* On a driver's account. Said on the row, because the row
                         is where somebody is about to press Cash. */}
                     {outWith[String(s.id)] && (
@@ -1255,7 +1392,11 @@ export default function POS() {
               onValueChange={setScan}
               onResolved={onScanned}
               onCorrect={onCorrected}
-              placeholder="Scan a barcode, or type a product name…"
+              // It takes a script too, and has since `/api/scan` learned to
+              // resolve one; the box just never said so and this screen never
+              // acted on it. A placeholder that names two of the three things
+              // it accepts is a feature nobody finds.
+              placeholder="Scan a pack or a script, or type a product or Rx number…"
               cameraTitle="Scan items"
               // The basket travels with the camera. Scanning a trolley of
               // front-shop items without seeing what has gone in is how you
@@ -1284,6 +1425,34 @@ export default function POS() {
               }
               autoFocus
             />
+            {/* A SCRIPT TYPED INTO THE TILL'S OWN BOX.
+                Same place the product results appear, because it is the same
+                question — what is this thing in my hand — and a second search
+                box for scripts would make the cashier decide which kind of
+                thing they are holding before they are allowed to look it up. */}
+            {scriptHits.map((s) => (
+              <div key={`rx${s.id}`} className="product-pick"
+                   onClick={() => { setSettling({ sale: s, method: "cash" }); setScan(""); }}>
+                <span>
+                  <b>{s.rx_number || s.sale_number}</b>{" "}
+                  <span className="muted">
+                    {s.patient ? `${s.patient.first_name} ${s.patient.last_name}` : "Walk-in"}
+                    {s.status === "part_paid" ? " · part paid" : ""}
+                  </span>
+                </span>
+                <span className="muted">
+                  {money(patientOwes(s))} to pay
+                </span>
+              </div>
+            ))}
+            {looksLikeScript(scan) && scriptHits.length === 0 && (
+              <div className="pick-none">
+                <span>
+                  Nothing is waiting to be paid for on &ldquo;{scan.trim()}&rdquo;.
+                  It is either settled already or was never dispensed.
+                </span>
+              </div>
+            )}
             {results.map((p) => (
               <div key={p.id} className="product-pick" onClick={() => addToCart(p)}>
                 <span>

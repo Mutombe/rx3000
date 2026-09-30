@@ -1219,6 +1219,39 @@ class Sale(Base, TenantMixin):
     items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")
     claim = relationship("Claim", back_populates="sale", uselist=False)
 
+    @property
+    def rx_number(self) -> str:
+        """The script this sale came off, or empty for a counter sale.
+
+        Derived rather than stored. There is no `Sale.prescription_id` and
+        there should not be: one sale can settle more than one script, and a
+        column would have to pick one of them and be quietly wrong about the
+        rest. The link that does exist is per line —
+        `SaleItem.prescription_item_id` — and it is the truthful one.
+
+        Here because the till now finds a sale BY this number, and a cashier who
+        searches RX260900015 and is shown a list of invoice numbers has been
+        answered in a language they did not ask in. The row says which script it
+        is.
+
+        The first script found, in line order, because a bag handed over the
+        counter is one script in practice and the label on it says so. Where a
+        sale really does span two, the number shown is the one on the first
+        line, and the lines themselves carry the rest.
+
+        Walks what is already loaded. `_sale_graph` in the till's router eager
+        loads the line, its prescription item and that item's script, so this
+        costs nothing there; anywhere that has not, it is a lazy load per line
+        and the caller should add it.
+        """
+        for line in self.items:
+            item = getattr(line, "prescription_item", None)
+            script = getattr(item, "prescription", None) if item else None
+            number = getattr(script, "rx_number", None) if script else None
+            if number:
+                return number
+        return ""
+
 
 class SaleItem(Base, TenantMixin):
     __tablename__ = "sale_items"

@@ -180,6 +180,10 @@ export interface SaleItem {
 export interface Sale {
   id: number;
   sale_number: string;
+  /** The script this came off, or empty for a counter sale. Derived on the
+   *  server from the sale's own lines: one sale can settle more than one
+   *  script, so there is no column for it. */
+  rx_number?: string;
   /** Who rang it up — on a dispensary sale, the dispenser. */
   cashier_id?: number | null;
   cashier_name?: string;

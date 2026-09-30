@@ -976,6 +976,11 @@ class ClaimOut(ORM):
 class SaleOut(ORM):
     id: int
     sale_number: str
+    #: The script this came off, or empty for a counter sale. Derived on the
+    #: model from the sale's own lines — see `Sale.rx_number` for why it is not
+    #: a column. The till searches on it and shows it, because a bag on the
+    #: counter is identified by the label stapled to it and that label says RX.
+    rx_number: str = ""
     #: Who rang it up, and who took the money — two people on a dispensary sale,
     #: and each answers only for their own half of it.
     cashier_id: Optional[int] = None

@@ -236,6 +236,14 @@ def patient_sales(patient_id: int, db: Session = Depends(get_db)):
         .options(selectinload(Sale.items)
                  .selectinload(SaleItem.allocations)
                  .joinedload(BatchAllocation.batch),
+                 # And the script each line came off, for `Sale.rx_number`.
+                 # Without it that property is two lazy loads per line across a
+                 # hundred sales, which is the N+1 the rest of this graph was
+                 # written to remove, reintroduced by a field being added to
+                 # the schema somewhere else.
+                 selectinload(Sale.items)
+                 .joinedload(SaleItem.prescription_item)
+                 .joinedload(PrescriptionItem.prescription),
                  selectinload(Sale.tenders),
                  joinedload(Sale.claim),
                  joinedload(Sale.patient).joinedload(Patient.medical_aid))
