@@ -862,6 +862,19 @@ PER_TENANT_NUMBERS: list[tuple[str, str]] = [
 ]
 
 
+def _unique_constraints(inspector, table: str) -> list[dict]:
+    """A table's named UNIQUE constraints, or nothing where the driver cannot say.
+
+    `get_unique_constraints` is optional in SQLAlchemy's dialect contract and
+    raises NotImplementedError rather than returning empty on drivers that do
+    not implement it. Asked in two places here, so the try sits in one.
+    """
+    try:
+        return list(inspector.get_unique_constraints(table))
+    except NotImplementedError:                       # pragma: no cover
+        return []
+
+
 def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
     """Move each document number's uniqueness from the estate to the pharmacy.
 
@@ -881,8 +894,30 @@ def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
 
         indexes = {i["name"]: i for i in inspector.get_indexes(table)}
         composite = f"uq_{table}_tenant_{column}"
-        if composite in indexes:
-            continue                                  # already moved
+        #: Whether the old estate-wide uniqueness is still on this column, as
+        #: either a constraint or a plain unique index.
+        estate_wide = any(
+            i.get("unique") and i["column_names"] == [column]
+            for i in indexes.values()
+        ) or any(
+            u["column_names"] == [column]
+            for u in _unique_constraints(inspector, table)
+        )
+        # HAVING THE NEW ONE IS NOT THE SAME AS BEING RID OF THE OLD ONE.
+        #
+        # This read "if composite in indexes: continue", and that is true of
+        # every database where the composite was created but the single-column
+        # constraint could not be dropped — which is every SQLite file, because
+        # SQLite cannot drop a table constraint without rebuilding the table.
+        #
+        # So on exactly the files where the estate-wide unique survives, this
+        # pass decided it had already done its work and returned, and the
+        # warning below — written for this case, naming this failure — was
+        # never reached. Measured on the demonstration database: claims carried
+        # both uq_claims_tenant_claim_number AND a table-level
+        # UNIQUE (claim_number), and nothing said so.
+        if composite in indexes and not estate_wide:
+            continue                                  # genuinely already moved
 
         # A UNIQUE constraint and a unique index are the same thing to read and
         # different things to drop, and which one you have depends on whether
@@ -892,13 +927,9 @@ def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
         # well, and then refuses to drop it: "cannot drop index … because
         # constraint … requires it". So the constraint is looked for FIRST and
         # dropped by name; only a plain index is dropped as an index.
-        constraint = None
-        try:
-            constraint = next(
-                (u["name"] for u in inspector.get_unique_constraints(table)
-                 if u["column_names"] == [column] and u.get("name")), None)
-        except NotImplementedError:                   # pragma: no cover
-            constraint = None
+        constraint = next(
+            (u["name"] for u in _unique_constraints(inspector, table)
+             if u["column_names"] == [column] and u.get("name")), None)
 
         dropped = False
         if constraint and conn.dialect.name.startswith("postgres"):
@@ -2026,14 +2057,44 @@ def _say_if_sqlite_holds_an_estate(engine: Engine) -> None:
     try:
         with engine.begin() as conn:
             shops = conn.execute(text("SELECT COUNT(*) FROM pharmacies")).scalar()
+            if (shops or 0) <= 1:
+                return
+            # WHICH ONES, AND ONLY IF ANY.
+            #
+            # This warned on every boot of every multi-pharmacy SQLite file,
+            # whatever its tables actually carried. Once the constraints have
+            # been taken off — tools/estate_wide_numbers.py does that — the
+            # sentence is simply untrue, and a warning that is untrue on every
+            # boot is a warning nobody reads on the boot it matters.
+            #
+            # So it asks. `sqlite_master` holds each table's CREATE statement
+            # verbatim, and a single-column UNIQUE is in that text.
+            inspector = inspect(conn)
+            stuck = []
+            for table, column in PER_TENANT_NUMBERS:
+                sql = conn.execute(text(
+                    "SELECT sql FROM sqlite_master WHERE type='table' "
+                    "AND name = :t"), {"t": table}).scalar()
+                if not sql:
+                    continue
+                if re.search(r"UNIQUE\s*\(\s*[\"`\[]?"
+                             + re.escape(column) + r"[\"`\]]?\s*\)",
+                             sql, re.IGNORECASE):
+                    stuck.append(f"{table}.{column}")
+                    continue
+                if any(i.get("unique") and i["column_names"] == [column]
+                       and not i["name"].startswith(f"uq_{table}_tenant_")
+                       for i in inspector.get_indexes(table)):
+                    stuck.append(f"{table}.{column}")
     except Exception:  # noqa: BLE001 - a fresh file has no table yet
         return
-    if (shops or 0) > 1:
+    if stuck:
         log.warning(
-            "This SQLite file holds %d pharmacies. Document numbers are still "
-            "unique across the WHOLE file here — SQLite cannot drop the "
-            "estate-wide constraint without rebuilding the table — so a number "
-            "free in one pharmacy may be refused because another holds it. A "
-            "dispensing to a scheme can answer 500 for that reason and no "
-            "other. It does not happen on Postgres. One file per pharmacy, or "
-            "run against Postgres.", shops)
+            "This SQLite file holds %d pharmacies and %d document number(s) "
+            "are still unique across the WHOLE file: %s. SQLite cannot drop an "
+            "estate-wide constraint without rebuilding the table, so a number "
+            "free in one pharmacy may be refused because another holds it, and "
+            "a dispensing to a scheme answers 500 for that reason and no "
+            "other. It does not happen on Postgres. Run "
+            "tools/estate_wide_numbers.py, use one file per pharmacy, or run "
+            "against Postgres.", shops, len(stuck), ", ".join(stuck))
