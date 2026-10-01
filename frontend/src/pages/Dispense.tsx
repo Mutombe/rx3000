@@ -248,38 +248,6 @@ function patientPortion(sale: Sale): number {
   return Math.max(0, Number(claim.patient_liable ?? sale.total));
 }
 
-const PAY_CHOICES = [
-  // "the shortfall" rather than "the invoice": on a scheme member the till
-  // collects the patient's share, not the gross, and the choice should say so
-  // where the choice is made.
-  { key: "till", label: "Send to till",
-    hint: "Raise it now; the patient settles their share at the front shop" },
-  // "Take payment now" was here: cash, card, mobile or a mix, collected at the
-  // dispensary counter. It is gone, and not because it did not work.
-  //
-  // No money is taken at a dispensary. The drawer, the shift and the person who
-  // answers for what is in it are all at the till, so money taken at this
-  // counter is money outside the drawer it will be counted against. What
-  // happens here is the claim; everything else is settled at the front shop.
-  //
-  // That leaves three things that can happen to a dispensed script, and they
-  // are the three below: it waits at the till, it goes out with a driver who
-  // collects at the door, or it is claimed from a scheme and whatever the
-  // scheme leaves waits at the till too.
-  // The third thing that actually happens to a dispensed script, and the
-  // screen had no word for it. A delivery leaves the building unpaid: the
-  // driver collects at the door and the money is theirs to account for until
-  // they hand it in, so the sale goes onto the driver's account rather than
-  // sitting on a till nobody is standing at.
-  { key: "delivery", label: "Out for delivery",
-    hint: "The driver collects at the door and hands it in on their return" },
-  // Paid by the scheme, from the card in the patient's hand. Chosen here, the
-  // scheme and member number are whatever the card says — filled from the
-  // patient where they are on file, typed where they are not — and the claim is
-  // sent or held as the counter decides, with the shortfall taken on the spot.
-  { key: "aid", label: "Medical aid",
-    hint: "Claim from the scheme on the card; any shortfall is paid at the till" },
-];
 
 export default function Dispense() {
   const session = useSession();
@@ -460,14 +428,13 @@ export default function Dispense() {
   // is one click away.
   //
   // Unless the patient is on a scheme, in which case the screen already knows.
-  // The card is on the record and the claim panel below is already filled in
-  // from it, and the dispenser still had to press "Medical aid" on every
-  // script to reach a panel that was waiting for them. `payHowSet` records
-  // that somebody chose for themselves, so the default never overrides a real
-  // decision or a restored draft.
-  const [payHow, setPayHow] = useState("till");
-  const payHowSet = useRef(false);
-  const choosePayHow = (key: string) => { payHowSet.current = true; setPayHow(key); };
+  /** Going out with a driver. Ticked on the console, before Finish opens.
+   *
+   *  It used to be one of three buttons in the finish dialog under "How it is
+   *  paid", and it is not a way of paying: it is a fact about the supply that
+   *  the dispenser knows before they start, usually before the first medicine
+   *  goes on. Asked where it is known. */
+  const [deliver, setDeliver] = useState(false);
   /** Who is taking it, and where. Only asked for on the delivery route. */
   const [drivers, setDrivers] = useState<{ id: number; full_name: string;
     active: boolean; cash_holding?: number; cod_limit?: number;
@@ -481,7 +448,7 @@ export default function Dispense() {
     // Fetched when the route is chosen, not on load: a dispensary that never
     // delivers should not pay for the request, and the list is short enough
     // that asking on demand is instant.
-    if (payHow !== "delivery" || drivers.length) return;
+    if (!deliver || drivers.length) return;
     api.get<typeof drivers>("/api/drivers")
       .then((rows) => {
         setDrivers(rows);
@@ -493,39 +460,59 @@ export default function Dispense() {
         if (active.length === 1) setDriverId(active[0].id);
       })
       .catch(() => setDrivers([]));
-  }, [payHow]);
+  }, [deliver]);
 
   // The address it is going to. Taken from the patient the moment a driver is
   // needed, because a delivery to an address nobody typed is a parcel that
   // comes back.
   useEffect(() => {
-    if (payHow === "delivery" && !deliverTo && patient?.address) {
+    if (deliver && !deliverTo && patient?.address) {
       setDeliverTo(patient.address);
     }
-  }, [payHow, patient?.id]);
+  }, [deliver, patient?.id]);
   /** Paid by medical aid: the card at the counter. */
   const [schemes, setSchemes] = useState<{ id: number; name: string }[]>([]);
   const [aidScheme, setAidScheme] = useState<number | "">("");
   const [aidMember, setAidMember] = useState("");
   const [aidDep, setAidDep] = useState("00");
-  const [aidHold, setAidHold] = useState(false);
+  /** What happens to the claim: sent now, held, or not raised at all.
+   *
+   *  "Not this time" was previously expressed by choosing "Send to till"
+   *  INSTEAD of "Medical aid" — a payment choice standing in for a claiming
+   *  decision. With that chooser gone it says so directly, and it belongs here
+   *  because this is where the scheme is. */
+  const [aidWhen, setAidWhen] = useState<"now" | "hold" | "none">("now");
   const [aidHoldReason, setAidHoldReason] = useState("");
+
+  /** What happens to this script once it leaves the shelf.
+   *
+   *  DERIVED, not chosen. The finish dialog used to open on three buttons —
+   *  Send to till, Out for delivery, Medical aid — and every one of them was
+   *  already known by the time anybody looked at them:
+   *
+   *    delivery   ticked on the console, because the dispenser knows before
+   *               they start that this one is going out with a driver
+   *    aid        the patient has a scheme and nobody said not to claim it
+   *    till       everything else, which is the ordinary case and needs no
+   *               saying: the toast after dispensing says where it went
+   *
+   *  So the question was asked three times a script and the answer was on the
+   *  screen each time. It is read rather than asked now.
+   */
+  const claiming = !!patient?.medical_aid_id && aidWhen !== "none";
+  const payHow = deliver ? "delivery" : claiming ? "aid" : "till";
   useEffect(() => {
     if (payHow !== "aid" || schemes.length) return;
     api.get<typeof schemes>("/api/medical-aids").then(setSchemes).catch(() => setSchemes([]));
   }, [payHow]);
-  // A member's script is a claim unless somebody says otherwise.
-  useEffect(() => {
-    if (payHowSet.current) return;
-    setPayHow(patient?.medical_aid_id ? "aid" : "till");
-  }, [patient?.medical_aid_id]);
+
   // Whatever the patient's record holds, as the starting point: most members
   // show the same card every month, and retyping it is where numbers go wrong.
   useEffect(() => {
     setAidScheme(patient?.medical_aid_id ?? "");
     setAidMember(patient?.medical_aid_number ?? "");
     setAidDep(patient?.dependent_code || "00");
-    setAidHold(false);
+    setAidWhen("now");
     setAidHoldReason("");
   }, [patient?.id]);
   const [currencyState, setCurrencyState] = useState<any>(null);
@@ -2064,8 +2051,8 @@ export default function Dispense() {
         // The waybill section is what appears when this script is going out
         // with a driver, so the key sets that rather than revealing a panel
         // whose condition is somewhere else.
-        setPayHow("delivery");
-        openFinish("finish-pay");
+        setDeliver(true);
+        openFinish("finish-delivery");
       } },
     // Auth — the scheme's authorisation number, without which the claim is
     // raised and refused.
@@ -2159,7 +2146,8 @@ export default function Dispense() {
     if (payHow === "aid") {
       if (aidScheme === "") return "Choose the medical aid scheme on the card.";
       if (!aidMember.trim()) return "Enter the member number from the card.";
-      if (aidHold && aidHoldReason.trim().length < 3) return "Say why the claim is being held.";
+      if (aidWhen === "hold" && aidHoldReason.trim().length < 3)
+        return "Say why the claim is being held.";
       // The shortfall used to be refused here until it had been tendered on
       // this screen. It is not tendered on this screen any more — it is paid at
       // the till — so insisting on it would block a dispensing for money nobody
@@ -2744,7 +2732,7 @@ export default function Dispense() {
       patient, doctorId, items, fromRx, initials, idNumber, complianceNotes,
       idVerified, scriptSighted, prescriberVerified, counselPoints, counselNotes,
       scanChecks, packExpiry, payHow, driverId, deliverTo, deliveryFee,
-      printPick, aidScheme, aidMember, aidDep, aidHold, aidHoldReason,
+      printPick, aidScheme, aidMember, aidDep, aidWhen, aidHoldReason, deliver,
     };
     const said = `${fromRx?.number ?? "This script"} for ${patient.first_name} ${patient.last_name}`;
 
@@ -2841,12 +2829,13 @@ export default function Dispense() {
         setScriptSighted(before.scriptSighted); setPrescriberVerified(before.prescriberVerified);
         setCounselPoints(before.counselPoints); setCounselNotes(before.counselNotes);
         setScanChecks(before.scanChecks); setPackExpiry(before.packExpiry);
-        payHowSet.current = true;
-        setPayHow(before.payHow); setDriverId(before.driverId);
+        // `payHow` is derived now, so what is put back is what it is derived
+        // FROM. Restoring it directly would have been restoring a reading.
+        setDeliver(before.deliver); setDriverId(before.driverId);
         setDeliverTo(before.deliverTo); setDeliveryFee(before.deliveryFee);
         setPrintPick(before.printPick); setAidScheme(before.aidScheme);
         setAidMember(before.aidMember); setAidDep(before.aidDep);
-        setAidHold(before.aidHold); setAidHoldReason(before.aidHoldReason);
+        setAidWhen(before.aidWhen); setAidHoldReason(before.aidHoldReason);
         setWorklistNonce((n) => n + 1);
       },
     });
@@ -2961,7 +2950,8 @@ export default function Dispense() {
           claim: {
             medical_aid_id: aidScheme, member_number: aidMember.trim(),
             dependent_code: aidDep.trim() || "00",
-            hold: aidHold, hold_reason: aidHold ? aidHoldReason.trim() : "",
+            hold: aidWhen === "hold",
+            hold_reason: aidWhen === "hold" ? aidHoldReason.trim() : "",
           },
         } : {}),
       }, token),
@@ -3188,8 +3178,13 @@ export default function Dispense() {
   const aidCard = payHow === "aid" && aidScheme !== ""
     ? { medical_aid_id: aidScheme, member_number: aidMember } : {};
   /** Whether the bill should show the scheme carrying part of it. */
-  const claimHeld = payHow === "aid" && aidHold;
-  const schemeCarries = !!split?.covered && !claimHeld;
+  const claimHeld = payHow === "aid" && aidWhen === "hold";
+  // AND ONLY IF A CLAIM IS ACTUALLY GOING.
+  // `split` is an estimate against the card on the record, and it is computed
+  // whether or not anybody means to claim. Without `claiming` here, choosing
+  // "Not this time" left the bill reading SHORTFALL and showing the scheme's
+  // share of a claim nobody was raising — the patient owes the whole of it.
+  const schemeCarries = claiming && !!split?.covered && !claimHeld;
   const splitKey = JSON.stringify(pricedItems) + `|${patient?.id ?? ""}|${JSON.stringify(aidCard)}`;
   useEffect(() => {
     if (!items.length) { setSplit(null); return; }
@@ -3217,8 +3212,12 @@ export default function Dispense() {
       (n, i) => n + lineEach(i) * (i.quantity || 0), 0);
     // A held claim has not been sent, so nothing is promised on the scheme's
     // behalf: the patient settles the whole of it, as the server records.
-    setDueNow(payHow === "aid" && aidHold ? gross : split ? split.patient_pays : gross);
-  }, [items, split, payHow, aidHold]);
+    // The patient owes the whole of it unless a claim is actually on its way:
+    // a held claim has not been sent, and "not this time" is not being sent at
+    // all. Only a claim going NOW promises anything on the scheme's behalf.
+    setDueNow(claiming && aidWhen === "now" && split
+      ? split.patient_pays : gross);
+  }, [items, split, claiming, aidWhen]);
 
   /** The quote, as something a patient can take away and think about.
    *
@@ -4784,6 +4783,23 @@ ${d.action}`}
                 )}
               </div>
               <div className="disp-commit-row">
+                {/* WHETHER IT LEAVES THE BUILDING, ASKED WHERE IT IS KNOWN.
+                    This was a button in the finish dialog, under "How it is
+                    paid", which it is not: a delivery is paid at the door like
+                    anything else, and the dispenser knows it is a delivery
+                    before the first medicine goes on the script — usually
+                    before the patient has finished speaking.
+
+                    Here it is a fact about the supply, set while the script is
+                    built, and the driver and address panel appears in Finish
+                    because of it rather than because somebody pressed a tab to
+                    go looking for it. */}
+                {!quoting && (
+                  <Checkbox checked={deliver} onChange={setDeliver}
+                            id="disp-deliver">
+                    Out for delivery
+                  </Checkbox>
+                )}
                 {needsInitials && !quoting && (
                   <div className={`lane-field disp-initials${initials.trim() ? " is-signed" : ""}`}>
                     <input id="disp-initials" value={initials} maxLength={8}
@@ -5197,31 +5213,28 @@ ${d.action}`}
                     ) : (
                       <div className={`fin-grid${needsCompliance ? " is-three" : ""}`}>
                         <section className="finish-sec" id="finish-pay">
-                          <h4>How it is paid</h4>
-                          <div className="seg fin-seg" role="radiogroup" aria-label="How this is paid for">
-                            {PAY_CHOICES.map((c) => (
-                              <button key={c.key} type="button" role="radio"
-                                      aria-checked={payHow === c.key}
-                                      className={payHow === c.key ? "on" : ""}
-                                      onClick={() => choosePayHow(c.key)}>
-                                {c.label}
-                              </button>
-                            ))}
-                          </div>
-                          <p className="fin-hint">{PAY_CHOICES.find((c) => c.key === payHow)?.hint}</p>
+                          {/* NO "HOW IT IS PAID" CHOOSER.
+                              Three buttons stood here — Send to till, Out for
+                              delivery, Medical aid — and every one of them was
+                              already known by the time anybody read them.
 
-                          {payHow === "till" && (
-                            <div className="fin-panel">
-                              <Receipt size={18} />
-                              <span>
-                                An invoice for <b>{money(dueNow)}</b> is raised now and waits at the
-                                till, where the patient settles it.
-                              </span>
-                            </div>
-                          )}
+                              Delivery is ticked on the console, because the
+                              dispenser knows that before the first medicine
+                              goes on. A scheme is on the patient's record.
+                              Everything else is the till, which is the
+                              ordinary case and needs no button: the toast
+                              after dispensing says where it went.
 
+                              So what is left is the two panels that carry real
+                              work — the card, and the driver — each appearing
+                              because of a fact rather than because somebody
+                              pressed a tab to reveal it.
 
-                          {payHow === "aid" && (
+                              The "An invoice waits at the till" panel went with
+                              them. It restated the one thing that is now
+                              simply true of every script, in a dialog that had
+                              to be scrolled. */}
+                          {!!patient?.medical_aid_id && (
                             <div className="fin-panel is-form fin-aid" id="finish-aid">
                               <div className="fin-aid-card">
                                 <div className="field">
@@ -5250,17 +5263,25 @@ ${d.action}`}
                                 </div>
                               </div>
                               <div className="fin-aid-row">
-                              <div className="seg fin-aid-when" role="radiogroup" aria-label="When the claim is sent">
-                                <button type="button" role="radio" aria-checked={!aidHold}
-                                        className={!aidHold ? "on" : ""} onClick={() => setAidHold(false)}>
-                                  Claim now
-                                </button>
-                                <button type="button" role="radio" aria-checked={aidHold}
-                                        className={aidHold ? "on" : ""} onClick={() => setAidHold(true)}>
-                                  Hold the claim
-                                </button>
+                              {/* Three, because not claiming is a decision about
+                                  the claim and used to be expressed by choosing
+                                  a different way of PAYING. A member who has
+                                  left the card at home is not a cash patient;
+                                  they are a member whose claim is not going
+                                  today. */}
+                              <div className="seg fin-aid-when" role="radiogroup" aria-label="What happens to the claim">
+                                {([["now", "Claim now"],
+                                   ["hold", "Hold the claim"],
+                                   ["none", "Not this time"]] as const).map(([key, label]) => (
+                                  <button key={key} type="button" role="radio"
+                                          aria-checked={aidWhen === key}
+                                          className={aidWhen === key ? "on" : ""}
+                                          onClick={() => setAidWhen(key)}>
+                                    {label}
+                                  </button>
+                                ))}
                               </div>
-                              {aidHold && (
+                              {aidWhen === "hold" && (
                                 <input id="aid-hold-reason" className="fin-aid-reason" value={aidHoldReason}
                                        maxLength={200}
                                        placeholder="Why. Scheme offline, authorisation pending, card not here…"
@@ -5277,7 +5298,7 @@ ${d.action}`}
                                   rather than discovered there. It does not
                                   block. A pharmacy may well claim anyway and
                                   chase the code afterwards. */}
-                              {aidScheme !== "" && items.length > 0 && (
+                              {claiming && aidScheme !== "" && items.length > 0 && (
                                 <div className="fin-panel fin-codes">
                                   <h4>
                                     What {schemeName} will be billed
@@ -5344,18 +5365,29 @@ ${d.action}`}
                                   and can differ, which is why the amount shown
                                   after dispensing is the server's and not
                                   this one. */}
-                              {dueNow > 0.005 ? (
+                              {/* ONE LINE, BECAUSE THE REST IS NOW ALWAYS TRUE.
+                                  This said where the bag goes, how the cashier
+                                  finds it, and that the claim settles what the
+                                  scheme really allows — four lines of prose,
+                                  written when "paid at the till" was one of
+                                  three things that could happen and was worth
+                                  spelling out. It is now what happens to every
+                                  script, the toast says so after dispensing,
+                                  and in a pane that has to be read at a counter
+                                  it was most of the reason this scrolled. */}
+                              {!claiming ? (
                                 <p className="fin-note">
-                                  <b>{money(dueNow)}</b> estimated shortfall, paid
-                                  at the till. The bag goes to the front shop and
-                                  the cashier finds it by this script&rsquo;s
-                                  number or its barcode. What {schemeName} actually
-                                  allows is settled by the claim, so the figure on
-                                  the till is the one to ask for.
+                                  No claim on this one. The whole {money(dueNow)} is
+                                  the patient&rsquo;s, at the till.
+                                </p>
+                              ) : dueNow > 0.005 ? (
+                                <p className="fin-note">
+                                  <b>{money(dueNow)}</b> estimated shortfall. The
+                                  till asks for what {schemeName} actually allows.
                                 </p>
                               ) : (
                                 <p className="fin-note">
-                                  Fully covered. Nothing to collect from the patient.
+                                  Fully covered. Nothing to collect.
                                 </p>
                               )}
                             </div>

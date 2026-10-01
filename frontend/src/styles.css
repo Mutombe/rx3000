@@ -11472,8 +11472,17 @@ button.fin-ack { cursor: pointer; }
 .fin-aid-card .field > label { margin: 0; line-height: 1.2; }
 .fin-aid-card .field input, .fin-aid-card .sel-trigger { height: 34px; min-height: 34px; box-sizing: border-box; }
 .fin-aid-row { display: flex; gap: var(--s2); align-items: stretch; }
-.fin-aid-when { display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 0; min-width: 13rem; }
-.fin-aid-row:has(.fin-aid-reason) .fin-aid-when { flex: 0 0 15rem; }
+/* HOW MANY THERE ARE IS IN THE MARKUP, NOT HERE.
+   This was `1fr 1fr` for two buttons. A third — "Not this time", which took
+   over from choosing a different way of paying — wrapped onto a row of its own
+   and pushed the pane 18px past the height it is allowed, which is what made it
+   scroll. Exactly the `.wc-bands` fault: a column count written down in one
+   place and changed in another. */
+.fin-aid-when {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  flex: 1 1 0; min-width: 18rem;
+}
+.fin-aid-row:has(.fin-aid-reason) .fin-aid-when { flex: 0 0 19rem; }
 .fin-aid-when button { justify-content: center; white-space: nowrap; }
 .fin-aid-reason { flex: 1 1 auto; min-width: 0; height: auto; min-height: 34px; padding: 6px 8px; box-sizing: border-box; }
 .fin-aid .fin-note { margin: 0; }
