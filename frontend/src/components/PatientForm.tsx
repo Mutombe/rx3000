@@ -86,6 +86,21 @@ export function draftOf(p: Patient): PatientDraft {
   };
 }
 
+/** This form's fields as the API wants them.
+ *
+ *  Exported because the dispensary's patient card now saves single fields in
+ *  place, and `PUT /api/patients/{id}` REPLACES the record: it has to send the
+ *  whole of it, shaped exactly as this form would. Two shapes of the same
+ *  payload is how a field gets blanked by whichever one forgot it.
+ */
+export function payloadOf(form: PatientDraft) {
+  return {
+    ...form,
+    date_of_birth: form.date_of_birth || null,
+    medical_aid_id: form.medical_aid_id === "" ? null : Number(form.medical_aid_id),
+  };
+}
+
 /** Somebody on file who may be the person being registered, and why. */
 interface DuplicateMatch {
   id: number;
@@ -156,13 +171,7 @@ export default function PatientForm({
 
   if (!open) return null;
 
-  function bodyOf() {
-    return {
-      ...form,
-      date_of_birth: form.date_of_birth || null,
-      medical_aid_id: form.medical_aid_id === "" ? null : Number(form.medical_aid_id),
-    };
-  }
+  const bodyOf = () => payloadOf(form);
 
   async function register(confirmedDistinct: boolean) {
     const saved = await api.post<Patient>("/api/patients", {

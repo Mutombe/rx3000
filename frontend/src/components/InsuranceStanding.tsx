@@ -54,10 +54,16 @@ const TONE: Record<string, { cls: string; label: string }> = {
   unknown: { cls: "muted", label: "Nothing claimed yet" },
 };
 
-export default function InsuranceStanding({ patientId, compact = false, variant = "block", onOpen, skeleton = false }: {
+export default function InsuranceStanding({ patientId, compact = false, variant = "block", onOpen, onAddCover, skeleton = false }: {
   /** "chip": the scheme and its standing on one line, for a lane. */
   variant?: "block" | "chip" | "icon";
   onOpen?: () => void;
+  /** Put cover on a patient who has none, from here.
+   *
+   *  Given by the dispensary. A patient producing a card at the counter is the
+   *  commonest reason anybody opens this panel on somebody with no cover, and
+   *  until this existed the panel rendered nothing at all for them. */
+  onAddCover?: () => void;
   /** Show the card's shape while it loads. */
   skeleton?: boolean;
   patientId: number | null;
@@ -84,15 +90,26 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
     const tone = covered ? (TONE[data!.verdict] ?? TONE.unknown) : null;
     const Icon = covered && data!.verdict !== "paying" && data!.verdict !== "unknown"
       ? ShieldWarning : ShieldCheck;
+    // NEVER DISABLED, EVEN WITH NO COVER.
+    //
+    // This was dead when the patient had no medical aid, on the reasoning that
+    // there is no standing to show. But "no cover on file" is exactly when
+    // somebody wants to open it: a patient produces a card at the counter, or
+    // has changed scheme since they were registered, and the one control that
+    // names medical aid refused to be pressed.
+    //
+    // So it opens either way, and what is behind it offers to add the cover
+    // when there is none. A control that is the right control and cannot be
+    // pressed is worse than no control, because the dispenser stops looking.
     const label = !data ? "Checking the medical aid\u2026"
       : covered
         ? `${data.scheme?.scheme ?? "Medical aid"} \u00b7 ${tone!.label}`
           + (data.benefit.known ? "" : " \u00b7 balance unknown")
-        : "Private patient: no medical aid on file";
+        : "No medical aid on file. Open to add one.";
     return (
       <button type="button"
               className={`lane-tool is-aid${tone ? ` is-${tone.cls}` : ""}`}
-              disabled={!covered} onClick={onOpen} title={label} aria-label={label}>
+              onClick={onOpen} title={label} aria-label={label}>
         <Icon size={17} weight={covered ? "fill" : "regular"} />
       </button>
     );
@@ -120,8 +137,35 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
   }
 
   // A cash patient has no insurance to reconcile, and saying so in a panel
-  // would be noise on the majority of sales.
-  if (!data.has_cover) return null;
+  // would be noise on the majority of sales — so nothing is drawn WHERE this
+  // sits beside other things.
+  //
+  // In a panel somebody deliberately opened it is the opposite: they pressed
+  // the medical aid control, and being shown an empty box answers nothing. It
+  // says so, and offers to put the cover on, which is why they are here.
+  if (!data.has_cover) {
+    if (!skeleton) return null;
+    return (
+      <div className="ins ins-cash">
+        <div className="ins-head">
+          <Info size={16} weight="fill" />
+          <b>No medical aid on file</b>
+        </div>
+        <p className="ins-why">
+          This patient is recorded as paying for themselves. If they have a card
+          at the counter, put it on the record and the claim can be raised on
+          this script.
+        </p>
+        {onAddCover && (
+          <div className="ins-acts">
+            <button type="button" className="btn secondary" onClick={onAddCover}>
+              Add a medical aid
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const tone = TONE[data.verdict] ?? TONE.unknown;
   const Glyph = data.verdict === "paying" ? ShieldCheck

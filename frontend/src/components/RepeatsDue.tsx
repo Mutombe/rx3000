@@ -67,14 +67,17 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
     const due = (data?.items ?? []).filter((r) => !alreadyOn.includes(r.product_id));
     const worth = due.reduce((n, r) => n + r.value, 0);
     const late = due.filter((r) => r.days_overdue > 0).length;
+    // Never disabled. "Nothing is due" is an answer a dispenser came here for,
+    // and a dead button makes them check the patient's record to find it out.
+    // The panel behind says so in words.
     const label = due.length
       ? `${due.length} repeat${due.length === 1 ? "" : "s"} due \u00b7 ${money(worth)}`
         + (late ? ` \u00b7 ${late} overdue` : "")
-      : "No repeats due";
+      : "No repeats due. Open to see what is on repeat.";
     return (
       <button type="button"
               className={`lane-tool is-repeats${due.length ? (late ? " is-warn" : " is-counted") : ""}`}
-              disabled={due.length === 0} onClick={onOpen} title={label} aria-label={label}>
+              onClick={onOpen} title={label} aria-label={label}>
         <ArrowClockwise size={17} weight="bold" />
         {due.length > 0 && <span className="lane-tool-count">{due.length}</span>}
       </button>

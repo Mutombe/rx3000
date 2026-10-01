@@ -6117,8 +6117,13 @@ ${d.action}`}
               <PatientHistoryModal patient={patient} onClose={() => setLaneOpen(null)} />
             )}
             {laneOpen === "details" && patient && (
-              <PatientCardModal patient={patient} canLeave={items.length === 0}
+              <PatientCardModal patient={patient}
                                 onClose={() => setLaneOpen(null)}
+                                // A field typed over in the card is the lane's
+                                // patient too, so the chips, the claim estimate
+                                // and the finish dialog all read the new record
+                                // inside the same script.
+                                onSaved={setPatient}
                                 // The card closes as the form opens. Both draw
                                 // their own backdrop, so leaving it open would
                                 // stack one dimmed sheet on another and the
@@ -6142,7 +6147,10 @@ ${d.action}`}
                                 alreadyOn={items.map((i) => i.product.id)}
                                 onAdd={addDueRepeat} />
                   ) : (
-                    <InsuranceStanding patientId={patient.id} skeleton />
+                    <InsuranceStanding patientId={patient.id} skeleton
+                                       onAddCover={() => {
+                                         setLaneOpen(null); setEditPatient(true);
+                                       }} />
                   )}
                   <div className="disp-edit-actions">
                     <span className="finish-spacer" />

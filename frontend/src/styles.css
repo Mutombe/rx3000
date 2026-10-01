@@ -10796,6 +10796,29 @@ button.fin-ack { cursor: pointer; }
 .pt-card-grid > div + div { border-left: 1px solid var(--line); padding-left: var(--s5); }
 .pt-facts dd { text-align: right; }
 .pt-facts dd.pt-wrap { white-space: normal; word-break: break-word; }
+
+/* A VALUE YOU CAN TYPE OVER, WHICH STILL READS AS A VALUE.
+   It has to look like the fact it is until the pointer arrives, or the card
+   stops being something you read at a glance and becomes a form. So: nothing
+   at rest, and a hairline underline on hover saying it will take a
+   double-click. */
+.pt-typeable { border-radius: var(--r-sm); padding: 1px 3px; margin: -1px -3px; }
+.pt-typeable:hover {
+  background: var(--surface-sunk);
+  box-shadow: inset 0 -1px 0 var(--ink-faint);
+  cursor: text;
+}
+.pt-edit {
+  width: 100%; max-width: 15rem; text-align: right;
+  padding: 1px 3px; margin: -1px -3px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--accent); border-radius: var(--r-sm);
+  color: var(--ink); font: inherit;
+}
+/* Nothing on this patient to reconcile, said in the panel somebody opened to
+   ask. Quiet, because it is an answer rather than a warning. */
+.ins-cash { border-color: var(--line); }
+.ins-acts { display: flex; justify-content: flex-end; margin-top: var(--s2); }
 .pt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 760px) {
   .pt-card-grid { grid-template-columns: 1fr; }
