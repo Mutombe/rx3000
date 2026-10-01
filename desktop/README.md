@@ -61,6 +61,39 @@ make. `publish.py` still checks the bundle's age afterwards and refuses to
 publish one older than half an hour, because the installers are the one
 artefact nobody can tell is stale by looking at it.
 
+### Two things the installer needs, and which of them we carry
+
+**The C runtime: ours, and inside the executable.** `.cargo/config.toml` links
+it statically. Before that the till asked the machine for `VCRUNTIME140_1.dll`
+and stopped with "the code execution cannot proceed" on any machine that had
+never had a compiler on it — which is every machine we sell to.
+`qa/a-till-starts-on-a-clean-machine.py` reads the built binary's imports and
+fails if that comes back.
+
+**The web view: Microsoft's, and usually already there.** The application is
+drawn in WebView2. Windows 11 always has it and most Windows 10 machines do, so
+the ordinary installer carries a few kilobytes that fetch it only if it is
+missing. That keeps the download at 5 MB, which matters when somebody is
+pulling it over a Zimbabwean line.
+
+It does mean an install on a machine that has neither the runtime nor a
+connection cannot finish. For those:
+
+```
+python desktop/publish.py 1.6.40 --offline
+```
+
+That embeds Microsoft's full runtime, produces
+`RX5000_<version>_x64-setup-offline.exe` at 210 MB, measured, and publishes
+nothing: the website goes on serving the small installer, and this one travels
+on a memory stick to the counter that needs it. The build machine needs a
+connection once, to embed the runtime.
+
+The setting lives in `tauri.conf.json`, which is committed, so the script puts
+the file back afterwards. A build that left it changed would make the next
+ordinary one silently 210 MB and serve that to everybody, so it is restored byte
+for byte and it is restored when the build fails too. Both are checked.
+
 ## Not in this shell yet
 
 **Offline operation.** The shell runs against a server that must be reachable;

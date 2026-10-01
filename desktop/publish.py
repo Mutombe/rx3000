@@ -325,16 +325,90 @@ def _manifest(version: str, installer: str) -> None:
     print(f"  stamped   built from {_built_from()[:7] or 'unknown'}")
 
 
+#: How the installer gets the web view the application is drawn in.
+#:
+#: The default, and what the website serves, is `downloadBootstrapper`: a few
+#: kilobytes that fetch the WebView2 runtime from Microsoft if the machine does
+#: not already have it. Windows 11 always has it and most Windows 10 machines do,
+#: so on almost every till nothing is fetched at all and the installer stays
+#: 5 MB — which matters, because somebody downloads it over a Zimbabwean line.
+#:
+#: `offlineInstaller` embeds Microsoft's full standalone runtime instead. The
+#: installer becomes 210 MB, measured, and needs no connection at all. That is
+#: forty times the ordinary one, which is why it is a flag and not the default.
+OFFLINE_MODE = {"type": "offlineInstaller"}
+
+
+def _with_offline_webview():
+    """Build this one with the runtime embedded, then put the file back.
+
+    The setting lives in tauri.conf.json, which is committed, so an offline
+    build must not leave it changed: the next ordinary build would silently
+    produce a 210 MB installer and the website would serve it to every pharmacy
+    on a metered connection.
+    """
+    import contextlib
+
+    @contextlib.contextmanager
+    def swap():
+        conf = TAURI / "tauri.conf.json"
+        original = conf.read_text(encoding="utf-8")
+        data = json.loads(original)
+        data.setdefault("bundle", {}).setdefault("windows", {})[
+            "webviewInstallMode"] = OFFLINE_MODE
+        conf.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        try:
+            yield
+        finally:
+            conf.write_text(original, encoding="utf-8")
+    return swap()
+
+
+def build_offline(version: str) -> int:
+    """An installer for a pharmacy with no line at all.
+
+    Not published to the website. This one travels on a memory stick to a
+    counter that cannot reach Microsoft during an install, which is the case
+    the ordinary installer cannot serve: it fetches the web view runtime while
+    it runs, and a machine with no connection has nowhere to fetch it from.
+
+    The build machine does need a connection, once, to embed the runtime.
+    """
+    with _with_offline_webview():
+        build()
+    setup = BUNDLE / "nsis" / f"RX5000_{version}_x64-setup.exe"
+    if not setup.exists():
+        raise SystemExit(f"not built: {setup}")
+    offline = setup.with_name(f"RX5000_{version}_x64-setup-offline.exe")
+    shutil.move(str(setup), offline)
+    size = offline.stat().st_size / 1024 / 1024
+    print(f"\n  {offline}")
+    print(f"  {size:.0f} MB, and it needs nothing from the internet.")
+    print("\nNot published. The website keeps serving the small installer, "
+          "which is right\nfor every machine that can reach Microsoft. Copy "
+          "this one to a memory stick\nfor the pharmacies that cannot.")
+    print("\nNOTE the ordinary installer for this version is no longer in the "
+          "bundle folder:\nthis build replaced it and the file was renamed. "
+          "Build again without --offline\nbefore publishing.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("version")
     parser.add_argument("--no-build", action="store_true")
+    parser.add_argument(
+        "--offline", action="store_true",
+        help="build an installer with the web view runtime embedded, for a "
+             "pharmacy with no connection. 210 MB, and not published.")
     args = parser.parse_args()
 
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.version):
         raise SystemExit("version must look like 1.3.0")
 
     set_version(args.version)
+    if args.offline:
+        return build_offline(args.version)
     if not args.no_build:
         build()
     publish(args.version)
