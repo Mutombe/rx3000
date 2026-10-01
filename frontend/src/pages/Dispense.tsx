@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
-import Tenders, { TenderLine, currencyWorld, inBase } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText, fmtWhen } from "../api";
@@ -504,7 +503,6 @@ export default function Dispense() {
       setDeliverTo(patient.address);
     }
   }, [payHow, patient?.id]);
-  const [tenders, setTenders] = useState<TenderLine[]>([]);
   /** Paid by medical aid: the card at the counter. */
   const [schemes, setSchemes] = useState<{ id: number; name: string }[]>([]);
   const [aidScheme, setAidScheme] = useState<number | "">("");
@@ -624,7 +622,6 @@ export default function Dispense() {
     api.get<any>("/api/currency")
       .then((c) => {
         setCurrencyState(c);
-        setTenders([{ method: "cash", currency_code: c?.base ?? "USD", amount: "" }]);
       })
       .catch(() => undefined);
   }, []);
@@ -2680,9 +2677,6 @@ export default function Dispense() {
       ...(packExpiry[i.product.id]
         ? { pack_expiry: packExpiry[i.product.id] } : {}),
     }));
-    const world = currencyWorld(currencyState);
-    const took = tenders.reduce((n, t) => n + inBase(t, world.rates, world.base), 0);
-    const gross = items.reduce((n, i) => n + lineEach(i) * (i.quantity || 0), 0);
     const said = items.length === 1
       ? lineName(items[0].product)
       : `${items.length} items`;
@@ -2697,18 +2691,19 @@ export default function Dispense() {
           counselling_given: counselled,
           referred_to_doctor: referred,
           notes: otcNotes,
+          // What is being ASKED for, not what has been taken. Nothing is taken
+          // here: the sale is raised pending and the front shop settles it,
+          // the same as a dispensed script. The tendered amount used to be
+          // computed and sent from this screen, and the server refused a cash
+          // sale that was short — neither is a question this counter answers
+          // any more.
           payment_method: "cash",
-          // The server refuses a cash sale tendered short. Where the finish
-          // panel collected nothing the sale is settled exactly, which is what
-          // a counter sale at the marked price is.
-          amount_tendered: took > 0.005 ? took : Math.round(gross * 100) / 100,
         });
-      toast.ok(`${said} sold and recorded.`
-        + (out.change_due > 0.005 ? ` Change ${money(out.change_due)}.` : ""));
+      toast.ok(`${said} recorded. It is on the till to be paid for.`);
       // The counter is given back, and the consultation with it.
       setItems([]); aiCheck.reset();
       setIndication(""); setCustomerName(""); setCounselled(false);
-      setReferred(false); setOtcNotes(""); setTenders([]);
+      setReferred(false); setOtcNotes("");
       clearScriptDraft();
         if (out.sale_id) {
         try {
@@ -2748,7 +2743,7 @@ export default function Dispense() {
     const before = {
       patient, doctorId, items, fromRx, initials, idNumber, complianceNotes,
       idVerified, scriptSighted, prescriberVerified, counselPoints, counselNotes,
-      scanChecks, packExpiry, payHow, tenders, driverId, deliverTo, deliveryFee,
+      scanChecks, packExpiry, payHow, driverId, deliverTo, deliveryFee,
       printPick, aidScheme, aidMember, aidDep, aidHold, aidHoldReason,
     };
     const said = `${fromRx?.number ?? "This script"} for ${patient.first_name} ${patient.last_name}`;
@@ -2764,7 +2759,6 @@ export default function Dispense() {
     setInitials(myInitials); setIdNumber(""); setComplianceNotes("");
     setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
     setPrintPick({});
-    setTenders([{ method: "cash", currency_code: currencyState?.base ?? "USD", amount: "" }]);
     setWorklistNonce((n) => n + 1);
 
     // A script created by a first attempt is dispensed by the second, never
@@ -2848,7 +2842,7 @@ export default function Dispense() {
         setCounselPoints(before.counselPoints); setCounselNotes(before.counselNotes);
         setScanChecks(before.scanChecks); setPackExpiry(before.packExpiry);
         payHowSet.current = true;
-        setPayHow(before.payHow); setTenders(before.tenders); setDriverId(before.driverId);
+        setPayHow(before.payHow); setDriverId(before.driverId);
         setDeliverTo(before.deliverTo); setDeliveryFee(before.deliveryFee);
         setPrintPick(before.printPick); setAidScheme(before.aidScheme);
         setAidMember(before.aidMember); setAidDep(before.aidDep);
@@ -2864,10 +2858,10 @@ export default function Dispense() {
     already: { id: number; rx: any } | null,
     remember: (made: { id: number; rx: any }) => void,
   ) {
-    const { patient, doctorId, items, scanChecks, packExpiry, payHow, tenders } = before as {
+    const { patient, doctorId, items, scanChecks, packExpiry, payHow } = before as {
       patient: Patient; doctorId: number | ""; items: DraftItem[];
       scanChecks: Record<number, string>; packExpiry: Record<number, string>;
-      payHow: string; tenders: TenderLine[];
+      payHow: string;
     };
     {
       // A queued script is dispensed as itself. Capturing it again would leave

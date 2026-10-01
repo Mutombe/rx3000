@@ -380,25 +380,33 @@ def otc_sale(
     sale.subtotal = round(total_ex, 2)
     sale.total = round(total, 2)
     sale.vat_amount = round(sale.total - sale.subtotal, 2)
+    # NO MONEY IS TAKEN AT A DISPENSARY, INCLUDING OVER THE COUNTER.
+    #
+    # This marked the sale paid on the spot and took the cash where the
+    # consultation happened. The drawer, the shift and the person who answers
+    # for what is in the drawer are all at the till, so money taken at a
+    # dispensary counter is money outside the drawer it will be counted
+    # against — and that is as true of a cough syrup sold with advice as it is
+    # of a script.
+    #
+    # So the sale is raised pending, exactly like a dispensed script, and the
+    # front shop settles it. `payment_method` is still recorded as what was
+    # asked for; the till overwrites it with what was actually taken.
+    #
+    # The tendered amount is no longer read, and the refusal that went with it
+    # is gone with it: a sale nobody has paid for yet cannot be short.
     sale.payment_method = body.payment_method
-    if body.payment_method == "cash":
-        if body.amount_tendered + 0.005 < sale.total:
-            raise HTTPException(status_code=400,
-                                detail="Amount tendered is less than the total")
-        sale.amount_tendered = body.amount_tendered
-        sale.change_due = round(body.amount_tendered - sale.total, 2)
-    else:
-        sale.amount_tendered = sale.total
-        sale.change_due = 0.0
-    sale.status = "paid"
+    sale.amount_tendered = 0.0
+    sale.change_due = 0.0
+    sale.status = "pending"
 
     for record in records:
         db.add(record)
     db.commit()
-    # How it was paid, taken from the sale's own tenders rather than asked
-    # for a second time. See services/supply_facts.py.
-    from ..services import supply_facts
-    supply_facts.settle_sale(db, sale.id)
+    # How it was paid is NOT recorded here any more, because nothing has been
+    # paid. `pos_router.pay_sale` records it when the money is actually taken,
+    # which also closes a gap that was already there: a script sent to the till
+    # was settled without this ever being called.
     for record in records:
         db.refresh(record)
     return {"sale_id": sale.id, "total": sale.total,

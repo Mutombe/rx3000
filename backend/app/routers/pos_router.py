@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
@@ -52,6 +53,8 @@ def _hand_set_price(db: Session, user, override_id, product_id: int):
                             detail="That price authorisation has already been used.")
     return row, float(row.now)
 
+
+log = logging.getLogger("rx5000.pos")
 
 router = APIRouter(prefix="/api/pos", tags=["pos"])
 
@@ -468,6 +471,22 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db),
     # deliberately non-fatal: the medicine has gone out, and the bookkeeping
     # must not be able to undo that. A refusal lands on the unposted queue.
     posting.post_sale(db, sale, user.id)
+    # HOW IT WAS PAID, RECORDED WHERE IT WAS PAID.
+    #
+    # This writes the payment method onto every dispensing behind the sale, so
+    # it follows the medicine onto the patient's record, the reports and the
+    # printed documents. It used to be called by the counter sale alone, which
+    # settled itself in the dispensary — so a script sent to the till, which is
+    # most of them, was settled here and the fact was never written. Now that
+    # nothing settles anywhere else, this is the only place that knows.
+    #
+    # Non-fatal and after the commit, for the same reason as the posting above:
+    # the money is in the drawer and a bookkeeping detail must not undo that.
+    try:
+        from ..services import supply_facts
+        supply_facts.settle_sale(db, sale.id)
+    except Exception:                                  # noqa: BLE001
+        log.exception("Could not record how %s was paid", sale.sale_number)
     db.refresh(sale)
     return sale
 
@@ -594,6 +613,22 @@ def pay_sale(sale_id: int, body: schemas.PayRequest, db: Session = Depends(get_d
     # deliberately non-fatal: the medicine has gone out, and the bookkeeping
     # must not be able to undo that. A refusal lands on the unposted queue.
     posting.post_sale(db, sale, user.id)
+    # HOW IT WAS PAID, RECORDED WHERE IT WAS PAID.
+    #
+    # This writes the payment method onto every dispensing behind the sale, so
+    # it follows the medicine onto the patient's record, the reports and the
+    # printed documents. It used to be called by the counter sale alone, which
+    # settled itself in the dispensary — so a script sent to the till, which is
+    # most of them, was settled here and the fact was never written. Now that
+    # nothing settles anywhere else, this is the only place that knows.
+    #
+    # Non-fatal and after the commit, for the same reason as the posting above:
+    # the money is in the drawer and a bookkeeping detail must not undo that.
+    try:
+        from ..services import supply_facts
+        supply_facts.settle_sale(db, sale.id)
+    except Exception:                                  # noqa: BLE001
+        log.exception("Could not record how %s was paid", sale.sale_number)
     db.refresh(sale)
     return sale
 
