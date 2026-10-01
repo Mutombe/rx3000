@@ -1,104 +1,124 @@
-Packs and units, the life of a batch, and a pricing fault worth checking your
-own catalogue for.
+The till installs on a machine that has never run it, no money is taken at the
+dispensary, and a bag can be found at the till by its script number.
 
-**The shelf says whether it means packs or units**
+**Install this one even if the last one would not start**
+
+On some machines the software stopped before its window ever opened, with "the
+code execution cannot proceed because VCRUNTIME140_1.dll was not found", and
+reinstalling did not help. It could not: that file was never part of this
+software. It belongs to a Microsoft component that is on every machine
+somebody has written software on and on almost no machine that has only ever
+been used for work.
+
+It is now built into the program itself. There is nothing left to be missing,
+nothing extra to install first, and no download needed during the install. If a
+till would not start before, this version starts.
+
+**No money is taken at the dispensary**
+
+Cash, card and mobile are the till's. The drawer is there, the shift is there,
+and the person who answers for what is in the drawer is there, so money taken
+at a dispensary counter was money outside the drawer it would be counted
+against.
+
+A dispensed script can now do three things, and the screen offers exactly
+those three: wait at the till, go out with a driver who collects at the door,
+or be claimed from a medical aid. "Take payment now" is gone from the
+dispensary.
+
+**What the scheme leaves, you are told, every time**
+
+Where a medical aid does not carry the whole bill, the difference is the
+patient's and it is now said out loud the moment the script is dispensed,
+whether there is one or not. The figure is what the scheme actually allowed,
+not the estimate shown while the script was being built, because those two can
+differ and the difference is what the patient is asked for.
+
+That amount waits at the till. Nothing about it is collected in the dispensary.
+
+**And if they decide not to take it**
+
+A patient told about a shortfall may prefer a pharmacy that does not have one.
+"They have declined it" sits on the same bar as the figure they were just
+given: the medicine goes back to the stock it came from, the scheme is no
+longer billed for it, and the loyalty points come back off. It needs a code,
+like any reversal.
+
+Until now a claim that had been sent but not yet answered was left standing
+when a sale was reversed, so the pharmacy had billed a scheme for medicine it
+had taken back and nobody found out until a remittance arrived weeks later.
+
+**Find the bag at the till by the number on its label**
+
+Scan the script's barcode at the till and the bag it belongs to opens, with
+what is owed already in it. Or type the script number into the same box the
+products go in. Or search Awaiting payment, which now has a search: a script
+number, an invoice number or a name.
+
+The search looks through everything still owed for rather than the twenty
+newest, so a bag from last Tuesday is findable.
+
+**A part payment no longer hides the bag**
+
+Taking some of what was owed moved the sale out of Awaiting payment
+altogether, while the software went on accepting the balance. The only way back
+to it was the patient's own record. Both states show in the list now.
+
+**The branch map on a till was always empty**
+
+The head office map drew nothing on the desktop application and never had: the
+till was blocking the pictures, and a blocked picture says nothing to the
+person looking at it. It draws now.
+
+**Packs and units on the shelf**
 
 The stock table showed one number and left you to know what it counted. It now
-says both: 169 units reads "8 packs + 1" against a pack of 21, with the whole
-of it in words when you rest on it. It is said only where a pack holds more
-than one unit, so plasters and shampoo do not carry a line repeating
-themselves.
+says both: 169 units reads "8 packs + 1" against a pack of 21. The adjustment
+dialog counts in whichever you are holding, so a delivery of three boxes of
+thirty can be entered as three boxes.
 
-The adjustment dialog counts in whichever you are holding. A delivery of three
-boxes of thirty is ninety units, and somebody typing 3 took three tablets off a
-shelf they meant to put ninety on. Choose packs and it does that arithmetic for
-you.
+**A pricing fault worth checking your own catalogue for**
 
-**A pricing fault this uncovered, and it may be in your catalogue**
-
-Doing the above found seventy products in the demonstration catalogue whose box
-names a count and whose record does not count it. The pack size says "30s" and
-the units in a pack is still 1, so the price of the whole box is charged for
-every tablet. A month of amitriptyline at $3.00 a box billed $90.00.
-Co-amoxiclav 14s at $189.00 billed $2,646.00.
-
-Nothing was changed automatically, because whether filling that number in is a
-fix or a fresh fault depends on how your own catalogue was entered, and it
-changes what patients are charged. Ask us to check yours and we will show you
-the list before anything is written. There is a way back from it as well.
+Doing the above found products whose box names a count and whose record does
+not count it: the pack size says "30s" and the units in a pack is still 1, so
+the price of the whole box is charged for every tablet. Nothing was changed
+automatically, because whether filling that number in is a fix or a fresh fault
+depends on how your catalogue was entered. Ask us to check yours and we will
+show you the list first.
 
 **Where a batch went, and everything that happened to it**
 
-Until now a recall could only follow the part of a batch that went out through
-a till. A quarantine, a release, a write off, a transfer, a stock take and a
-compounding draw left nothing to search, and those are the movements a recall
-is most about.
-
-A batch's page now reads its whole life, oldest first, with the running
-balance, who did it and the script behind it. One batch that showed nothing
-shows 48 events. Who handed the medicine over is named as well, and a counter
-sale says so rather than leaving a gap.
+A batch's page reads its whole life, oldest first, with the running balance,
+who did it and the script behind it. Quarantines, write-offs, transfers, stock
+takes and compounding draws are all there, which is most of what a recall is
+actually about. Who handed the medicine over is named as well.
 
 **What a medicine earned, and how many people it reached**
 
 A line worth four thousand a year to six patients and one worth four thousand a
-year to four hundred are not the same line, and every screen showed them
-identically. The product page now says how many people it reached, counted from
-the same figures the money is counted from. Sales over the counter are counted
-apart rather than dropped, because "we do not know who" is a real answer and
-worth seeing.
+year to four hundred are not the same line. The product page now says how many
+people it reached, counted from the same figures the money is counted from.
 
 **Ask any supplier about any product**
 
 The request for prices only ever offered what had already fallen to its reorder
-level. A pharmacy asks around before a tender, before stocking something new,
-when a wholesaler has a deal on, and when a line is about to run low rather
-than after. Search the whole catalogue now and add whatever you want to the
-request. What is already low stays as the opening suggestion.
-
-**The branch map on a till was always empty, and nobody could tell**
-
-The head office map drew nothing on the desktop application and never had. The
-till was blocking the pictures and a blocked picture says nothing to the person
-looking at it. It draws now. On the web it had started stamping "API key
-required" across every tile, because the supplier of those pictures began
-charging for them; it uses OpenStreetMap's own, which ask nothing. The map also
-reaches the edge of its card instead of sitting inside a second border.
-
-**Screens start faster**
-
-Opening the software fired eighteen requests at once and they competed on equal
-terms, so the dispensary worklist, which is the screen you are waiting for,
-came back last at 4.3 seconds. Work nobody is waiting for now goes after the
-work they are, and two parts of a screen asking the same question at the same
-moment share one answer instead of asking twice.
+level. Search the whole catalogue now and add whatever you want to the request.
 
 **Things that were being cut off or pointed the wrong way**
 
-On the dispensary rail, the chosen tile at the top of the worklist was drawn
-with three sides. It is always the first one, "Waiting", and it is the one
-chosen when the screen opens, so the single tile meant to stand out was the one
-missing an edge and it read as cut off against the rail.
+The chosen tile at the top of the dispensary worklist was drawn with three
+sides. The tick that selects every row sat eight pixels left of the column of
+ticks it selects. A date range had been torn in half with the word "to"
+pointing at nothing. A remittance's reason was cut mid sentence with empty
+space beside it. Stock performance dropped its sixth band onto a row of its
+own. The till head lost the rules between its columns in the dark theme. A
+patient's name and phone number ran together with nothing between them.
 
-The tick that selects every row sat eight pixels left of the column of ticks it
-selects, on patients, repeats and deliveries. The date range on the controlled
-register and on analytics had been torn in half, with the word "to" pointing at
-nothing. "SLA breached" wrapped onto two lines and took every row on the case
-desk deeper. A remittance's reason was cut mid sentence with empty space beside
-it. Stock performance showed five bands across and dropped the sixth onto a row
-of its own. The till head lost the rules between its columns in the dark theme.
-A delivery address had been squeezed to "1... g...". A patient's name and phone
-number ran together with nothing between them.
+On record pages with no buttons in the header, the record's name was being
+treated as though it were the buttons and pushed hard against the right edge.
 
-On record pages with no buttons in the header, the record's type, name and
-subtitle were being treated as though they were the buttons and pushed hard
-against the right edge. That was one rule, and it affected claims, creditors,
-remittances and messages.
+The movement history was clustered into a narrow strip, with reasons wrapped
+onto three lines each and a reference cut mid word.
 
-The movement history was clustered into a narrow strip: reasons drawn as badges
-in a 90px column became three stacked lines each, and a reference and its note
-were run together and cut mid word.
-
-And in the dialog before you finish a script, the section naming which lot is
-going out set itself one word per line down a narrow gutter inside a wide card.
-It reads across the card.
+In the dialog before you finish a script, the section naming which lot is going
+out set itself one word per line down a narrow gutter.

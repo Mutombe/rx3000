@@ -1,0 +1,50 @@
+# The C runtime goes INSIDE the executable.
+#
+# WHAT WAS REPORTED
+#
+# A pharmacy installing the till on a fresh machine got, before the window ever
+# opened:
+#
+#     rx5000.exe - System Error
+#     The code execution cannot proceed because VCRUNTIME140_1.dll was not
+#     found. Reinstalling the program may fix this problem.
+#
+# Reinstalling does not fix it, because the file was never ours to install.
+#
+# WHAT IT IS
+#
+# Rust's MSVC toolchain links the Visual C++ runtime dynamically by default, so
+# the binary asks the machine for VCRUNTIME140.dll and VCRUNTIME140_1.dll at
+# start-up. Those ship with the Microsoft Visual C++ Redistributable, which is
+# on every developer's machine and on no clean Windows install. Measured on the
+# 1.6.39 build: both were in its import table.
+#
+# So it ran everywhere we tested and failed exactly where nobody had ever built
+# anything — which is every till in every pharmacy.
+#
+# WHY STATIC AND NOT THE REDISTRIBUTABLE
+#
+# The other answer is to ship Microsoft's installer inside ours and run it
+# first. It needs administrator rights, it is a second thing that can fail, and
+# where it downloads rather than embeds it needs the line to be up — at a
+# counter in a Zimbabwean pharmacy, during an install, which is precisely when
+# it is not. This way there is no dependency to be missing: the runtime is part
+# of the executable and the till starts on a machine that has never seen a
+# compiler.
+#
+# The `api-ms-win-crt-*` imports that remain are the Universal CRT, which is
+# part of Windows itself since Windows 10 and is not the same thing.
+#
+# WHAT TO WATCH
+#
+# This applies to the whole dependency tree, not just our code. A crate that
+# links a C library of its own has to agree about which runtime it is using, so
+# if a future dependency fails to link with "mismatch detected for
+# RuntimeLibrary", this is the file that explains why. The answer is to build
+# that crate static too, not to delete this.
+#
+# qa/a-till-starts-on-a-clean-machine.py reads the built binary's import table
+# and fails if either VCRUNTIME is back.
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
