@@ -1480,7 +1480,11 @@ def claim_form_pdf(rx_id: int, paper: str = "", db: Session = Depends(get_db),
     #
     # One template either way: the same field positions, so a position fixed
     # for one is fixed for both and the two cannot drift apart.
-    if (paper or "").lower() in ("blank", "bond", "a4"):
+    if (paper or "").lower() in ("rx5000", "house", "ours"):
+        from ..services import claim_form_rx
+
+        pdf = claim_form_rx.render(values, lines, counselling)
+    elif (paper or "").lower() in ("blank", "bond", "a4"):
         pdf = claim_form.render_full(values, lines, counselling, paper="A4")
     else:
         pdf = claim_form.render(
