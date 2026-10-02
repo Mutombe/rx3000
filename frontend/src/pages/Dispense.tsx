@@ -38,7 +38,8 @@ import { useDoseScreen } from "../hooks/useDoseScreen";
 import CellMedicineSearch from "../components/CellMedicineSearch";
 import PatientHistoryModal from "../components/PatientHistoryModal";
 import PatientCardModal from "../components/PatientCardModal";
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent } from "react";
 import { printLabels, printReceipt, refusedSummary, splitPrintable } from "../print";
 import PrintMenu, { type PrintAction } from "../components/PrintMenu";
 import * as roll from "../shellPrinter";
@@ -248,6 +249,15 @@ function patientPortion(sale: Sale): number {
   return Math.max(0, Number(claim.patient_liable ?? sale.total));
 }
 
+
+/** Typing over the dependant code replaces it.
+ *
+ *  Every `type="number"` field in the product does this already, once, in
+ *  App.tsx. This one is typed as text because a dependant code is "00" and a
+ *  number field would eat the leading zero, so it asks for the behaviour
+ *  itself — and "00" plus a 1 being "001" is exactly the complaint.
+ */
+const takesOver = (e: ReactFocusEvent<HTMLInputElement>) => e.currentTarget.select();
 
 export default function Dispense() {
   const session = useSession();
@@ -3546,8 +3556,10 @@ export default function Dispense() {
                         </button>
                       );
                     })()}
-                    <InsuranceStanding patientId={patient.id} variant="icon"
-                                       onOpen={() => setLaneOpen("insurance")} />
+                    {/* The medical aid chip was here. It is a lane field of
+                        its own now, beside the patient, because who carries
+                        the bill governs the money on every script and is not
+                        something to consult occasionally in a toolbar. */}
                     {!quoting && (
                       <RepeatsDue patientId={patient.id}
                                   alreadyOn={items.map((i) => i.product.id)}
@@ -3796,6 +3808,47 @@ export default function Dispense() {
                 )}
                 <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
               </div>
+              {/* FOURTH. WHO IS PAYING.
+                  Asked for as a field of its own, beside the other three, and
+                  it belongs there: who carries the bill decides what is
+                  claimed, what the patient is asked for, and whether the bag
+                  waits at the till for forty cents or for the whole of it.
+
+                  It was a 28px chip in the patient's toolbar, which is where
+                  something you occasionally consult goes, not something that
+                  governs the money on every script. The chip is gone rather
+                  than kept beside this: two readings of one fact is two things
+                  to keep in step, and the one nobody updates is the one
+                  somebody reads.
+
+                  Only once a patient is chosen, because a scheme belongs to a
+                  person and an empty slot beside an empty patient field says
+                  nothing. */}
+              {patient && (
+                <div className="lane-field disp-aid is-picked">
+                  <button type="button" className="dpp-who lane-aid-open"
+                          title={patient.medical_aid
+                            ? `${patient.medical_aid.name} · member ${patient.medical_aid_number || "not on file"}`
+                            : "No medical aid on file. Open to add one."}
+                          onClick={() => setLaneOpen("insurance")}>
+                    <span className="cell-text">
+                      {patient.medical_aid ? (
+                        <>
+                          <b>{patient.medical_aid.name}</b>
+                          <span className="muted">
+                            {" · "}{patient.medical_aid_number || "no member no."}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="muted">Private patient</span>
+                      )}
+                    </span>
+                  </button>
+                  <ShieldCheck className="lane-icon" size={15}
+                               weight={patient.medical_aid ? "fill" : "regular"}
+                               aria-hidden="true" />
+                </div>
+              )}
             </div>
 
             {/* THE CONSULTATION, WHERE THE PATIENT AND PRESCRIBER WOULD BE.
@@ -5258,6 +5311,7 @@ ${d.action}`}
                                 <div className="field">
                                   <label htmlFor="aid-dep">Dep.</label>
                                   <input id="aid-dep" value={aidDep} maxLength={10} placeholder="00"
+                                         onFocus={takesOver}
                                          title="Dependant code. 00 for the principal member"
                                          onChange={(e) => setAidDep(e.target.value)} />
                                 </div>

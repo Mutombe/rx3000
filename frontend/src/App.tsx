@@ -15,7 +15,7 @@
  *  staff application — every provider, every page and the stylesheet they are
  *  drawn with — is behind one lazy boundary that a customer never crosses.
  */
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Route, Routes } from "react-router-dom";
 
 // Their own chunks, their own stylesheet, no sidebar and no session.
@@ -62,7 +62,51 @@ function Booting() {
   );
 }
 
+/** Typing into a number field REPLACES what is already in it.
+ *
+ *  Reported from the dispensary: "I struggle putting numbers into number
+ *  fields, because the 0 in default is not clearable, so our numbers usually
+ *  get typed as 03 if 33, or 06 if 6."
+ *
+ *  Every one of these opens holding something — a 1, a 0, a 0.00 — so the
+ *  first thing anybody does is clear it, and until they have, every keystroke
+ *  lands beside a digit nobody wanted. On the fields whose value is kept as a
+ *  string it does not even self-correct: Number("06") is 6, but "06" typed
+ *  into a string stays "06".
+ *
+ *  ONE LISTENER, NOT NINETY-SEVEN PROPS.
+ *
+ *  A sweep found 97 number fields across the product without this, in twelve
+ *  screens. Adding a prop to each is ninety-seven chances to miss one and a
+ *  ninety-eighth the next time somebody adds a field — and the ones that
+ *  already had it are the two on the script table, added by hand, by somebody
+ *  who hit this and fixed it where they stood.
+ *
+ *  So it is a behaviour of the application rather than of each input: focus a
+ *  number field, by click or by Tab, and its contents are selected. The next
+ *  keystroke replaces them, which is what every till in the world does.
+ *
+ *  Only `type="number"`. Selecting a name or an address on focus would be
+ *  wrong, and a field that holds a number but is typed as text — a dependant
+ *  code, which may be "00" — asks for this itself where it wants it.
+ */
+function useNumbersTypeOver() {
+  useEffect(() => {
+    const take = (e: FocusEvent) => {
+      const el = e.target as HTMLInputElement | null;
+      if (el?.tagName === "INPUT" && el.type === "number" && !el.readOnly) {
+        el.select();
+      }
+    };
+    // `focusin` rather than `focus`, because focus does not bubble and this is
+    // listening for every input in the application at once.
+    document.addEventListener("focusin", take);
+    return () => document.removeEventListener("focusin", take);
+  }, []);
+}
+
 export default function App() {
+  useNumbersTypeOver();
   return (
     <Suspense fallback={<Booting />}>
       <Routes>
