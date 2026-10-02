@@ -132,57 +132,92 @@ class Form:
 #: nudged in code to fix one pharmacy's printer.
 FORM = Form(
     name="RPA drug claim, continuous",
-    width=241.3,                 # 9.5 inches
-    height=279.4,                # 11 inches
+    # MEASURED OFF THE SCAN, not guessed. Two measurements fix the scale and
+    # everything else is read against them.
+    #
+    # ACROSS: the scan carries sprocket holes down both edges at the standard
+    # half inch pitch. 84.75px between hole centres is 12.7mm, so the scan is
+    # 6.673 px/mm and 198.7mm across, and the form is eight inches wide. It
+    # said 241.3 here once, nine and a half inches, because that is the
+    # commonest continuous width and nothing had measured it. Every x was
+    # nineteen per cent too far across, and a scale error is the one thing the
+    # calibration offset CANNOT absorb: an offset shifts, it does not scale.
+    #
+    # DOWN: the drug table's own rules, read in the line number column where
+    # the ink is darkest, land at 103.3, 109.5, 116.1, 122.9, 129.3 and 135.2.
+    # Five rows of 6.37mm, not the 5.13 this carried, so lines three to five
+    # were climbing out of their boxes a millimetre at a time.
+    width=203.2,                 # 8 inches, measured off the sprockets
+    height=279.4,                # 11 inches, the standard length
     fields={
         # ---- who it is for -------------------------------------------------
-        "patient_name":     Box(x=46, y=14, width=76),
-        "postal_address":   Box(x=46, y=22, width=76),
-        "medical_scheme":   Box(x=150, y=14, width=52),
-        "claim_date":       Box(x=150, y=23, width=52),
-        "member_surname":   Box(x=59, y=34, width=62),
-        "member_initials":  Box(x=135, y=34, width=20),
-        "member_number":    Box(x=63, y=40, width=52),
-        "gross_claimed":    Box(x=81, y=49, width=32, align="right"),
-        "dependant_suffix": Box(x=117, y=55, width=9, align="centre"),
-        "birth_day":        Box(x=129, y=55, width=9, align="centre"),
-        "birth_month":      Box(x=140, y=55, width=9, align="centre"),
-        "birth_year":       Box(x=151, y=55, width=11, align="centre"),
+        "patient_name":     Box(x=38.0, y=14.3, width=70.0),
+        "postal_address":   Box(x=38.0, y=25.3, width=70.0),
+        "medical_scheme":   Box(x=124.9, y=14.3, width=52.0),
+        "claim_date":       Box(x=131.1, y=22.8, width=46.0),
+        "member_surname":   Box(x=49.2, y=33.8, width=35.0),
+        "member_initials":  Box(x=111.4, y=33.5, width=16.0),
+        "member_number":    Box(x=54.4, y=42.4, width=28.0),
+        "gross_claimed":    Box(x=66.0, y=50.5, width=22.5, align="right"),
+        "dependant_suffix": Box(x=98.3, y=57.7, width=6.0, align="centre"),
+        "birth_day":        Box(x=107.3, y=59.8, width=5.7, align="centre"),
+        "birth_month":      Box(x=114.0, y=59.8, width=7.3, align="centre"),
+        "birth_year":       Box(x=122.3, y=59.8, width=6.2, align="centre"),
         # ---- who did it ----------------------------------------------------
-        "doctor_no":        Box(x=30, y=78, width=34),
-        "pharmacy_no":      Box(x=76, y=78, width=34),
-        "prescription_no":  Box(x=129, y=78, width=34),
-        "pharmacy_name":    Box(x=44, y=92, width=92),
-        "doctor_name":      Box(x=156, y=92, width=70),
+        "doctor_no":        Box(x=24.0, y=83.6, width=21.5),
+        "pharmacy_no":      Box(x=61.3, y=83.6, width=21.5),
+        "prescription_no":  Box(x=107.3, y=83.6, width=24.5),
+        # Clear of its own caption. The original sets NAME OF / PHARMACY hard
+        # against the value and prints PHARMACYCARE XPRESS PHARMACY, which is
+        # the kind of thing a clerk reads twice.
+        "pharmacy_name":    Box(x=35.4, y=94.9, width=68.5),
+        "doctor_name":      Box(x=130.0, y=94.9, width=55.0),
         # ---- the totals ----------------------------------------------------
-        "gross_total":      Box(x=137, y=135, width=24, align="right"),
+        # In the CHARGE column, on the line under the table, where the form
+        # prints GROSS and a dollar sign.
+        "gross_total":      Box(x=113.0, y=140.0, width=13.2, align="right"),
         # ---- the counselling half ------------------------------------------
-        "counsel_name":     Box(x=44, y=177, width=76),
-        "counsel_date":     Box(x=156, y=177, width=52),
+        "counsel_name":     Box(x=36.5, y=180.8, width=60.0),
+        "counsel_date":     Box(x=137.0, y=180.8, width=40.0),
         # ---- the pharmacy's own footer -------------------------------------
-        "footer_1":         Box(x=14, y=240, width=120, size=8),
-        "footer_2":         Box(x=14, y=246, width=120, size=8),
-        "footer_3":         Box(x=14, y=252, width=120, size=8),
-        "footer_4":         Box(x=14, y=258, width=120, size=8),
+        # The bottom third of the form is blank: nothing of the funder's is
+        # printed below the counselling lines, so that space is the pharmacy's.
+        "footer_1":         Box(x=11.5, y=240.0, width=98.8, size=8),
+        "footer_2":         Box(x=11.5, y=244.5, width=98.8, size=8),
+        "footer_3":         Box(x=11.5, y=249.0, width=98.8, size=8),
+        "footer_4":         Box(x=11.5, y=253.5, width=98.8, size=8),
     },
-    # Five lines on the form, and a sixth medicine needs a second form — which
-    # the notes on the back say to attach and submit together.
+    # Five lines on the form, and a sixth medicine needs a second form, which
+    # the notes say to attach and submit together.
+    #
+    # The columns are the gaps between the measured vertical rules, which fall
+    # at 13.5, 55.7, 60.8, 66.0, 83.5, 93.7, 99.8, 106.0, 112.0, 127.2 and
+    # 131.2mm, each inset a millimetre so a value never touches a rule.
+    #
+    # LINE and P/R are the form's own: the line number is pre-printed on the
+    # stationery and the repeat marker is written by hand, so we fill neither.
+    # They are columns here because they are columns on the paper, and leaving
+    # them out would run the drug name across both of them.
     table=Grid(
-        top=105.0, row_height=5.3, rows=5,
+        top=107.8, row_height=6.37, rows=5,
         columns={
-            "drug":       Box(x=13, y=0, width=52, size=7),
-            "price_code": Box(x=82, y=0, width=16, size=7),
-            "quantity":   Box(x=100, y=0, width=9, size=7, align="right"),
-            "day":        Box(x=111, y=0, width=7, size=7, align="centre"),
-            "month":      Box(x=119, y=0, width=7, size=7, align="centre"),
-            "year":       Box(x=127, y=0, width=7, size=7, align="centre"),
-            "charge":     Box(x=135, y=0, width=17, size=7, align="right"),
-            "repeats":    Box(x=154, y=0, width=7, size=7, align="centre"),
+            "drug":       Box(x=14.5, y=0.0, width=40.2, size=8),
+            "line_no":    Box(x=56.7, y=0.0, width=3.1, size=6, align="centre"),
+            "p_r":        Box(x=61.8, y=0.0, width=3.2, size=6, align="centre"),
+            "price_code": Box(x=67.0, y=0.0, width=15.5, size=8),
+            "quantity":   Box(x=84.5, y=0.0, width=8.2, size=8, align="right"),
+            "day":        Box(x=94.7, y=0.0, width=4.1, size=8, align="centre"),
+            "month":      Box(x=100.8, y=0.0, width=4.2, size=8, align="centre"),
+            "year":       Box(x=107.0, y=0.0, width=4.0, size=8, align="centre"),
+            "charge":     Box(x=113.0, y=0.0, width=13.2, size=8, align="right"),
+            "repeats":    Box(x=128.2, y=0.0, width=2.0, size=6, align="centre"),
         },
     ),
+    # Eight lines of advice under the rule, at the size the form's own filled
+    # example was typed at: this is the half the patient reads at home.
     counselling=Grid(
-        top=183.0, row_height=5.4, rows=6,
-        columns={"line": Box(x=14, y=0, width=190, size=8)},
+        top=188.0, row_height=5.6, rows=8,
+        columns={"line": Box(x=13.5, y=0.0, width=160.0, size=11)},
     ),
     # ---- the form itself, drawn only when printing on blank paper ----------
     #
@@ -194,59 +229,157 @@ FORM = Form(
     # What it is instead: the same boxes, in the same places, carrying the same
     # captions, so a funder's clerk reading it finds every field where they
     # expect it. The claim is the information, not the artwork.
+    #
+    # The captions the original sets on two lines are set on two lines here,
+    # which is not cosmetic: MEDICAL SCHEME on one line is twenty millimetres
+    # long and runs into the box its own value lands in.
     captions=(
         Caption("CERTIFIED COPY OF DOCTOR'S PRESCRIPTION / MEDICAL AID "
-                "DRUG CLAIM FORM", 22, 7, 9, bold=True),
-        Caption("PATIENT'S NAME", 14, 14),
-        Caption("POSTAL ADDRESS", 14, 22),
-        Caption("MEDICAL SCHEME", 126, 14),
-        Caption("DATE", 126, 23),
-        Caption("MEMBER'S SURNAME", 14, 34),
-        # Above its own box rather than beside it: the surname's field is
-        # 62mm wide and reaches 121, so there is no room on that line.
-        Caption("MEMBER'S INITS.", 133, 29.5, 5.5),
-        Caption("MEMBER'S NUMBER", 14, 40),
-        Caption("GROSS AMOUNT CLAIMED", 14, 49),
-        Caption("PATIENT DETAILS", 118, 50),
-        Caption("SUFFIX", 115, 53, 5),
-        Caption("DATE OF BIRTH", 130, 53, 5),
-        Caption("MEMBER'S SIGNATURE", 14, 66),
-        Caption("DATE", 108, 66),
-        Caption("DOCTOR'S No.", 14, 74),
-        Caption("PHARMACY No.", 60, 74),
-        Caption("PRESCRIPTION No.", 108, 74),
-        Caption("NAME OF PHARMACY", 14, 90, 6),
-        Caption("NAME OF DOCTOR", 138, 90, 6),
-        # the drug table's headings
-        Caption("NAME OF DRUG", 24, 100, 5.5, bold=True),
-        Caption("PRICE CODE", 82, 100, 5.5, bold=True),
-        Caption("QUANT", 100, 100, 5.5, bold=True),
-        Caption("DAY", 111, 100, 5.5, bold=True),
-        Caption("MTH", 119, 100, 5.5, bold=True),
-        Caption("YR", 128, 100, 5.5, bold=True),
-        Caption("CHARGE", 136, 100, 5.5, bold=True),
-        Caption("R.P.", 154, 100, 5.5, bold=True),
-        Caption("GROSS", 118, 135, 7, bold=True),
-        Caption("PATIENT COUNSELLING", 70, 162, 11, bold=True),
-        Caption("The information below is only a guide. If it does not agree "
-                "with instructions given", 48, 169, 6),
-        Caption("by your doctor, please follow the doctor's instructions.",
-                64, 172.5, 6),
-        Caption("NAME", 14, 177),
-        Caption("DATE", 134, 177),
+                "DRUG CLAIM FORM", 18.2, 6.9, 10.5, bold=True),
+        Caption("PATIENT'S", 21.7, 12.3),
+        Caption("NAME", 21.7, 16.6),
+        Caption("POSTAL", 21.7, 23.2),
+        Caption("ADDRESS", 21.7, 26.6),
+        Caption("MEDICAL", 110.6, 12.3),
+        Caption("SCHEME", 110.6, 16.6),
+        Caption("DATE", 123.0, 23.6),
+        Caption("MEMBER'S SURNAME", 17.4, 35.0),
+        Caption("MEMBER'S INITS.", 86.8, 35.0),
+        Caption("MEMBER'S NUMBER", 21.3, 42.4),
+        Caption("GROSS AMOUNT CLAIMED", 17.9, 50.5),
+        Caption("$", 63.5, 50.5),
+        # The funder's own side of the sheet. We never write in these, and a
+        # claim printed without them is missing the boxes a clerk date stamps.
+        Caption("CLAIM NUMBER", 149.2, 34.7, 7),
+        Caption("DATE STAMP", 137.3, 45.9, 7),
+        Caption("DATE STAMP", 164.7, 45.9, 7),
+        Caption("DELAY", 141.5, 63.0, 5),
+        Caption("P.M.", 151.5, 63.0, 5),
+        Caption("B/P", 162.0, 62.0, 4.5),
+        Caption("O/R", 162.0, 64.4, 4.5),
+        Caption("STAFF", 171.0, 63.0, 5),
+        Caption("PATIENT DETAILS", 100.6, 51.0, 7),
+        Caption("SUFFIX", 98.3, 54.3, 5),
+        Caption("DATE OF BIRTH", 107.3, 54.3, 5),
+        # The member's declaration, which is what makes the signature mean
+        # something. Six lines on the original and six here.
+        Caption("I confirm that the details given above are correct and that "
+                "this claim", 16.3, 55.4, 5),
+        Caption("is lodged against my medical aid society in the utmost good "
+                "faith.", 16.3, 57.2, 5),
+        Caption("I confirm that the amount claimed herein is not claimable "
+                "from", 16.3, 59.0, 5),
+        Caption("another source and I understand that no awards are payable "
+                "in", 16.3, 60.8, 5),
+        Caption("respect of this claim until such time as my medical aid "
+                "society has", 16.3, 62.6, 5),
+        Caption("received contributions in respect of the stated period of "
+                "treatment.", 16.3, 64.4, 5),
+        Caption("MEMBER'S SIGNATURE", 21.3, 72.0),
+        Caption("DATE", 102.1, 72.0),
+        Caption("DOCTOR'S No.", 26.7, 77.9, 6),
+        Caption("PHARMACY No.", 64.4, 77.9, 6),
+        Caption("PRESCRIPTION No.", 107.5, 77.9, 6),
+        Caption("B/P", 153.5, 76.5, 4.5),
+        Caption("O/R", 153.5, 78.8, 4.5),
+        Caption("P.M.", 163.0, 77.9, 5),
+        Caption("STAFF", 171.5, 77.9, 5),
+        Caption("NAME OF", 20.3, 92.0, 6),
+        Caption("PHARMACY", 20.3, 95.2, 6),
+        Caption("NAME OF", 118.4, 92.0, 6),
+        Caption("DOCTOR", 118.4, 95.2, 6),
+        # the drug table's headings, each centred in its own column
+        Caption("NAME OF DRUG", 27.4, 102.2, 5.5, bold=True),
+        Caption("LINE", 55.9, 102.2, 5.5, bold=True),
+        Caption("P/R", 61.6, 102.2, 5.5, bold=True),
+        Caption("PRICE CODE", 68.8, 102.2, 5.5, bold=True),
+        Caption("QUANT.", 85.0, 102.2, 5.5, bold=True),
+        Caption("DAY", 95.0, 102.2, 5.5, bold=True),
+        Caption("MTH", 101.1, 102.2, 5.5, bold=True),
+        Caption("YR", 107.8, 102.2, 5.5, bold=True),
+        Caption("CHARGE", 116.0, 102.2, 5.5, bold=True),
+        Caption("R.P.", 127.3, 102.2, 4.5, bold=True),
+        # and the funder's columns beside them, which carry the SHORTFALL the
+        # till later asks the patient for.
+        Caption("AWARD", 138.5, 102.2, 5.5, bold=True),
+        Caption("SHORTFALL", 151.9, 102.2, 5.5, bold=True),
+        Caption("REASON", 166.8, 102.2, 5.5, bold=True),
+        Caption("B/P", 175.9, 100.8, 4.5, bold=True),
+        Caption("O/R", 175.9, 102.9, 4.5, bold=True),
+        Caption("STAFF", 181.5, 102.2, 4.5, bold=True),
+        Caption("GROSS", 94.0, 140.0, 9, bold=True),
+        Caption("$", 109.8, 140.0, 8, bold=True),
+        # The notes, in the band under the table that was empty here and is
+        # not empty on the form. Note one says BLUE on the original, meaning
+        # its tinted ground; on bond paper there is no blue, so it says what
+        # is true of this sheet instead.
+        Caption("NOTES", 15.4, 137.4, 5, bold=True),
+        Caption("1) ANY SECTION NOT COMPLETED BY THE COMPUTER MUST BE "
+                "COMPLETED BY", 15.4, 139.4, 5),
+        Caption("   MEMBER/PATIENT. ALL OTHER SECTIONS ARE FOR OFFICIAL USE "
+                "ONLY.", 15.4, 141.4, 5),
+        Caption("2) IF ANOTHER CLAIM FORM IS ATTACHED TO THIS FORM, ENSURE "
+                "THAT IT IS SUBMITTED TOGETHER WITH THIS FORM.",
+                15.4, 143.4, 5),
+        Caption("3) PLEASE ADHERE TO ANY OTHER SPECIAL CONDITIONS OF YOUR "
+                "MEDICAL AID SOCIETY.", 15.4, 145.4, 5),
+        Caption("4) CERTAIN SECTIONS OF THE FORM MAY NOT BE REQUIRED BY YOUR "
+                "MEDICAL AID SOCIETY AND WILL REMAIN BLANK.",
+                15.4, 147.4, 5),
+        Caption("5) RETAIN THIS FORM FOR SUBMISSION TO THE DEPARTMENT OF "
+                "TAXES IF YOU ARE NOT COVERED BY A DRUG BENEFIT SCHEME.",
+                15.4, 149.4, 5),
+        Caption("6) DO NOT LOSE THIS FORM AS A FEE MAY BE CHARGED FOR A COPY.",
+                15.4, 151.4, 5),
+        Caption("7) PLEASE CHECK ALL DETAILS CAREFULLY. IF ANY INFORMATION "
+                "PRINTED BY THE COMPUTER IS INCORRECT OR HAS BEEN OMITTED, "
+                "PLEASE NOTIFY US.", 15.4, 153.4, 5),
+        Caption("REPEATS LEFT ON PRESCRIPTION", 135.1, 143.1, 7, bold=True),
+        Caption("PATIENT COUNSELLING", 66.6, 161.9, 15, bold=True),
+        Caption("THE INFORMATION GIVEN BELOW IS ONLY A GUIDE. IF IT DOES NOT",
+                40.5, 166.1, 9),
+        Caption("AGREE WITH INSTRUCTIONS GIVEN BY YOUR DOCTOR, PLEASE",
+                57.3, 170.5, 9),
+        Caption("FOLLOW THE DOCTOR'S INSTRUCTIONS.", 64.5, 174.8, 9),
+        Caption("NAME", 26.5, 181.7, 8),
+        Caption("DATE", 127.3, 181.7, 8),
     ),
     rules=(
         # the boxes the values go in, so a clerk sees fields rather than text
-        Rule(44, 11, 72, 5), Rule(44, 19, 72, 5),
-        Rule(148, 11, 56, 5), Rule(148, 20, 56, 5),
-        Rule(57, 31, 66, 5), Rule(133, 31, 24, 5),
-        Rule(61, 37, 56, 5), Rule(79, 46, 30, 5),
-        Rule(115, 52, 11, 5), Rule(127, 52, 11, 5),
-        Rule(138, 52, 11, 5), Rule(149, 52, 13, 5),
-        Rule(14, 70, 90, 0), Rule(118, 70, 50, 0),      # signature, date
-        Rule(28, 75, 36, 5), Rule(74, 75, 36, 5), Rule(127, 75, 36, 5),
-        Rule(42, 89, 88, 5), Rule(154, 89, 72, 5),
-        Rule(42, 174, 78, 5), Rule(154, 174, 56, 5),
+        Rule(36.0, 10.4, 72.0, 6.2),      # patient's name
+        Rule(36.0, 20.8, 72.0, 6.2),      # postal address
+        Rule(13.5, 29.8, 174.4, 0),       # the band under the patient
+        Rule(16.3, 39.1, 67.0, 6.2),      # member's number
+        Rule(16.3, 47.4, 73.2, 6.2),      # gross amount claimed
+        # Under their captions, not through them: the box top was at 53.0 and
+        # SUFFIX and DATE OF BIRTH sit on that line.
+        Rule(97.8, 55.0, 6.9, 7.0),       # suffix
+        Rule(106.8, 55.0, 6.7, 7.0),      # day of birth
+        Rule(113.5, 55.0, 8.3, 7.0),      # month
+        Rule(121.8, 55.0, 7.2, 7.0),      # year
+        # the funder's own side
+        Rule(131.0, 30.7, 54.8, 7.4),     # claim number
+        Rule(131.0, 40.7, 27.9, 18.6),    # date stamp
+        Rule(158.9, 40.7, 26.9, 18.6),    # date stamp
+        Rule(140.3, 60.0, 9.3, 8.8), Rule(149.6, 60.0, 9.3, 8.8),
+        Rule(161.0, 60.0, 9.3, 8.8), Rule(170.3, 60.0, 9.3, 8.8),
+        Rule(49.9, 72.0, 38.8, 0), Rule(109.4, 72.0, 21.6, 0),
+        Rule(13.5, 73.5, 174.4, 0),       # the band under the signature
+        Rule(23.4, 78.9, 22.9, 6.5),      # doctor's number
+        Rule(60.8, 78.9, 22.5, 6.5),      # pharmacy's number
+        Rule(106.8, 78.9, 25.8, 6.5),     # prescription number
+        Rule(152.8, 74.3, 8.8, 11.3), Rule(161.6, 74.3, 8.9, 11.3),
+        Rule(170.5, 74.3, 9.1, 11.3),
+        Rule(34.0, 90.5, 70.5, 5.5), Rule(128.5, 90.5, 57.5, 5.5),
+        # the funder's columns beside the drug table: a heading cell and a
+        # body cell each, which is the grid without thirty rectangles.
+        Rule(133.6, 98.1, 15.7, 5.2), Rule(133.6, 103.3, 15.7, 31.9),
+        Rule(149.3, 98.1, 16.1, 5.2), Rule(149.3, 103.3, 16.1, 31.9),
+        Rule(165.4, 98.1, 9.9, 5.2), Rule(165.4, 103.3, 9.9, 31.9),
+        Rule(175.3, 98.1, 4.8, 5.2), Rule(175.3, 103.3, 4.8, 31.9),
+        Rule(180.1, 98.1, 7.8, 5.2), Rule(180.1, 103.3, 7.8, 31.9),
+        Rule(112.0, 136.4, 15.2, 5.0),    # the gross, under CHARGE
+        Rule(13.5, 183.2, 174.4, 0),      # under the counselling name and date
     ),
 )
 
@@ -342,7 +475,7 @@ def render(values: dict, lines: list[dict], counselling: list[str], *,
 #: Blank paper a pharmacy actually has in the office.
 PAPERS: dict[str, tuple[float, float]] = {
     "A4": (210.0, 297.0),
-    "form": (241.3, 279.4),      # the continuous stationery's own size
+    "form": (203.2, 279.4),      # the continuous stationery's own size
 }
 
 
@@ -399,14 +532,18 @@ def render_full(values: dict, lines: list[dict], counselling: list[str], *,
     g = form.table
     cols = sorted(g.columns.values(), key=lambda b: b.x)
     left, right = cols[0].x - 1, cols[-1].x + cols[-1].width + 1
+    # Where the row's top rule sits above its baseline. Measured, like the
+    # pitch: a value on the stationery sits 1.7mm above the line under it, so
+    # the line above it is a row height further up.
+    lift = g.row_height - 1.7
     c.setLineWidth(0.4)
     for n in range(g.rows + 1):
-        y = g.top - 3.5 + n * g.row_height
+        y = g.top - lift + n * g.row_height
         x1, y1 = at(left, y)
         x2, _ = at(right, y)
         c.line(x1, y1, x2, y1)
-    top_y = at(left, g.top - 3.5)[1]
-    bot_y = at(left, g.top - 3.5 + g.rows * g.row_height)[1]
+    top_y = at(left, g.top - lift)[1]
+    bot_y = at(left, g.top - lift + g.rows * g.row_height)[1]
     for b in cols:
         x1, _ = at(b.x - 1, 0)
         c.line(x1, top_y, x1, bot_y)
@@ -438,7 +575,12 @@ def render_full(values: dict, lines: list[dict], counselling: list[str], *,
     for n in range(g.rows):
         row = lines[n] if n < len(lines) else {}
         for key, col in g.columns.items():
-            value(row.get(key, ""),
+            # The line number is pre-printed on the stationery, so the overlay
+            # never supplies one. On blank paper nothing has printed it yet.
+            text = row.get(key, "")
+            if key == "line_no" and not text:
+                text = f"{n + 1:02d}"
+            value(text,
                   Box(x=col.x, y=g.top, width=col.width, size=col.size,
                       align=col.align), n * g.row_height)
     line = form.counselling.columns["line"]

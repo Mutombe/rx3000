@@ -1456,7 +1456,12 @@ def claim_form_pdf(rx_id: int, paper: str = "", db: Session = Depends(get_db),
     for item in sale.items:
         lines.append({
             "drug": item.description or "",
-            "price_code": "",
+            # PRICE CODE is the funder's column for the national drug code, so
+            # it is the NAPPI number where the line has one. A pharmacy's own
+            # stock code is the fallback and is better than an empty column: a
+            # clerk pricing the claim by hand has something to search on.
+            "price_code": ((item.product.nappi_code or item.product.stock_code
+                            or "") if item.product else ""),
             "quantity": str(int(item.quantity or 0)),
             "day": day, "month": month, "year": year,
             "charge": claim_form.money(item.line_total),

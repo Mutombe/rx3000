@@ -137,9 +137,11 @@ def captions_clear_of_values(form) -> list[str]:
     """
     bad = []
     for cap in form.captions:
-        # What the caption actually covers, roughly: these are proportional
-        # faces, so 0.5 of the size per character is a fair width.
-        cw = len(cap.text) * cap.size * 0.5 * PT
+        # What the caption actually covers. 0.5 of the size per character was
+        # too mean: these captions are UPPERCASE Helvetica, where the average
+        # advance is nearer 0.62, and the difference let MEDICAL SCHEME and
+        # PATIENT DETAILS sit on the boxes beside them with this saying nothing.
+        cw = len(cap.text) * cap.size * 0.62 * PT
         ch = cap.size * 0.4 * PT
         for name, b in boxes(form):
             if (cap.x < b.x + b.width and b.x < cap.x + cw
@@ -161,9 +163,9 @@ def captions_clear_of_each_other(form) -> list[str]:
     bad = []
     caps = list(form.captions)
     for i, a in enumerate(caps):
-        aw, ah = len(a.text) * a.size * 0.5 * PT, a.size * 0.4 * PT
+        aw, ah = len(a.text) * a.size * 0.62 * PT, a.size * 0.4 * PT
         for b in caps[i + 1:]:
-            bw, bh = len(b.text) * b.size * 0.5 * PT, b.size * 0.4 * PT
+            bw, bh = len(b.text) * b.size * 0.62 * PT, b.size * 0.4 * PT
             if (a.x < b.x + bw and b.x < a.x + aw
                     and a.y < b.y + bh and b.y < a.y + ah):
                 bad.append(f'caption "{a.text[:22]}" sits on "{b.text[:22]}"')
