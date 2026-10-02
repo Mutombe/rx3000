@@ -82,6 +82,25 @@ class Grid:
 
 
 @dataclass(frozen=True)
+class Caption:
+    """A word the pre-printed form carries, for when we print the form too."""
+    text: str
+    x: float
+    y: float
+    size: float = 6.5
+    bold: bool = False
+
+
+@dataclass(frozen=True)
+class Rule:
+    """A line or a box on the pre-printed form, in millimetres from the top."""
+    x: float
+    y: float
+    width: float
+    height: float = 0.0          # zero is a rule, anything else is a box
+
+
+@dataclass(frozen=True)
 class Form:
     name: str
     #: The paper, in millimetres. Continuous stationery is usually 9.5 by 11
@@ -93,6 +112,14 @@ class Form:
     table: Grid
     #: Free text under the counselling heading, one line per medicine.
     counselling: Grid
+    #: THE FORM ITSELF, for printing on blank paper.
+    #:
+    #: Empty for a form we only overlay. Described here rather than in a second
+    #: template because the captions have to sit beside the boxes the values
+    #: land in, and two descriptions of one sheet drift the first time anybody
+    #: moves a field.
+    captions: tuple[Caption, ...] = ()
+    rules: tuple[Rule, ...] = ()
 
 
 #: The standard form, as read off a completed one.
@@ -156,6 +183,70 @@ FORM = Form(
     counselling=Grid(
         top=183.0, row_height=5.4, rows=6,
         columns={"line": Box(x=14, y=0, width=190, size=8)},
+    ),
+    # ---- the form itself, drawn only when printing on blank paper ----------
+    #
+    # Deliberately NOT a facsimile. Printing somebody else's stationery is both
+    # a copyright question and a losing game: the Paragon original has a
+    # tinted ground, a logo and a MedicAlert list on the back that a laser on
+    # bond paper cannot reproduce anyway.
+    #
+    # What it is instead: the same boxes, in the same places, carrying the same
+    # captions, so a funder's clerk reading it finds every field where they
+    # expect it. The claim is the information, not the artwork.
+    captions=(
+        Caption("CERTIFIED COPY OF DOCTOR'S PRESCRIPTION / MEDICAL AID "
+                "DRUG CLAIM FORM", 22, 7, 9, bold=True),
+        Caption("PATIENT'S NAME", 14, 14),
+        Caption("POSTAL ADDRESS", 14, 22),
+        Caption("MEDICAL SCHEME", 126, 14),
+        Caption("DATE", 126, 23),
+        Caption("MEMBER'S SURNAME", 14, 34),
+        # Above its own box rather than beside it: the surname's field is
+        # 62mm wide and reaches 121, so there is no room on that line.
+        Caption("MEMBER'S INITS.", 133, 29.5, 5.5),
+        Caption("MEMBER'S NUMBER", 14, 40),
+        Caption("GROSS AMOUNT CLAIMED", 14, 49),
+        Caption("PATIENT DETAILS", 118, 50),
+        Caption("SUFFIX", 115, 53, 5),
+        Caption("DATE OF BIRTH", 130, 53, 5),
+        Caption("MEMBER'S SIGNATURE", 14, 66),
+        Caption("DATE", 108, 66),
+        Caption("DOCTOR'S No.", 14, 74),
+        Caption("PHARMACY No.", 60, 74),
+        Caption("PRESCRIPTION No.", 108, 74),
+        Caption("NAME OF PHARMACY", 14, 90, 6),
+        Caption("NAME OF DOCTOR", 138, 90, 6),
+        # the drug table's headings
+        Caption("NAME OF DRUG", 24, 100, 5.5, bold=True),
+        Caption("PRICE CODE", 82, 100, 5.5, bold=True),
+        Caption("QUANT", 100, 100, 5.5, bold=True),
+        Caption("DAY", 111, 100, 5.5, bold=True),
+        Caption("MTH", 119, 100, 5.5, bold=True),
+        Caption("YR", 128, 100, 5.5, bold=True),
+        Caption("CHARGE", 136, 100, 5.5, bold=True),
+        Caption("R.P.", 154, 100, 5.5, bold=True),
+        Caption("GROSS", 118, 135, 7, bold=True),
+        Caption("PATIENT COUNSELLING", 70, 162, 11, bold=True),
+        Caption("The information below is only a guide. If it does not agree "
+                "with instructions given", 48, 169, 6),
+        Caption("by your doctor, please follow the doctor's instructions.",
+                64, 172.5, 6),
+        Caption("NAME", 14, 177),
+        Caption("DATE", 134, 177),
+    ),
+    rules=(
+        # the boxes the values go in, so a clerk sees fields rather than text
+        Rule(44, 11, 72, 5), Rule(44, 19, 72, 5),
+        Rule(148, 11, 56, 5), Rule(148, 20, 56, 5),
+        Rule(57, 31, 66, 5), Rule(133, 31, 24, 5),
+        Rule(61, 37, 56, 5), Rule(79, 46, 30, 5),
+        Rule(115, 52, 11, 5), Rule(127, 52, 11, 5),
+        Rule(138, 52, 11, 5), Rule(149, 52, 13, 5),
+        Rule(14, 70, 90, 0), Rule(118, 70, 50, 0),      # signature, date
+        Rule(28, 75, 36, 5), Rule(74, 75, 36, 5), Rule(127, 75, 36, 5),
+        Rule(42, 89, 88, 5), Rule(154, 89, 72, 5),
+        Rule(42, 174, 78, 5), Rule(154, 174, 56, 5),
     ),
 )
 
@@ -242,6 +333,120 @@ def render(values: dict, lines: list[dict], counselling: list[str], *,
         elif not show_boxes:
             _put(c, said, at, dx, dy + n * form.counselling.row_height,
                  form.height)
+
+    c.showPage()
+    c.save()
+    return buffer.getvalue()
+
+
+#: Blank paper a pharmacy actually has in the office.
+PAPERS: dict[str, tuple[float, float]] = {
+    "A4": (210.0, 297.0),
+    "form": (241.3, 279.4),      # the continuous stationery's own size
+}
+
+
+def render_full(values: dict, lines: list[dict], counselling: list[str], *,
+                form: Form = FORM, paper: str = "A4") -> bytes:
+    """The whole form, boxes and captions included, on blank paper.
+
+    The other one is an overlay for stationery the pharmacy buys. This is for
+    the day the box runs out, for a scheme that takes a printed claim, and for
+    anybody who would rather not carry pre-printed stock at all.
+
+    SAME TEMPLATE, SCALED. The field positions are the ones the overlay uses,
+    multiplied to fit the paper in the tray — so a value sits in the same place
+    relative to its caption whichever way it is printed, and a position fixed
+    for one is fixed for both. A4 is narrower and taller than the stationery,
+    so the scale is the smaller of the two ratios and the result is centred.
+
+    No calibration here, and that is the point of it: nothing has to line up
+    with anything already on the page, because there is nothing on the page.
+    """
+    w, h = PAPERS.get(paper, PAPERS["A4"])
+    scale = min(w / form.width, h / form.height)
+    # Centred, so a sheet fed slightly crooked still has margin on every side.
+    ox = (w - form.width * scale) / 2
+    oy = (h - form.height * scale) / 2
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=(w * mm, h * mm))
+    c.setTitle(f"{form.name} on {paper}")
+
+    def at(x: float, y: float) -> tuple[float, float]:
+        """Template millimetres to points on this paper, top left origin."""
+        return ((ox + x * scale) * mm, (h - oy - y * scale) * mm)
+
+    c.setStrokeColorRGB(0.45, 0.45, 0.45)
+    c.setLineWidth(0.4)
+    for rule in form.rules:
+        px, py = at(rule.x, rule.y)
+        if rule.height:
+            c.rect(px, py - rule.height * scale * mm,
+                   rule.width * scale * mm, rule.height * scale * mm)
+        else:
+            c.line(px, py, px + rule.width * scale * mm, py)
+
+    c.setFillColorRGB(0.1, 0.1, 0.1)
+    for cap in form.captions:
+        px, py = at(cap.x, cap.y)
+        c.setFont("Helvetica-Bold" if cap.bold else "Helvetica",
+                  cap.size * scale)
+        c.drawString(px, py, cap.text)
+
+    # The drug table as a real grid, which the overlay never draws because the
+    # stationery already has one.
+    g = form.table
+    cols = sorted(g.columns.values(), key=lambda b: b.x)
+    left, right = cols[0].x - 1, cols[-1].x + cols[-1].width + 1
+    c.setLineWidth(0.4)
+    for n in range(g.rows + 1):
+        y = g.top - 3.5 + n * g.row_height
+        x1, y1 = at(left, y)
+        x2, _ = at(right, y)
+        c.line(x1, y1, x2, y1)
+    top_y = at(left, g.top - 3.5)[1]
+    bot_y = at(left, g.top - 3.5 + g.rows * g.row_height)[1]
+    for b in cols:
+        x1, _ = at(b.x - 1, 0)
+        c.line(x1, top_y, x1, bot_y)
+    x1, _ = at(right, 0)
+    c.line(x1, top_y, x1, bot_y)
+
+    # And the values, through the same placement the overlay uses.
+    c.setFillColorRGB(0, 0, 0)
+
+    def value(text, box: Box, extra_y: float = 0.0) -> None:
+        if not text:
+            return
+        text = str(text).strip()
+        if not text:
+            return
+        size = box.size * scale
+        while size > 3.5 and c.stringWidth(text, "Courier", size) > box.width * scale * mm:
+            size -= 0.25
+        c.setFont("Courier", size)
+        px, py = at(box.x, box.y + extra_y)
+        if box.align == "right":
+            px += box.width * scale * mm - c.stringWidth(text, "Courier", size)
+        elif box.align == "centre":
+            px += (box.width * scale * mm - c.stringWidth(text, "Courier", size)) / 2
+        c.drawString(px, py - size * 0.25, text)
+
+    for key, box in form.fields.items():
+        value(values.get(key, ""), box)
+    for n in range(g.rows):
+        row = lines[n] if n < len(lines) else {}
+        for key, col in g.columns.items():
+            value(row.get(key, ""),
+                  Box(x=col.x, y=g.top, width=col.width, size=col.size,
+                      align=col.align), n * g.row_height)
+    line = form.counselling.columns["line"]
+    for n in range(form.counselling.rows):
+        if n < len(counselling):
+            value(counselling[n],
+                  Box(x=line.x, y=form.counselling.top, width=line.width,
+                      size=line.size), n * form.counselling.row_height)
 
     c.showPage()
     c.save()

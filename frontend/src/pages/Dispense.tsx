@@ -2356,16 +2356,19 @@ export default function Dispense() {
    *  Anything that scales it to fit a page puts every value in the wrong box,
    *  and the form is spoiled rather than wrong in a way somebody notices.
    */
-  async function printClaimForm(rxId?: number) {
+  async function printClaimForm(rxId?: number, paper: "form" | "blank" = "form") {
     const id = rxId ?? lastRxId;
     if (!id) { toast.warn("Dispense the script first."); return; }
     setPrinting(true);
     try {
-      const file = await api.blob(`/api/prescriptions/${id}/claim-form.pdf`);
+      const file = await api.blob(
+        `/api/prescriptions/${id}/claim-form.pdf?paper=${paper}`);
       const bytes = new Uint8Array(await file.body.arrayBuffer());
       if (roll.goesStraightToPrinter("claim")) {
         await roll.printPage(bytes, "claim");
-        toast.ok("Claim form printed. Check it against the form before filing.");
+        toast.ok(paper === "blank"
+          ? "Claim form printed on plain paper."
+          : "Claim form printed. Check it against the form before filing.");
       } else {
         const url = URL.createObjectURL(file.body);
         window.open(url, "_blank", "noopener");
@@ -2382,10 +2385,14 @@ export default function Dispense() {
       hint: "The stickers for the box, again.",
       unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
       run: () => { if (lastRxId) void printRxLabels(lastRxId); } },
-    { key: "f", label: "Claim form (the scheme's own)",
-      hint: "Onto a blank pre-printed form. Print at 100%.",
+    { key: "f", label: "Claim form (onto the bought form)",
+      hint: "The values only. Load a pre-printed form and print at 100%.",
       unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
-      run: () => { if (lastRxId) void printClaimForm(lastRxId); } },
+      run: () => { if (lastRxId) void printClaimForm(lastRxId, "form"); } },
+    { key: "b", label: "Claim form on plain paper",
+      hint: "The whole form, boxes and all, on A4. For when the box runs out.",
+      unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
+      run: () => { if (lastRxId) void printClaimForm(lastRxId, "blank"); } },
     { key: "c", label: "Claim copy (A4)",
       hint: "For the file, or for the funder.",
       unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",

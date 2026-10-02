@@ -1375,7 +1375,7 @@ def claim_form_calibration(db: Session = Depends(get_db),
 
 
 @router.get("/prescriptions/{rx_id}/claim-form.pdf")
-def claim_form_pdf(rx_id: int, db: Session = Depends(get_db),
+def claim_form_pdf(rx_id: int, paper: str = "", db: Session = Depends(get_db),
                    user: User = Depends(get_current_user)):
     """The values alone, to print onto the pre-printed claim form.
 
@@ -1466,10 +1466,22 @@ def claim_form_pdf(rx_id: int, db: Session = Depends(get_db),
         counselling.append(
             f"{item.description}: {said}".strip().rstrip(":"))
 
-    pdf = claim_form.render(
-        values, lines, counselling,
-        offset=(config.number(db, "claimform.offset_x", 0.0),
-                config.number(db, "claimform.offset_y", 0.0)))
+    # ON BLANK PAPER OR ONTO THE BOUGHT FORM.
+    #
+    # `paper=blank` draws the form as well as filling it in, for the day the
+    # box of stationery runs out and for a pharmacy that would rather not carry
+    # pre-printed stock. Everything else overlays the stationery, which is the
+    # default because it is what the funders are used to receiving.
+    #
+    # One template either way: the same field positions, so a position fixed
+    # for one is fixed for both and the two cannot drift apart.
+    if (paper or "").lower() in ("blank", "bond", "a4"):
+        pdf = claim_form.render_full(values, lines, counselling, paper="A4")
+    else:
+        pdf = claim_form.render(
+            values, lines, counselling,
+            offset=(config.number(db, "claimform.offset_x", 0.0),
+                    config.number(db, "claimform.offset_y", 0.0)))
     stamp = (rx.rx_number or str(rx.id)).replace("/", "-")
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="claim-form-{stamp}.pdf"'})

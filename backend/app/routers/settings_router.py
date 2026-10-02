@@ -77,6 +77,28 @@ DECLARED: tuple[Declared, ...] = (
              "Pharmacy",
              "Named on controlled-substance records and regulatory reports."),
 
+    # ---- the medical aid claim form
+    #
+    # Three settings for one sheet of paper, and all three exist because the
+    # form is a physical object the software does not control.
+    Declared("claimform.pharmacy_no", "Pharmacy number with the medical aids",
+             "text", "", "Claim form",
+             "Printed in the Pharmacy No. box on the claim form. It is the "
+             "number the funders know this pharmacy by, which is not the "
+             "regulatory registration number and is not held anywhere else."),
+    Declared("claimform.offset_x", "Claim form: shift across", "number", "0",
+             "Claim form",
+             "Millimetres to move everything RIGHT on the printed claim form. "
+             "Negative moves it left. Print the calibration sheet onto a spare "
+             "form, see how far out the boxes are, and put that number here.",
+             unit="mm"),
+    Declared("claimform.offset_y", "Claim form: shift down", "number", "0",
+             "Claim form",
+             "Millimetres to move everything DOWN on the printed claim form. "
+             "Negative moves it up. Set once per printer; set it again if the "
+             "printer or the form supplier changes.",
+             unit="mm"),
+
     # ---- counter behaviour
     Declared("till.lock_everywhere", "Lock every screen when idle", "bool", "0",
              "Counter",
