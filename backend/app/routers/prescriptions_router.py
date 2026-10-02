@@ -1354,6 +1354,127 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
     return rx
 
 
+@router.get("/claim-form/calibration.pdf")
+def claim_form_calibration(db: Session = Depends(get_db),
+                           _: User = Depends(get_current_user)):
+    """A sheet to hold against a blank claim form, to see how far out it is.
+
+    Registered ABOVE /prescriptions/{rx_id} would not matter here — it is a
+    different prefix — but it is first in the file because it is the thing
+    somebody does FIRST, once, before the real one is ever printed.
+    """
+    from fastapi.responses import Response
+
+    from ..services import claim_form, config
+
+    pdf = claim_form.calibration_sheet(offset=(
+        config.number(db, "claimform.offset_x", 0.0),
+        config.number(db, "claimform.offset_y", 0.0)))
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": 'inline; filename="claim-form-calibration.pdf"'})
+
+
+@router.get("/prescriptions/{rx_id}/claim-form.pdf")
+def claim_form_pdf(rx_id: int, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
+    """The values alone, to print onto the pre-printed claim form.
+
+    NOT a document. An overlay: an empty page the size of the stationery with
+    the figures in the places the boxes are, so the form the pharmacy bought
+    goes through the printer and comes out filled in. See services/claim_form.py
+    for why the positions are data and why the offset exists.
+
+    Built from the SALE, for the same reason the claim copy is: the script says
+    what was asked for and the sale says what went out and at what price.
+    """
+    from fastapi.responses import Response
+
+    from ..services import claim_form, config
+
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+
+    sale = (db.query(Sale).filter(Sale.id.in_(
+        db.query(SaleItem.sale_id).join(
+            PrescriptionItem, SaleItem.prescription_item_id == PrescriptionItem.id)
+        .filter(PrescriptionItem.prescription_id == rx.id)))
+        .order_by(Sale.id.desc()).first())
+    if sale is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Nothing has been dispensed on this script yet, so there is "
+                   "nothing to claim for.")
+
+    patient = rx.patient
+    claim = sale.claim
+    pharmacy = db.get(Pharmacy, user.pharmacy_id)
+    day, month, year = claim_form.split_date(sale.created_at)
+    dob_d, dob_m, dob_y = claim_form.split_date(
+        patient.date_of_birth if patient else None)
+
+    # The surname and initials are separate boxes on the form, and a patient is
+    # stored as a first name and a last name, so the initials are made rather
+    # than looked up: the first letter of each given name.
+    initials = ""
+    if patient and patient.first_name:
+        initials = "".join(w[0].upper() for w in patient.first_name.split() if w)
+
+    values = {
+        "patient_name": (f"{patient.first_name} {patient.last_name}".strip()
+                         if patient else ""),
+        "postal_address": (patient.address or "") if patient else "",
+        "medical_scheme": (patient.medical_aid.name
+                           if patient and patient.medical_aid else ""),
+        "claim_date": sale.created_at.strftime("%d %b %Y") if sale.created_at else "",
+        "member_surname": (patient.last_name or "") if patient else "",
+        "member_initials": initials,
+        "member_number": (patient.medical_aid_number or "") if patient else "",
+        "gross_claimed": claim_form.money(
+            claim.amount_claimed if claim else sale.total),
+        "dependant_suffix": (patient.dependent_code or "") if patient else "",
+        "birth_day": dob_d, "birth_month": dob_m, "birth_year": dob_y,
+        "doctor_no": (rx.doctor.practice_number or "") if rx.doctor else "",
+        # The pharmacy's own number with the funder, which is not the same as
+        # its registration number and is asked for by the form. Kept as a
+        # setting because only the pharmacy knows it.
+        "pharmacy_no": config.text(db, "claimform.pharmacy_no", ""),
+        "prescription_no": rx.rx_number or str(rx.id),
+        "pharmacy_name": (pharmacy.name if pharmacy else ""),
+        "doctor_name": (rx.doctor.name or "") if rx.doctor else "",
+        "gross_total": claim_form.money(sale.total),
+        "counsel_name": (patient.last_name or "") if patient else "",
+        "counsel_date": sale.created_at.strftime("%d %b %Y") if sale.created_at else "",
+        "footer_1": (pharmacy.name if pharmacy else ""),
+        "footer_2": config.text(db, "company.trading_name", ""),
+        "footer_3": config.text(db, "company.city", ""),
+        "footer_4": config.text(db, "company.phone", ""),
+    }
+
+    directions = {i.id: (i.dosage_instructions or "") for i in rx.items}
+    lines, counselling = [], []
+    for item in sale.items:
+        lines.append({
+            "drug": item.description or "",
+            "price_code": "",
+            "quantity": str(int(item.quantity or 0)),
+            "day": day, "month": month, "year": year,
+            "charge": claim_form.money(item.line_total),
+            "repeats": "",
+        })
+        said = sig.expand(db, directions.get(item.prescription_item_id, ""))
+        counselling.append(
+            f"{item.description}: {said}".strip().rstrip(":"))
+
+    pdf = claim_form.render(
+        values, lines, counselling,
+        offset=(config.number(db, "claimform.offset_x", 0.0),
+                config.number(db, "claimform.offset_y", 0.0)))
+    stamp = (rx.rx_number or str(rx.id)).replace("/", "-")
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="claim-form-{stamp}.pdf"'})
+
+
 @router.get("/prescriptions/{rx_id}/claim-copy.pdf")
 def claim_copy(rx_id: int, db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
