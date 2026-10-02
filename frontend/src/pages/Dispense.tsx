@@ -404,6 +404,14 @@ export default function Dispense() {
   /** The lane search the cursor is in. Its placeholder turns from the field's
    *  name into what to type. */
   const [laneFocus, setLaneFocus] = useState<"patient" | "doctor" | "product" | null>(null);
+  /** Which field in the finish dialog has the cursor.
+   *
+   *  The same idea as `laneFocus`: a field says WHAT IT IS until somebody is
+   *  in it, and then says what to type. A label sitting beside a box spends a
+   *  fifth of the row on a word that is only needed until you have read it
+   *  once, and these three were the last fields on the screen still doing it.
+   */
+  const [finFocus, setFinFocus] = useState<string | null>(null);
   // The patient lane, shared with the six other screens that look one up.
   const { q: patientQ, setQ: setPatientQ, hits: patients,
           failed: patientsFailed, clear: clearPatients } = usePatientSearch(8);
@@ -5450,12 +5458,15 @@ ${d.action}`}
                           {payHow === "delivery" && (
                             <div className="fin-panel is-form" id="step-delivery">
                               <div className="field">
-                                <label>Driver</label>
                                 <Select
+                                  ariaLabel="Driver: who is taking it"
                                   value={String(driverId ?? "")}
                                   onChange={(v) => setDriverId(v === "" ? "" : Number(v))}
                                   options={[
-                                    { value: "", label: "Choose a driver…" },
+                                    // The field's own name while nothing is
+                                    // chosen. Opening the list is the hint a
+                                    // dropdown has instead of a placeholder.
+                                    { value: "", label: "Driver" },
                                     ...drivers.filter((d) => d.active).map((d) => ({
                                       value: String(d.id),
                                       // What they already carry, where they are chosen.
@@ -5474,15 +5485,21 @@ ${d.action}`}
                                 </button>
                               </div>
                               <div className="field">
-                                <label>Fee</label>
                                 <input type="number" step="0.01" value={deliveryFee}
-                                       placeholder="0.00"
+                                       aria-label="Delivery fee"
+                                       placeholder={finFocus === "fee" ? "0.00" : "Fee"}
+                                       onFocus={() => setFinFocus("fee")}
+                                       onBlur={() => setFinFocus(null)}
                                        onChange={(e) => setDeliveryFee(e.target.value)} />
                               </div>
                               <div className="field">
-                                <label>Deliver to</label>
                                 <input value={deliverTo}
-                                       placeholder="Street, suburb, and anything the driver needs"
+                                       aria-label="Deliver to: the address"
+                                       placeholder={finFocus === "to"
+                                         ? "Street, suburb, and anything the driver needs"
+                                         : "Deliver to"}
+                                       onFocus={() => setFinFocus("to")}
+                                       onBlur={() => setFinFocus(null)}
                                        onChange={(e) => setDeliverTo(e.target.value)} />
                               </div>
                               <p className="fin-note">

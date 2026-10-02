@@ -86,17 +86,31 @@ function Booting() {
  *  number field, by click or by Tab, and its contents are selected. The next
  *  keystroke replaces them, which is what every till in the world does.
  *
- *  Only `type="number"`. Selecting a name or an address on focus would be
- *  wrong, and a field that holds a number but is typed as text — a dependant
- *  code, which may be "00" — asks for this itself where it wants it.
+ *  WHAT COUNTS AS A NUMBER FIELD
+ *
+ *  `type="number"` and nothing else was not enough, and the report that said
+ *  so was about the line editor: the money fields there are typed as TEXT with
+ *  `inputMode="decimal"`, because a number input will not hold "0.00" the way
+ *  a till wants it. Twenty-six fields across the product are written that way,
+ *  including the stock adjustment, and every one of them opens holding a
+ *  figure.
+ *
+ *  So the test is what the field asks the keyboard for. A decimal or numeric
+ *  keypad means a number, whatever the input is typed as.
+ *
+ *  Not `inputMode="tel"`. A telephone number is one people genuinely edit in
+ *  the middle — a prefix, a digit misheard — and replacing the whole of it on
+ *  a click would be the same mistake in the other direction. Not plain text
+ *  either: selecting a name or an address on focus would be wrong.
  */
 function useNumbersTypeOver() {
   useEffect(() => {
+    const NUMERIC = new Set(["decimal", "numeric"]);
     const take = (e: FocusEvent) => {
       const el = e.target as HTMLInputElement | null;
-      if (el?.tagName === "INPUT" && el.type === "number" && !el.readOnly) {
-        el.select();
-      }
+      if (el?.tagName !== "INPUT" || el.readOnly || el.disabled) return;
+      const asks = (el.getAttribute("inputmode") || "").toLowerCase();
+      if (el.type === "number" || NUMERIC.has(asks)) el.select();
     };
     // `focusin` rather than `focus`, because focus does not bubble and this is
     // listening for every input in the application at once.
