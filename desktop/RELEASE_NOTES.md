@@ -1,79 +1,58 @@
-The dispensary stops asking what it already knows, and a number field lets you
-type over what is in it.
+The software fills in the medical aid claim form you buy, instead of somebody
+writing it out.
 
-**Typing a number no longer leaves the old one in front of it**
+**Claim form**
 
-A field holding 0 took your 6 and made it 06. A field holding 30 took your 3
-and made it 303. Every number field in the software now selects what it is
-holding the moment you click or tab into it, so the first thing you type
-replaces it. That is the quantity, the repeats, the days, a price, a fee, a
-stock count, the money at a till.
+After dispensing a script that is being claimed, the bar across the bottom
+offers Claim form, and so does the print menu beside Dispense. It prints the
+patient, the scheme, the member number and initials, the dependant code, the
+date of birth, the prescriber's number, the script number, the gross claimed,
+each medicine with its quantity, date and charge, and the counselling lines
+underneath.
 
-**Three questions the finish screen used to ask have answers already**
+It prints the values only. Load a blank form, print at one hundred per cent,
+and the values land in the boxes.
 
-"How it is paid" offered Send to till, Out for delivery and Medical aid, and
-every one of them was already known.
+**Read this before the first one**
 
-Out for delivery is now a tick box on the dispensary screen itself, where you
-know it before the first medicine goes on. A medical aid is on the patient's
-record. Everything else waits at the till, which needs no button: the message
-after dispensing says where it went.
+The first form will not line up. It cannot: the positions were worked out from
+a photograph of a completed form, which gets us the shape of it and not the
+exact millimetres.
 
-So the finish screen shows the card when there is one, the driver when it is
-going out, and otherwise gets out of the way.
+So take one spare form and do this once. In the dispensary print menu there is
+a calibration sheet. Print it onto a spare form, hold the two up to the light,
+and see how far out the boxes are. Tell us the two numbers, across and down,
+and we set them for your pharmacy. After that every claim lands in the right
+place, and if you move the printer or change your form supplier you do it
+again in two minutes.
 
-**Not claiming is now a decision about the claim**
+We also need your pharmacy's own number with the medical aids, which is a box
+on the form only you can fill in.
 
-A member who has left their card at home is not a cash patient. That used to
-be said by choosing "Send to till" instead of "Medical aid", which is a
-decision about money standing in for a decision about the claim. The claim
-control now reads: Claim now, Hold the claim, Not this time.
+**It is not the claim copy**
 
-**The medical aid panel no longer has to be scrolled**
+Claim copy is still there and is still our own A4 sheet, for your file and for
+an inspector. The claim form is the one the medical aid accepts, on the
+stationery you buy, and nothing of ours is printed on it.
 
-It was cut off inside its own scrollbar. It fits.
+**Still worth knowing, from the version before this one**
 
-**Who is paying is a field of its own**
+Typing a number no longer leaves the old one in front of it. A field holding 0
+took your 6 and made it 06; it now selects what it is holding the moment you
+click into it.
 
-The lane across the top reads Patient, Prescriber, Medicine, Medical Aid. The
-scheme and the member number are on the screen rather than behind a small
-icon, because who carries the bill decides what the patient is asked for.
+The finish screen stopped asking how it is paid, because it already knows: out
+for delivery is a tick box on the dispensary screen, a medical aid is on the
+patient's record, and everything else waits at the till. Not claiming for a
+member who has left their card at home is now said on the claim control
+itself, as Not this time.
 
-**None of the patient's buttons are dead any more**
-
-The medical aid button did nothing when the patient had no cover, which is
-exactly when you want it: somebody produces a card at the counter. It opens,
-and offers to put the cover on. Repeats opens whether or not any are due,
-because "none are due" is an answer you came for.
-
-**Change a patient's details by double-clicking them**
-
-On the patient card, double-click a phone number, an ID number, an address, a
-member number, a dependant code or a caregiver's details, type, and press
-Enter. The scheme, the allergies and the date of birth still open the full
-form, because those are chosen from a list rather than typed.
-
-**Open full record works while a script is open**
-
-It was greyed out whenever anything was on the script, because leaving used to
-lose what you had captured. It does not: the script is kept and comes back
-when you return.
-
-**The delivery fields name themselves**
-
-Driver, Fee and Deliver to no longer carry a word beside the box. Each says
-what it is until you click into it, and then says what to type.
-
-**Still worth knowing, from the versions before this one**
+Who is paying is a field in the lane across the top, beside Patient,
+Prescriber and Medicine. None of the patient's buttons are dead any more, and
+you can change a patient's phone number, address or member number by
+double-clicking it on their card.
 
 If a machine would not start the software at all, with "the code execution
-cannot proceed because VCRUNTIME140_1.dll was not found", that is fixed.
-Install the current version from the website; the automatic update cannot
-reach a program that was never able to run.
-
-No money is taken anywhere in the dispensary, including a counter sale with
-advice. Everything is settled at the till, where the drawer and the shift are.
-
-At the till, scan the script's barcode and the bag opens with what is owed in
-it. Or type the script number into the same box the products go in. Or search
-Awaiting payment, which takes a script number, an invoice number or a name.
+cannot proceed because VCRUNTIME140_1.dll was not found", install the current
+version from the website. The automatic update cannot reach a program that was
+never able to run.
