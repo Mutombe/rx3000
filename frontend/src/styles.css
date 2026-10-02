@@ -10321,6 +10321,21 @@ button.fin-ack { cursor: pointer; }
 .fin-panel:not(.is-form) > svg { flex: 0 0 auto; margin-top: 1px; color: var(--ink-soft); }
 .fin-panel .tenders { margin-bottom: 0; }
 .fin-panel .tender-line { background: var(--surface); }
+/* A FIELD WITH NO LABEL DOES NOT KEEP THE LABEL'S COLUMN.
+   The delivery fields name themselves in their own placeholders now, so the
+   word beside the box is gone — but `.field` here is a two column grid with a
+   fixed 88px track for that word, and removing the label left the track. The
+   boxes sat 100px in behind an empty gutter, which is what was reported: three
+   arrows pointing at nothing.
+
+   Scoped to the delivery panel by its id rather than relaxed on `.field`,
+   because every other form in this dialog still puts a label in that column
+   and would collapse onto itself. */
+#step-delivery .field {
+  grid-template-columns: minmax(0, 1fr);
+}
+#step-delivery .field > * { grid-column: 1; }
+
 .fin-panel .field { margin: 0; }
 .fin-panel .field + .field { margin-top: var(--s2); }
 .fin-panel .fin-field-link { grid-column: 2; justify-self: start; font-size: var(--t-sm); margin-top: 2px; }
