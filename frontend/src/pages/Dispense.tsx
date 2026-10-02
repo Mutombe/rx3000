@@ -2344,12 +2344,48 @@ export default function Dispense() {
     } finally { setPrinting(false); }
   }
 
+  /** The scheme's own claim form, filled in.
+   *
+   *  NOT the claim copy above it, and the difference is worth the two
+   *  functions: that one is an A4 sheet we design, for the file and the
+   *  inspector. This is the pre-printed form the pharmacy buys by the box and
+   *  the funder accepts, and what comes back is an OVERLAY — the values alone,
+   *  on an empty page the size of the stationery.
+   *
+   *  So it must go to a printer with a blank form loaded, at exactly 100%.
+   *  Anything that scales it to fit a page puts every value in the wrong box,
+   *  and the form is spoiled rather than wrong in a way somebody notices.
+   */
+  async function printClaimForm(rxId?: number) {
+    const id = rxId ?? lastRxId;
+    if (!id) { toast.warn("Dispense the script first."); return; }
+    setPrinting(true);
+    try {
+      const file = await api.blob(`/api/prescriptions/${id}/claim-form.pdf`);
+      const bytes = new Uint8Array(await file.body.arrayBuffer());
+      if (roll.goesStraightToPrinter("claim")) {
+        await roll.printPage(bytes, "claim");
+        toast.ok("Claim form printed. Check it against the form before filing.");
+      } else {
+        const url = URL.createObjectURL(file.body);
+        window.open(url, "_blank", "noopener");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+    } catch (e) {
+      toast.error(errorText(e, "The claim form could not be produced."));
+    } finally { setPrinting(false); }
+  }
+
   /** The menu beside Dispense. Letters are the previous system's own. */
   const printActions: PrintAction[] = [
     { key: "l", label: "Re-print dispensing label",
       hint: "The stickers for the box, again.",
       unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
       run: () => { if (lastRxId) void printRxLabels(lastRxId); } },
+    { key: "f", label: "Claim form (the scheme's own)",
+      hint: "Onto a blank pre-printed form. Print at 100%.",
+      unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
+      run: () => { if (lastRxId) void printClaimForm(lastRxId); } },
     { key: "c", label: "Claim copy (A4)",
       hint: "For the file, or for the funder.",
       unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
@@ -4765,6 +4801,16 @@ ${d.action}`}
                     {doneRxId && (
                       <button type="button" className="linkish" onClick={() => printClaimCopy(doneRxId)}>
                         <FileText size={13} /> Claim copy
+                      </button>
+                    )}
+                    {/* The scheme's own form, offered only where there is a
+                        claim to put on it. On a cash sale there is no funder
+                        and the form would be a spoiled sheet of stationery. */}
+                    {doneRxId && !!doneSale.claim && (
+                      <button type="button" className="linkish"
+                              title="Load a blank claim form and print at 100%"
+                              onClick={() => printClaimForm(doneRxId)}>
+                        <Receipt size={13} /> Claim form
                       </button>
                     )}
                     {doneSale.status !== "paid" && (
