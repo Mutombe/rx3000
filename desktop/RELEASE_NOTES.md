@@ -13,18 +13,27 @@ underneath.
 It prints the values only. Load a blank form, print at one hundred per cent,
 and the values land in the boxes.
 
+**On plain paper too**
+
+The same form, drawn in full on an A4 sheet, for the day the box of stationery
+runs out. Boxes, captions, the drug table, the notes, the member's
+declaration, the counselling half. It is not a copy of the stationery's
+artwork, which belongs to whoever prints it, but every field is where a clerk
+expects to find it.
+
 **Read this before the first one**
 
-The first form will not line up. It cannot: the positions were worked out from
-a photograph of a completed form, which gets us the shape of it and not the
-exact millimetres.
+The positions are measured rather than guessed. The form is eight inches wide
+and the drug table's rows are 6.37mm apart, both read off the sprocket holes
+and the ruled lines of a real form, and the overlay has been laid on that form
+to check that every value lands in its own cell.
 
-So take one spare form and do this once. In the dispensary print menu there is
-a calibration sheet. Print it onto a spare form, hold the two up to the light,
-and see how far out the boxes are. Tell us the two numbers, across and down,
-and we set them for your pharmacy. After that every claim lands in the right
-place, and if you move the printer or change your form supplier you do it
-again in two minutes.
+What is still yours to set is the printer. Take one spare form and do this
+once. In the dispensary print menu there is a calibration sheet. Print it onto
+a spare form, hold the two up to the light, and see how far out the boxes are.
+Tell us the two numbers, across and down, and we set them for your pharmacy.
+If you move the printer or change your form supplier you do it again in two
+minutes.
 
 We also need your pharmacy's own number with the medical aids, which is a box
 on the form only you can fill in.
